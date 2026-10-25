@@ -1,0 +1,58 @@
+#!/bin/sh
+# psc: Pistachio Shell Control, short for `qs -c pistachio …`. Run `psc help` for the commands.
+
+config=pistachio
+
+usage() {
+    cat <<EOF
+psc: Pistachio Shell Control, short for "qs -c $config ..."
+
+  psc                          run the shell in this terminal (its log shows here)
+  psc start | stop | restart   run it in the background, stop it, or both
+  psc <target> <function> ...  call the shell, e.g. "psc launcher toggle"
+  psc ipc show                 list every target and function
+  psc log [-f]                 print (or follow) the log
+  psc list | kill | ipc ...    any other qs subcommand, for this config
+EOF
+}
+
+pids() {
+    qs list -c "$config" 2>/dev/null | sed -n 's/^ *Process ID: //p'
+}
+
+# gone <pid> <tenths of a second>: succeeds once the process has exited, fails after the wait
+gone() {
+    n=0
+    while kill -0 "$1" 2>/dev/null; do
+        [ "$n" -lt "$2" ] || return 1
+        sleep 0.1
+        n=$((n + 1))
+    done
+}
+
+# `qs kill` returns at once, and a shell can hang while exiting (seen once), so wait until each
+# process is really gone: 5 s for a clean exit, then SIGTERM, then SIGKILL. Only then can a new
+# copy take over the notification service.
+stop() {
+    old=$(pids)
+    [ -n "$old" ] || return 0
+    timeout 3 qs kill -c "$config" >/dev/null || true
+    for pid in $old; do
+        gone "$pid" 50 && continue
+        echo "psc: shell $pid didn't exit, terminating it" >&2
+        kill -TERM "$pid" 2>/dev/null
+        gone "$pid" 20 && continue
+        kill -KILL "$pid" 2>/dev/null
+        gone "$pid" 20 || { echo "psc: couldn't stop shell $pid" >&2; return 1; }
+    done
+}
+
+case "$1" in
+    "") exec qs -c "$config" ;;
+    start) exec qs -c "$config" -n -d ;; # -n: not if it's already running
+    stop) stop ;;
+    restart) stop && exec qs -c "$config" -n -d ;;
+    help | -h | --help) usage ;;
+    ipc | log | list | kill | msg | -*) exec qs -c "$config" "$@" ;;
+    *) exec qs -c "$config" ipc call "$@" ;;
+esac

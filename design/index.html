@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pistachio Noir Shell: design boards</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 32px; background: #0D0F09; color: #E5E9D8; font-family: 'Manrope', system-ui, sans-serif; }
+  h1 { font-size: 22px; margin: 0 0 4px; color: #F6F8EF; }
+  p { margin: 0 0 24px; color: #A3B08F; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 24px; }
+  figure { margin: 0; }
+  figcaption { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #A3B08F; margin-bottom: 8px; }
+  figcaption a { color: inherit; }
+  .frame { width: 100%; aspect-ratio: 16 / 10; border: 1px solid #2A2F1F; border-radius: 12px; overflow: hidden; background: #0D0F09; position: relative; }
+  iframe { border: 0; position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+<h1>Pistachio Noir Shell: design boards</h1>
+<p>Visual reference for the Quickshell build. Each board opens on its own; sample content is made up. Fonts load from Google Fonts when online.</p>
+<div class="grid" id="grid"></div>
+<script>
+  // name, width, height (the board's own size)
+  const boards = [
+    ['Main', 1440, 900, 'Desktop with the floating bar'],
+    ['Bar', 960, 420, 'Bar states'],
+    ['QuickSettings', 720, 520, 'Quick settings panel'],
+    ['NotificationCentre', 720, 600, 'Notification centre'],
+    ['Toasts', 480, 440, 'Notification popups'],
+    ['Osd', 640, 360, 'On-screen display'],
+    ['PowerMenu', 960, 540, 'Power menu'],
+    ['Lock', 960, 600, 'Lock screen'],
+    ['Launcher', 960, 600, 'Launcher: search'],
+    ['AutoHide', 960, 420, 'Auto-hide'],
+    ['LauncherHome', 960, 600, 'Launcher: home'],
+    ['LauncherSystem', 960, 600, 'Launcher: system'],
+    ['LauncherBluetooth', 960, 600, 'Launcher: Bluetooth'],
+    ['LauncherWindows', 960, 600, 'Launcher: windows'],
+    ['LauncherWorkspaces', 960, 600, 'Launcher: workspaces'],
+  ];
+  const grid = document.getElementById('grid');
+  for (const [name, w, h, title] of boards) {
+    const fig = document.createElement('figure');
+    fig.innerHTML = `<figcaption><a href="${name}.dc.html">${title}</a></figcaption><div class="frame" style="aspect-ratio:${w}/${h}"><iframe src="${name}.dc.html" width="${w}" height="${h}" title="${title}" loading="lazy"></iframe></div>`;
+    grid.appendChild(fig);
+  }
+  function fit() {
+    document.querySelectorAll('.frame').forEach(f => {
+      const i = f.querySelector('iframe');
+      i.style.transform = `scale(${f.clientWidth / Number(i.getAttribute('width'))})`;
+    });
+  }
+  addEventListener('resize', fit);
+  addEventListener('load', fit);
+  fit();
+</script>
+</body>
+</html>

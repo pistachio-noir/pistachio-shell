@@ -1,0 +1,39 @@
+pragma Singleton
+
+import Quickshell
+import QtQuick
+
+// The only place with colours and sizes. Values from design/*.dc.html.
+Singleton {
+    readonly property color bg: "#15170F"
+    readonly property color bgAlt: "#1D2016"
+    readonly property color overlay: "#2A2F1F"
+    readonly property color overlay2: "#39412A"
+    readonly property color muted: "#626F51" // ~3.4:1 on bg: never for small text
+    readonly property color subtext: "#A3B08F"
+    readonly property color text: "#E5E9D8"
+    readonly property color textBright: "#F6F8EF"
+    readonly property color pistachio: "#9FD88A" // active state only
+    readonly property color terracotta: "#DB8267"
+    readonly property color gold: "#E0B15E"
+    readonly property color sageBlue: "#7DA3B3"
+    readonly property color teal: "#7FC9A8"
+    readonly property color lavender: "#AC8ED0"
+    readonly property color clay: "#D9975A"
+
+    readonly property int barWidth: 640
+    readonly property int barHeight: 56
+    readonly property int barRadius: 28
+    readonly property int barMargin: 16
+    readonly property int chipHeight: 40
+    readonly property int chipRadius: 20
+    readonly property int tileRadius: 20
+    readonly property int panelRadius: 28
+
+    readonly property string fontUi: "Manrope"
+
+    // One easing curve for everything; CSS ease-out is close to OutCubic.
+    readonly property int easing: Easing.OutCubic
+    readonly property int hoverDuration: 120
+    readonly property int motionDuration: 200
+}

@@ -1,0 +1,160 @@
+import qs
+import qs.components
+import QtQuick
+import "fuzzy.js" as Fuzzy
+
+// A launcher result (Launcher boards): icon, title with the matched letters in pistachio, subtitle,
+// an optional workspace badge, and while selected an action label with a pistachio ↵ chip.
+Rectangle {
+    id: root
+
+    property string title
+    property var indices: []
+    property string subtitle
+    property string icon // image source; "" shows `glyph`
+    property list<string> glyph: Icons.window
+    property color glyphColor: Theme.subtext
+    property string badge
+    property bool badgeActive
+    property string action // shown before the ↵ chip, e.g. "Switch"
+    property bool actionAlways // also show the action (in subtext) when not selected
+    property bool selected
+    property bool compact
+
+    signal clicked
+
+    height: compact ? 56 : 60
+    radius: Theme.tileRadius
+    color: selected ? Theme.overlay2 : "transparent"
+    Accessible.role: Accessible.ListItem
+    Accessible.name: title + (subtitle ? ", " + subtitle : "")
+    Accessible.selected: selected
+
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.clicked()
+    }
+
+    Rectangle {
+        id: disc
+
+        x: 14
+        anchors.verticalCenter: parent.verticalCenter
+        width: root.compact ? 34 : 38
+        height: width
+        radius: width / 2
+        color: Theme.overlay
+
+        Image {
+            id: image
+            anchors.centerIn: parent
+            width: 22
+            height: 22
+            sourceSize: Qt.size(44, 44)
+            source: root.icon
+            fillMode: Image.PreserveAspectFit
+            asynchronous: true
+            visible: status === Image.Ready
+        }
+
+        Icon {
+            anchors.centerIn: parent
+            visible: !image.visible
+            paths: root.glyph
+            color: root.glyphColor
+        }
+    }
+
+    Column {
+        anchors.left: disc.right
+        anchors.leftMargin: 14
+        anchors.right: trailing.left
+        anchors.rightMargin: 12
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 1
+
+        Text {
+            width: parent.width
+            textFormat: Text.StyledText // for the highlight; fuzzy.highlight() escapes the title
+            text: Fuzzy.highlight(root.title, root.indices, Theme.pistachio)
+            elide: Text.ElideRight
+            color: root.selected ? Theme.textBright : Theme.text
+            font.family: Theme.fontUi
+            font.pixelSize: root.compact ? 14 : 15
+            font.weight: Font.Bold
+            lineHeight: root.compact ? 19 : 20
+            lineHeightMode: Text.FixedHeight
+        }
+
+        Text {
+            width: parent.width
+            visible: text !== ""
+            text: root.subtitle
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            color: Theme.subtext
+            font.family: Theme.fontUi
+            font.pixelSize: 12
+            font.weight: Font.Medium
+            lineHeight: 16
+            lineHeightMode: Text.FixedHeight
+        }
+    }
+
+    Row {
+        id: trailing
+
+        anchors.right: parent.right
+        anchors.rightMargin: 12
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 8
+
+        Rectangle {
+            visible: root.badge !== ""
+            anchors.verticalCenter: parent.verticalCenter
+            width: Math.max(30, badgeText.implicitWidth + 18)
+            height: 24
+            radius: 12
+            color: Theme.overlay
+
+            Text {
+                id: badgeText
+                anchors.centerIn: parent
+                text: root.badge
+                color: root.badgeActive ? Theme.pistachio : Theme.subtext
+                font.family: Theme.fontUi
+                font.pixelSize: 12
+                font.weight: Font.ExtraBold
+            }
+        }
+
+        Text {
+            visible: (root.selected || root.actionAlways) && root.action !== ""
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.action
+            color: root.selected ? Theme.textBright : Theme.subtext
+            font.family: Theme.fontUi
+            font.pixelSize: 12
+            font.weight: Font.Bold
+        }
+
+        Rectangle {
+            visible: root.selected
+            anchors.verticalCenter: parent.verticalCenter
+            width: 28
+            height: 26
+            radius: 13
+            color: Theme.pistachio
+
+            Text {
+                anchors.centerIn: parent
+                text: "↵"
+                color: Theme.bg
+                font.family: Theme.fontUi
+                font.pixelSize: 12
+                font.weight: Font.ExtraBold
+            }
+        }
+    }
+}

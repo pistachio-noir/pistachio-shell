@@ -37,6 +37,10 @@ PanelWindow {
     property string mode: "all"
     property var confirming: null // a power action waiting for a yes: the results make way for the question
     readonly property string query: field.text
+    // The pairing agent's question (Bluetooth.request) also takes the place of the results; the
+    // launcher opens for it. A PIN or passkey is typed into the search field.
+    readonly property bool codeWanted: Bluetooth.request?.kind === "pin" || Bluetooth.request?.kind === "passkey"
+    readonly property bool codeValid: Bluetooth.request?.kind === "pin" ? query.length > 0 : /^\d{1,6}$/.test(query)
     // Windows and workspaces as they were when the launcher opened, so the rows only change when you
     // type or switch mode, not under the cursor (window titles change all the time).
     property var windows: []
@@ -53,9 +57,15 @@ PanelWindow {
     // Bluetooth is a view inside System (LauncherBluetooth board), so it has no tab of its own;
     // the System tab stays highlighted.
     readonly property string tab: mode === "bluetooth" ? "system" : mode
-    readonly property string placeholder: mode === "bluetooth" ? "Filter devices…" : modes.find(m => m.id === mode).placeholder
+    readonly property string placeholder: Bluetooth.request ? (Bluetooth.request.kind === "pin" ? "PIN" : Bluetooth.request.kind === "passkey" ? "6-digit code" : "Bluetooth")
+        : mode === "bluetooth" ? "Filter devices…" : modes.find(m => m.id === mode).placeholder
+    readonly property var keyHints: Bluetooth.request ? (codeWanted ? [["↵", "pair"], ["Esc", "cancel"]]
+            : Bluetooth.request.id ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "decline"]]
+            : [["Esc", "cancel pairing"]])
+        : confirming ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "back"]]
+        : hints[mode]
     // scan for new devices only while the Bluetooth view is on screen
-    readonly property bool scanWanted: open && mode === "bluetooth" && Bluetooth.enabled
+    readonly property bool scanWanted: open && mode === "bluetooth" && Bluetooth.ready
     onScanWantedChanged: Bluetooth.setScanning(scanWanted)
 
     // opens in mode m, switches to it, or closes if it's already showing it
@@ -223,10 +233,43 @@ PanelWindow {
         return v === null ? [] : [{ kind: "calc", key: "calc", title: "= " + Calc.format(v), subtitle: q.trim() }];
     }
 
+    // The agent's question, worded for the launcher; the last choice accepts. Codes to type on the
+    // device show a cursor under the next key once the device reports the keys typed.
+    function pairingQuestion(r): var {
+        const name = Bluetooth.requestName;
+        const q = { icon: Icons.bluetooth, title: `Pair with ${name}?`, text: "", code: "", entered: -1, input: false, choices: ["Cancel", "Pair"] };
+        if (r.kind === "confirm") {
+            q.text = "Pair only if the device shows the same code.";
+            q.code = r.code;
+        } else if (r.kind === "authorize") {
+            q.text = "The device asks to pair with this computer.";
+            q.choices = ["Decline", "Pair"];
+        } else if (r.kind === "service") {
+            q.title = `Let ${name} use ${Bluetooth.serviceName(r.uuid)}?`;
+            q.text = "The device is paired but not trusted, so it asks each time.";
+            q.choices = ["Decline", "Allow"];
+        } else if (r.kind === "pin") {
+            q.text = "Type the PIN the device shows or its manual gives (often 0000), then press Enter.";
+            q.input = true;
+        } else if (r.kind === "passkey") {
+            q.text = "Type the 6-digit code the device shows, then press Enter.";
+            q.input = true;
+        } else { // display-pin, display-passkey
+            q.title = `Pairing with ${name}`;
+            q.text = "Type this code on the device, then press Enter on it.";
+            q.code = r.code;
+            q.entered = r.entered;
+            q.choices = ["Cancel"];
+        }
+        return q;
+    }
+
     // (windows and workspaces are parameters only so the binding re-runs when a snapshot is taken)
     function buildRows(mode: string, q: string, windows, workspaces): var {
+        if (Bluetooth.request)
+            return [{ kind: "pairing", key: "pairing", question: pairingQuestion(Bluetooth.request) }];
         if (confirming)
-            return [{ kind: "confirm", key: "confirm:" + confirming.id, action: confirming }];
+            return [{ kind: "confirm", key: "confirm:" + confirming.id, action: confirming, question: { icon: confirming.icon, danger: confirming.danger ?? false, title: `${confirming.title}?`, text: confirming.confirm, choices: ["Cancel", confirming.title] } }];
         let rows;
         if (mode === "apps") {
             rows = calcRows(q).concat([section("Applications")], appRows(q, 200));
@@ -272,14 +315,16 @@ PanelWindow {
         return selectable(from) ? from : -1;
     }
 
+    // a workspace grid starts at the active one; a question at Cancel, unless a code is typed for it
     function resetSelection() {
         current = step(-1, 1);
-        const cards = rows[current]?.cards;
-        column = cards ? Math.max(0, cards.findIndex(c => c.active)) : 0;
+        const row = rows[current];
+        column = row?.cards ? Math.max(0, row.cards.findIndex(c => c.active)) : row?.question?.input ? 1 : 0;
     }
 
+    // (while a code is typed, ←→ move the cursor in it)
     function gridLength(row): int {
-        return row.kind === "workspaces" ? row.cards.length : row.kind === "controls" ? controls.length : row.kind === "confirm" ? 2 : 0;
+        return row.kind === "workspaces" ? row.cards.length : row.kind === "controls" ? controls.length : row.question && !row.question.input ? row.question.choices.length : 0;
     }
 
     function adjust(row, dir: int) {
@@ -348,6 +393,10 @@ PanelWindow {
                 Bluetooth.toggleConnection(row.device);
             else
                 Bluetooth.pair(row.device);
+        } else if (row.kind === "pairing") {
+            if (row.question.input && col === 1 && !codeValid)
+                return; // nothing to send yet
+            Bluetooth.answer(col === 1, row.question.input ? query : "");
         }
     }
 
@@ -361,13 +410,17 @@ PanelWindow {
         event.accepted = false; // unhandled keys go on to the search field
         switch (pressed) {
         case Qt.Key_Escape:
-            if (confirming)
+            if (Bluetooth.request)
+                Bluetooth.answer(false, ""); // back to the devices
+            else if (confirming)
                 confirming = null; // back to the results
             else
                 open = false;
             break;
         case Qt.Key_Tab:
         case Qt.Key_Backtab: {
+            if (Bluetooth.request)
+                break; // answer it first
             const i = modes.findIndex(m => m.id === mode);
             mode = modes[(i + (event.key === Qt.Key_Backtab ? -1 : 1) + modes.length) % modes.length].id;
             break;
@@ -423,7 +476,39 @@ PanelWindow {
     // rows also change under the launcher (windows open and close); keep the selection valid
     onRowsChanged: if (!selectable(current)) resetSelection()
 
-    onOpenChanged: grab.active = open
+    onOpenChanged: {
+        grab.active = open;
+        if (!open)
+            Bluetooth.answer(false, ""); // closing declines a question still waiting
+    }
+
+    Connections {
+        target: Bluetooth
+
+        function onAsked() {
+            if (!root.open)
+                root.show("bluetooth");
+            root.confirming = null;
+            root.mode = "bluetooth"; // the devices are there once it's answered
+            field.text = "";
+            root.resetSelection();
+        }
+
+        function onRequestChanged() {
+            if (!Bluetooth.request)
+                field.text = ""; // never leave a typed code in the search
+        }
+    }
+
+    // what a PIN (1–16 letters and digits) and a passkey (up to 6 digits) may hold
+    RegularExpressionValidator {
+        id: pinChars
+        regularExpression: /[0-9A-Za-z]{0,16}/
+    }
+    RegularExpressionValidator {
+        id: passkeyChars
+        regularExpression: /\d{0,6}/
+    }
 
     // ---- window ---------------------------------------------------------------------------------
 
@@ -521,7 +606,7 @@ PanelWindow {
                     x: 26
                     anchors.verticalCenter: parent.verticalCenter
                     size: 20
-                    paths: Icons.search
+                    paths: Bluetooth.request ? Icons.bluetooth : Icons.search
                     color: Theme.subtext
                 }
 
@@ -541,6 +626,9 @@ PanelWindow {
                     font.weight: Font.DemiBold
                     focus: true
                     clip: true
+                    // takes only a code while the agent wants one, and nothing during its other questions
+                    readOnly: !!Bluetooth.request && !root.codeWanted
+                    validator: Bluetooth.request?.kind === "pin" ? pinChars : Bluetooth.request?.kind === "passkey" ? passkeyChars : null
                     Accessible.role: Accessible.EditableText
                     Accessible.name: root.placeholder
                     Keys.onPressed: event => root.key(event)
@@ -548,6 +636,7 @@ PanelWindow {
                     cursorDelegate: Rectangle {
                         width: 2
                         color: Theme.pistachio
+                        opacity: field.readOnly ? 0 : 1
                     }
 
                     Text {
@@ -684,7 +773,8 @@ PanelWindow {
                                 time: timeView,
                                 calc: resultView,
                                 power: resultView,
-                                confirm: confirmView
+                                confirm: questionView,
+                                pairing: questionView
                             })[entry.modelData.kind]
                         }
 
@@ -836,21 +926,26 @@ PanelWindow {
                         }
 
                         Component {
-                            id: confirmView
+                            id: questionView
 
-                            // "Shut down?" with Cancel and the action; Cancel is chosen first
+                            // A question in place of the results: "Shut down?" with Cancel and the action, or the
+                            // pairing agent's, perhaps with a code to compare or to type on the device. The first
+                            // choice (Cancel) is chosen first, except where a code is typed in the search field.
                             Rectangle {
-                                readonly property var action: entry.modelData.action
+                                id: question
+
+                                readonly property var q: entry.modelData.question
+                                readonly property bool hasCode: !!q.code
 
                                 width: loader.width
-                                height: 136
+                                height: choices.y + choices.height + 14
                                 radius: Theme.tileRadius
                                 color: Theme.overlay
                                 Accessible.role: Accessible.AlertMessage
-                                Accessible.name: `${action.title}? ${action.confirm}`
+                                Accessible.name: `${q.title} ${q.text}${hasCode ? " " + q.code.split("").join(" ") : ""}`
 
                                 Rectangle {
-                                    id: confirmDisc
+                                    id: questionDisc
                                     x: 14
                                     y: 16
                                     width: 38
@@ -860,13 +955,14 @@ PanelWindow {
 
                                     Icon {
                                         anchors.centerIn: parent
-                                        paths: parent.parent.action.icon
-                                        color: parent.parent.action.danger ? Theme.terracotta : Theme.textBright
+                                        paths: question.q.icon
+                                        color: question.q.danger ? Theme.terracotta : Theme.textBright
                                     }
                                 }
 
                                 Column {
-                                    anchors.left: confirmDisc.right
+                                    id: questionText
+                                    anchors.left: questionDisc.right
                                     anchors.leftMargin: 14
                                     anchors.right: parent.right
                                     anchors.rightMargin: 14
@@ -874,7 +970,10 @@ PanelWindow {
                                     spacing: 2
 
                                     Text {
-                                        text: `${parent.parent.action.title}?`
+                                        width: parent.width
+                                        text: question.q.title
+                                        textFormat: Text.PlainText // device names come from the device
+                                        elide: Text.ElideRight
                                         color: Theme.textBright
                                         font.family: Theme.fontUi
                                         font.pixelSize: 15
@@ -883,7 +982,7 @@ PanelWindow {
 
                                     Text {
                                         width: parent.width
-                                        text: parent.parent.action.confirm
+                                        text: question.q.text
                                         wrapMode: Text.Wrap
                                         color: Theme.subtext
                                         font.family: Theme.fontUi
@@ -892,27 +991,65 @@ PanelWindow {
                                     }
                                 }
 
+                                // the code, a pistachio cursor under the next key to type on the device
                                 Row {
+                                    id: code
+                                    anchors.left: questionText.left
+                                    anchors.top: questionText.bottom
+                                    anchors.topMargin: 14
+                                    visible: question.hasCode
+                                    spacing: 6
+
+                                    Repeater {
+                                        model: question.hasCode ? question.q.code.split("") : []
+
+                                        Text {
+                                            required property string modelData
+                                            required property int index
+
+                                            text: modelData
+                                            color: index < question.q.entered ? Theme.subtext : Theme.textBright
+                                            font.family: Theme.fontUi
+                                            font.pixelSize: 28
+                                            font.weight: Font.ExtraBold
+                                            font.features: { "tnum": 1 }
+
+                                            Rectangle {
+                                                anchors.top: parent.bottom
+                                                width: parent.width
+                                                height: 2
+                                                radius: 1
+                                                color: Theme.pistachio
+                                                visible: parent.index === question.q.entered
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Row {
+                                    id: choices
                                     anchors.right: parent.right
                                     anchors.rightMargin: 14
-                                    anchors.bottom: parent.bottom
-                                    anchors.bottomMargin: 14
+                                    // 82 keeps the power question as tall as before (136)
+                                    y: Math.max(82, (question.hasCode ? code.y + code.height : questionText.y + questionText.height) + 20)
                                     spacing: 8
 
                                     Repeater {
-                                        model: ["Cancel", parent.parent.action.title]
+                                        model: question.q.choices
 
                                         Rectangle {
                                             id: choice
 
                                             required property string modelData
                                             required property int index
-                                            readonly property bool chosen: root.column === index
+                                            // Pair waits for a code that can be sent
+                                            readonly property bool disabled: (question.q.input ?? false) && index === 1 && !root.codeValid
+                                            readonly property bool chosen: root.column === index && !disabled
 
                                             width: choiceLabel.implicitWidth + 32
                                             height: 40
                                             radius: 20
-                                            color: chosen ? Theme.pistachio : choiceMouse.containsMouse ? Theme.overlay2 : Theme.bgAlt
+                                            color: chosen ? Theme.pistachio : choiceMouse.containsMouse && !disabled ? Theme.overlay2 : Theme.bgAlt
                                             Accessible.role: Accessible.Button
                                             Accessible.name: modelData
 
@@ -920,7 +1057,7 @@ PanelWindow {
                                                 id: choiceLabel
                                                 anchors.centerIn: parent
                                                 text: choice.modelData
-                                                color: choice.chosen ? Theme.bg : Theme.text
+                                                color: choice.chosen ? Theme.bg : choice.disabled ? Theme.subtext : Theme.text
                                                 font.family: Theme.fontUi
                                                 font.pixelSize: 13
                                                 font.weight: choice.chosen ? Font.ExtraBold : Font.Bold
@@ -929,6 +1066,7 @@ PanelWindow {
                                             MouseArea {
                                                 id: choiceMouse
                                                 anchors.fill: parent
+                                                enabled: !choice.disabled
                                                 hoverEnabled: true
                                                 cursorShape: Qt.PointingHandCursor
                                                 onClicked: {
@@ -1168,7 +1306,7 @@ PanelWindow {
                     spacing: 20
 
                     Repeater {
-                        model: root.confirming ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "back"]] : root.hints[root.mode]
+                        model: root.keyHints
 
                         Row {
                             required property var modelData

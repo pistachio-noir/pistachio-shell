@@ -35,6 +35,7 @@ Scope {
                 volume: Audio.volume,
                 muted: Audio.muted,
                 bluetooth: Bluetooth.enabled,
+                agent: Bluetooth.agent,
                 ethernet: Network.connected,
                 speed: Network.speed,
                 brightness: Brightness.value,

@@ -2,14 +2,17 @@ pragma Singleton
 
 import Quickshell
 import Quickshell.Bluetooth as Bz // namespaced: this file is itself called Bluetooth
+import Quickshell.Io
 import QtQuick
 
-// The default adapter: power, devices, scanning and device actions.
+// The default adapter: power, devices, scanning and device actions, and the pairing agent.
 Singleton {
     id: root
 
     // false until BlueZ reports an adapter
     readonly property bool enabled: Bz.Bluetooth.defaultAdapter?.enabled ?? false
+    // powered on and done switching, so it can scan: `enabled` turns true as soon as the shell asks
+    readonly property bool ready: Bz.Bluetooth.defaultAdapter?.state === Bz.BluetoothAdapterState.Enabled
     readonly property bool discoverable: Bz.Bluetooth.defaultAdapter?.discoverable ?? false
     readonly property bool scanning: Bz.Bluetooth.defaultAdapter?.discovering ?? false
     // every device the adapter knows: paired ones and ones found while scanning
@@ -51,8 +54,7 @@ Singleton {
             device.connect();
     }
 
-    // shortcut: there is no pairing agent, so devices that show a PIN or passkey will not pair;
-    // add one (or fall back to bluetoothctl) if a keyboard needs it
+    // codes and questions on the way come in as `request`
     function pair(device) {
         device.trusted = true; // so it can reconnect on its own later
         device.pair();
@@ -83,5 +85,110 @@ Singleton {
         id: scanLimit
         interval: 60000
         onTriggered: root.setScanning(false)
+    }
+
+    // ---- pairing agent -------------------------------------------------------------------------
+    // Quickshell has none, so services/bluetooth-agent.py registers one with BlueZ and passes its
+    // questions here. BlueZ asks one at a time; the launcher shows it (and opens for it).
+
+    readonly property bool agent: agentReady && agentProcess.running // registered as BlueZ's default agent
+    property bool agentReady
+    // the question waiting for an answer, or null: { id, kind, path, code, entered, uuid }; kinds
+    // as in bluetooth-agent.py. Display kinds (a code to type on the device) need no answer: id 0.
+    property var request: null
+    readonly property var requestDevice: request ? devices.find(d => d.dbusPath === request.path) ?? null : null
+    // the device's name, or its address while Quickshell hasn't listed it yet
+    readonly property string requestName: requestDevice ? name(requestDevice) : request ? request.path.split("dev_")[1]?.replace(/_/g, ":") ?? "" : ""
+    // a new question (not just a code display catching up with the keys typed)
+    signal asked
+
+    // Answers `request`. For a code on display, declining cancels the pairing. Accepting a pairing
+    // also trusts the device, as pair() does, so it can reconnect without asking.
+    function answer(accept: bool, value: string) {
+        const r = request, device = requestDevice;
+        if (!r)
+            return;
+        request = null;
+        if (r.id)
+            reply(r.id, accept, value);
+        else if (!accept)
+            device?.cancelPair();
+        if (accept && r.kind !== "service" && device)
+            device.trusted = true;
+    }
+
+    function reply(id: int, accept: bool, value: string) {
+        agentProcess.write(JSON.stringify({ id: id, accept: accept, value: value }) + "\n");
+    }
+
+    function heard(line: string) {
+        let m;
+        try {
+            m = JSON.parse(line);
+        } catch (e) {
+            console.warn("bluetooth agent:", line);
+            return;
+        }
+        if (m.event === "ready") {
+            agentReady = true;
+        } else if (m.event === "lost") {
+            agentReady = false;
+            request = null;
+        } else if (m.event === "cancel") {
+            request = null;
+        } else if (m.event === "request") {
+            ask(m);
+        }
+    }
+
+    function ask(m) {
+        if (Session.locked) { // nobody can answer behind the lock screen
+            if (m.id)
+                reply(m.id, false, "");
+            return;
+        }
+        if (request?.id && request.id !== m.id)
+            reply(request.id, false, ""); // BlueZ moved on without saying so
+        const update = request && !m.id && request.kind === m.kind && request.path === m.device;
+        request = { id: m.id, kind: m.kind, path: m.device, code: m.code ?? "", entered: m.entered ?? -1, uuid: m.uuid ?? "" };
+        if (!update)
+            asked();
+    }
+
+    // "audio", "input", …, from the 16-bit part of a standard service UUID ("0000110d-…")
+    function serviceName(uuid: string): string {
+        const known = { "1101": "a serial port", "1105": "file sharing", "1106": "file transfer", "1108": "headset audio", "110a": "audio", "110b": "audio", "110c": "media controls", "110d": "audio", "110e": "media controls", "1112": "headset audio", "1115": "networking", "1116": "networking", "111e": "hands-free calls", "111f": "hands-free calls", "1124": "input", "112f": "your contacts", "1132": "messages", "1812": "input" };
+        return known[uuid.slice(4, 8).toLowerCase()] ?? "a service";
+    }
+
+    // a code on display is done once the device has paired (if it fails, BlueZ sends Cancel)
+    readonly property bool codeTyped: (request?.kind.startsWith("display") ?? false) && (requestDevice?.paired ?? false)
+    onCodeTypedChanged: if (codeTyped) request = null
+
+    Connections {
+        target: Session
+        function onLockedChanged() {
+            if (Session.locked)
+                root.answer(false, "");
+        }
+    }
+
+    Process {
+        id: agentProcess
+        running: !!Bz.Bluetooth.defaultAdapter
+        command: ["python3", "-I", Quickshell.shellPath("services/bluetooth-agent.py")]
+        stdinEnabled: true
+        stdout: SplitParser {
+            onRead: data => root.heard(data)
+        }
+        stderr: SplitParser {
+            onRead: data => console.warn("bluetooth agent:", data)
+        }
+        onExited: code => {
+            if (code !== 0 && !root.agentReady)
+                console.warn("bluetooth agent exited with code", code, "before registering (is python-gobject installed?)");
+            root.agentReady = false;
+            root.request = null;
+        }
     }
 }

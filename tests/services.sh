@@ -1,6 +1,6 @@
 #!/bin/bash
 # Self-check that the quick settings services change real system state: volume and per-app volume (PipeWire),
-# Bluetooth power (BlueZ), monitor brightness (DDC/CI) and night light (hyprsunset, if installed).
+# Bluetooth power and the pairing agent (BlueZ), monitor brightness (DDC/CI) and night light (hyprsunset, if installed).
 # Everything is put back on exit. Ethernet is only read: toggling it would cut the network.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)/harness"
@@ -47,10 +47,12 @@ ipc setVolume 0.42; sleep 0.5
 expect "volume set to 0.42" sh -c "wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -qx 'Volume: 0.42'"
 check "abs(s['volume'] - 0.42) < 0.01 and not s['muted']" "service reports 0.42, unmuted"
 
+check "s['agent']" "pairing agent registered with BlueZ"
 ipc setBluetooth false; sleep 2
 expect "Bluetooth powered off" sh -c "bluetoothctl show | grep -q 'Powered: no'"
 ipc setBluetooth true; sleep 2
 expect "Bluetooth powered on" sh -c "bluetoothctl show | grep -q 'Powered: yes'"
+check "s['agent']" "pairing agent still registered"
 
 if [ -n "$BRIGHTNESS" ]; then
     ipc setBrightness 0.6; sleep 2

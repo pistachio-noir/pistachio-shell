@@ -25,6 +25,14 @@ Singleton {
         return node.nickname || node.description || node.name;
     }
 
+    // headphones or a headset, wired or Bluetooth, rather than speakers (needs the node tracked).
+    // A Bluetooth output doesn't carry its device's form factor, so BlueZ's icon for it decides.
+    function isHeadphones(node): bool {
+        const p = node?.properties ?? {};
+        const bluez = p["api.bluez5.address"] ? Bluetooth.devices.find(d => d.address === p["api.bluez5.address"]) : null;
+        return ["headphone", "headset"].includes(p["device.form-factor"]) || /headphone|headset/.test(bluez?.icon ?? p["device.icon-name"] ?? "");
+    }
+
     function appName(node): string {
         return node.properties?.["application.name"] || node.description || node.name;
     }

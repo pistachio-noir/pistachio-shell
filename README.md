@@ -11,7 +11,8 @@ What you get:
 - **Notifications:** toasts above the bar and a notification centre with history, which survives restarts. The shell is the notification daemon. Do not disturb holds back toasts, except critical ones.
 - **Remembered settings:** Do not disturb, night light (on/off, warmth, schedule) and notification history are kept across restarts and reboots.
 - **Launcher:** apps, windows, workspaces, system controls and Bluetooth devices, with fuzzy search. System mode has cards for audio, night light (on/off, warmth, schedule) and Bluetooth (on/off, battery, scanning), plus each app's volume and the output devices. Type a calculation such as `12*(3+4)` and the answer shows at the top.
-- **OSD:** a volume and brightness indicator.
+- **Bluetooth pairing:** the shell is the pairing agent, so devices that show or ask for a code pair too (phones, keyboards). The question ("Pair with …?", the code to compare or to type) opens in the launcher.
+- **OSD:** a volume and brightness indicator, which also names the new output device when the sound moves, e.g. to headphones as they connect.
 - **Power menu:** lock, log out, suspend, reboot and shut down, over a blurred still of the screen.
 - **Lock screen:** checks your password through PAM.
 
@@ -26,6 +27,7 @@ Tested on Arch Linux with Hyprland 0.56.2 (Lua config) and Quickshell 0.3.2 on Q
 | Audio | `pipewire`, `wireplumber`, `pipewire-pulse` | volume, per-app volume, output devices, OSD; `wpctl` for the volume keys | no volume controls |
 | Media | any player that speaks MPRIS (browsers, Spotify, mpv with `mpv-mpris`) | the media card in quick settings | the card stays hidden |
 | Bluetooth | `bluez`, `bluez-utils`, with `bluetooth.service` running | Bluetooth tile, chip, launcher Bluetooth view | Bluetooth shows as off |
+| Pairing agent | `python-gobject` | pairing devices that show or ask for a code, and devices asking to connect | only devices that need no code pair; the log says `bluetooth agent exited` |
 | Network | `networkmanager`, with `NetworkManager.service` running | Ethernet tile and chip (Quickshell only talks to NetworkManager) | Ethernet shows as unplugged |
 | Brightness | `ddcutil`, and DDC/CI switched on in your monitor's own menu | brightness slider, brightness keys, OSD | the brightness slider is hidden |
 | Night light | `hyprsunset` | Night light tile, warmth slider and schedule; the shell starts and stops it itself | the tile says "Not installed" |
@@ -38,7 +40,7 @@ The `ddcutil` package already loads the `i2c-dev` module and gives the logged-in
 
 Manrope isn't in the official repos, so `install.sh` downloads it: Google Fonts' variable TTF (every weight from 200 to 800 in one file) and its licence go into `~/.local/share/fonts/manrope/`. Not Fontsource's files: they name every weight "Manrope ExtraLight", so nothing matches "Manrope" and the shell falls back to another font. By hand: download `Manrope[wght].ttf` from [Google Fonts](https://fonts.google.com/specimen/Manrope) into that folder and run `fc-cache -f`.
 
-For the tests in `tests/` you also need `nodejs` and `libnotify` (`notify-send`); `pw-cat` (part of `pipewire`) plays the silent test stream.
+For the tests in `tests/` you also need `nodejs` and `libnotify` (`notify-send`); `pw-cat` (part of `pipewire`) plays the silent test stream, and `gdbus` (part of `glib2`) asks the pairing agent its test questions.
 
 ## Installation
 
@@ -46,7 +48,7 @@ For the tests in `tests/` you also need `nodejs` and `libnotify` (`notify-send`)
 
    ```sh
    sudo pacman -S --needed hyprland quickshell pipewire wireplumber pipewire-pulse \
-       bluez bluez-utils networkmanager ddcutil hyprsunset kitty
+       bluez bluez-utils python-gobject networkmanager ddcutil hyprsunset kitty
    sudo systemctl enable --now bluetooth.service NetworkManager.service
    ```
 
@@ -188,6 +190,13 @@ Mouse and keyboard work inside each part too:
 - **Tray pill:** left click opens or activates the app, right click opens its menu (in Pistachio colours; submenus open in place with a Back row, and Esc or a click outside closes it), middle click runs its secondary action, and scrolling goes to the app (e.g. a volume applet).
 - **Quick settings:** click a tile to switch it on or off. Right-click the Bluetooth tile for quick connections: Bluetooth on/off and your paired devices (click one to connect or disconnect), plus "Pair new devices…", which opens the launcher's Bluetooth view. Right-click the Night light tile to set its schedule: a switch, and the times it turns on and off (− and + or the mouse wheel, in 15-minute steps). The schedule switches only at those two times, so switching by hand holds until the next one; the tile then reads "Until 07:00" or "From 20:00". Click the speaker icon to mute.
 - **Launcher:** type to search; a calculation (`+ - * / ^`, brackets, `.` or `,` for decimals) in All or Apps mode shows its answer, which is only shown, not copied. Power actions come up by name or a common word for them (lock, log out / logout / sign out, suspend / sleep, reboot / restart, shut down / shutdown / power off / turn off). Lock happens at once; the others ask first ("Shut down?" with Cancel and Shut down), with Cancel chosen, so a second Enter does nothing. The keys are in the table below.
+- **Bluetooth pairing:** pick a nearby device in the launcher's Bluetooth view, or let a device ask (the launcher opens for it). Depending on the device, it asks you to:
+  - **compare a code:** pair only if the device shows the same 6 digits.
+  - **type a code into the search field:** the PIN or 6-digit code the device shows (old devices often use 0000), then Enter.
+  - **type a code on the device:** a keyboard shows the code to type on it, then Enter on that keyboard; a pistachio cursor follows the keys if the keyboard reports them.
+  - **allow a connection:** a device that is paired but not trusted asks to use a service, such as audio.
+
+  As with the power questions, Cancel or Decline is chosen first and ←→ choose. Esc or closing the launcher declines. Questions are declined while the screen is locked. Accepting a pairing also trusts the device, so it reconnects without asking.
 - **Power menu:** L, E, S, R and P act at once; ←→ and Enter pick one; Esc or a click on the background closes it.
 
 Launcher keys. The vim motions only work while Ctrl is held, so plain h j k l still type into the search, and the arrows keep working too:
@@ -202,7 +211,7 @@ Launcher keys. The vim motions only work while Ctrl is held, so plain h j k l st
 | Ctrl+W | close the selected window |
 | Ctrl+M | mute |
 | Ctrl+Backspace | forget the selected Bluetooth device |
-| Esc | close; on a power question, go back to the results |
+| Esc | close; on a power question, go back to the results; on a Bluetooth question, decline it |
 
 ## Lock screen
 
@@ -294,6 +303,7 @@ SDDM isn't part of the shell, and the theme works on its own: it brings its own 
 - **Two bars:** two copies are running. `qs list --all` shows them; `psc restart` leaves one.
 - **Brightness slider missing:** the monitor didn't answer. Run `ddcutil getvcp 10` and turn on DDC/CI in the monitor's menu.
 - **Night light tile says "Not installed":** install `hyprsunset`.
+- **A device that shows a code won't pair:** `psc log` shows a `bluetooth agent` line when the pairing agent can't start or register; install `python-gobject` if it says so. While the shell runs it is BlueZ's default agent, so it also takes over from another one, such as a KDE session's.
 - **An app's tray icon doesn't show:** the shell shows StatusNotifierItem icons, which most current apps use; apps with only the old X11 tray don't appear. Icons an app marks as passive (idle) are left out on purpose.
 - **App icons missing in the launcher:** Qt couldn't find an icon theme. Install one, for example `papirus-icon-theme` or `breeze-icons`, and select it in `qt6ct`, which needs `hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")` in `hyprland.lua`.
 - **A change in `src/` didn't show:** reloading occasionally misses a save; restart the shell (see "Updating and restarting").

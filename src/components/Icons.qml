@@ -13,6 +13,8 @@ Singleton {
     readonly property list<string> bluetooth: ["M7 7l10 10-5 5V2l5 5L7 17"]
     readonly property list<string> volume: ["M11 5 6 9H2v6h4l5 4V5z", "M15.54 8.46a5 5 0 0 1 0 7.07", "M19.07 4.93a10 10 0 0 1 0 14.14"]
     readonly property list<string> volumeMuted: ["M11 5 6 9H2v6h4l5 4V5z", "M22 9l-6 6", "M16 9l6 6"]
+    readonly property list<string> speaker: ["M4 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z", "M8 14a4 4 0 1 0 8 0a4 4 0 1 0-8 0", "M12 6h.01"]
+    readonly property list<string> headphones: ["M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"]
     readonly property list<string> moon: ["M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"]
     readonly property list<string> sun: ["M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0", "M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"]
     readonly property list<string> thermometer: ["M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"]

@@ -23,14 +23,28 @@ PanelWindow {
     readonly property bool output: kind === "output"
     readonly property bool muted: kind !== "brightness" && Audio.muted
     readonly property real value: kind === "brightness" ? Brightness.value : Audio.volume
+    // The bar and number ease to a new value; they start at it while hidden and on a switch between
+    // volume and brightness, rather than sweep from the other one.
+    property real level: value
+    property bool snap
     // the default output's node name, to tell a real switch from the moment between two devices
     property string outputNode
     property string outputName
     Component.onCompleted: outputNode = Audio.sink?.name ?? ""
 
     function show(k: string) {
+        snap = k !== kind;
         kind = k;
+        snap = false;
         hide.restart();
+    }
+
+    Behavior on level {
+        enabled: reveal.shown && !root.snap
+        NumberAnimation {
+            duration: Theme.motionDuration
+            easing.type: Theme.easing
+        }
     }
 
     visible: reveal.shown
@@ -176,7 +190,7 @@ PanelWindow {
             color: Theme.overlay
 
             Rectangle {
-                width: parent.width * Math.min(1, root.value)
+                width: parent.width * Math.min(1, root.level)
                 height: parent.height
                 radius: 4
                 color: root.muted ? Theme.overlay2 : Theme.pistachio
@@ -192,7 +206,7 @@ PanelWindow {
             // a new output's volume reads 0 until PipeWire has bound it
             visible: !root.output || (Audio.sink?.ready ?? false)
             horizontalAlignment: Text.AlignRight
-            text: root.muted ? "Muted" : Math.round(root.value * 100)
+            text: root.muted ? "Muted" : Math.round(root.level * 100)
             color: root.muted ? Theme.subtext : Theme.textBright
             font.family: Theme.fontUi
             font.pixelSize: 13

@@ -77,6 +77,7 @@ PanelWindow {
     }
 
     function show(m: string) {
+        list.enter();
         confirming = null;
         snapshot();
         mode = m === "bluetooth" || modes.some(x => x.id === m) ? m : "all";
@@ -473,7 +474,11 @@ PanelWindow {
         event.accepted = true;
     }
 
-    onModeChanged: resetSelection()
+    onModeChanged: {
+        list.enter(); // the new rows rise into place
+        resetSelection();
+    }
+    onConfirmingChanged: list.enter() // a question in place of the results, or back from it
     onQueryChanged: {
         confirming = null; // typing goes back to searching
         resetSelection();
@@ -671,21 +676,47 @@ PanelWindow {
                 width: parent.width
                 height: 36 + 12
 
+                // the active tab's chip, one for all of them, so it slides to the next
+                Rectangle {
+                    readonly property Item active: tabs.count > 0 ? tabs.itemAt(root.modes.findIndex(m => m.id === root.tab)) : null
+
+                    x: tabRow.x + (active?.x ?? 0)
+                    width: active?.width ?? 0
+                    height: 36
+                    radius: 18
+                    color: Theme.overlay
+
+                    Behavior on x {
+                        NumberAnimation {
+                            duration: Theme.motionDuration
+                            easing.type: Theme.easing
+                        }
+                    }
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: Theme.motionDuration
+                            easing.type: Theme.easing
+                        }
+                    }
+                }
+
                 Row {
+                    id: tabRow
+
                     x: 18
                     spacing: 6
 
                     Repeater {
+                        id: tabs
+
                         model: root.modes
 
-                        Rectangle {
+                        Item {
                             required property var modelData
                             readonly property bool active: modelData.id === root.tab
 
                             width: tabLabel.implicitWidth + 32
                             height: 36
-                            radius: 18
-                            color: active ? Theme.overlay : "transparent"
                             Accessible.role: Accessible.PageTab
                             Accessible.name: modelData.label
                             Accessible.selected: active
@@ -698,6 +729,13 @@ PanelWindow {
                                 font.family: Theme.fontUi
                                 font.pixelSize: 13
                                 font.weight: Font.Bold
+
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Theme.motionDuration
+                                        easing.type: Theme.easing
+                                    }
+                                }
                             }
 
                             MouseArea {
@@ -731,9 +769,118 @@ PanelWindow {
                     height: Math.min(contentHeight, 440)
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
+                    // The selection: one chip under the rows that glides from row to row (the rows don't
+                    // draw their own). Grid rows and questions mark their choice inside, so it fades out
+                    // on them.
+                    property rect glide // the selected row's box, in the list's content
+                    // A held arrow key repeats every 30 ms or so, faster than a glide: the chip lagged
+                    // rows behind the selection. A move that soon after the last one jumps instead.
+                    property real movedAt
+                    property bool quick
+                    readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing"].includes(root.rows[root.current].kind)
+                    // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
+                    readonly property bool enterShown: glideShown && ["app", "window", "device", "btlink", "btdevice", "power"].includes(root.rows[root.current].kind)
+                    // Opening and switching mode: for a moment, new rows rise into place one after
+                    // another and the chip jumps to its row instead of gliding.
+                    property bool entering
+
+                    function enter() {
+                        entering = true;
+                        entered.restart();
+                    }
+
+                    function glideTo(box: rect) {
+                        const now = Date.now();
+                        quick = now - movedAt < 100;
+                        movedAt = now;
+                        glide = box;
+                    }
+
                     // a plain array, not a ScriptModel: with a ScriptModel, rows from the previous mode
                     // stayed on screen after a mode switch (seen in phase 6)
                     model: root.rows
+
+                    Timer {
+                        id: entered
+                        interval: 100 // the rows are made at the next layout, well within this
+                        onTriggered: list.entering = false
+                    }
+
+                    Rectangle {
+                        // with the rows, so it scrolls with them: declared in a ListView it isn't put
+                        // there by itself, and sat contentY off once the list scrolled (seen by the owner)
+                        parent: list.contentItem
+                        z: -1 // under the rows
+                        x: list.glide.x
+                        y: list.glide.y
+                        width: list.glide.width
+                        height: list.glide.height
+                        radius: Theme.tileRadius
+                        color: Theme.overlay2
+                        opacity: list.glideShown ? 1 : 0
+
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: Theme.motionDuration
+                                easing.type: Theme.easing
+                            }
+                        }
+                        Behavior on x {
+                            enabled: !list.entering && !list.quick
+                            NumberAnimation {
+                                duration: Theme.motionDuration
+                                easing.type: Theme.easing
+                            }
+                        }
+                        Behavior on y {
+                            enabled: !list.entering && !list.quick
+                            NumberAnimation {
+                                duration: Theme.motionDuration
+                                easing.type: Theme.easing
+                            }
+                        }
+                        Behavior on width {
+                            enabled: !list.entering && !list.quick
+                            NumberAnimation {
+                                duration: Theme.motionDuration
+                                easing.type: Theme.easing
+                            }
+                        }
+                        Behavior on height {
+                            enabled: !list.entering && !list.quick
+                            NumberAnimation {
+                                duration: Theme.motionDuration
+                                easing.type: Theme.easing
+                            }
+                        }
+
+                        // ↵, at the right end as ResultRow lays it out (12 px in, centred)
+                        Rectangle {
+                            x: parent.width - 12 - width
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 28
+                            height: 26
+                            radius: 13
+                            color: Theme.pistachio
+                            opacity: list.enterShown ? 1 : 0
+
+                            Behavior on opacity {
+                                NumberAnimation {
+                                    duration: Theme.motionDuration
+                                    easing.type: Theme.easing
+                                }
+                            }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "↵"
+                                color: Theme.bg
+                                font.family: Theme.fontUi
+                                font.pixelSize: 12
+                                font.weight: Font.ExtraBold
+                            }
+                        }
+                    }
 
                     delegate: Item {
                         id: entry
@@ -741,6 +888,7 @@ PanelWindow {
                         required property var modelData
                         required property int index
                         readonly property bool selected: root.current === index
+                        readonly property rect box: Qt.rect(loader.x, y + loader.y, loader.width, loader.height)
 
                         readonly property string card: modelData.card ?? "" // in a card: top, middle, bottom or single
                         readonly property bool cardTop: card === "top" || card === "single"
@@ -750,6 +898,46 @@ PanelWindow {
 
                         width: ListView.view.width
                         height: above + loader.height + (cardBottom ? 6 : 0)
+                        transform: Translate {
+                            id: rise
+                        }
+
+                        onSelectedChanged: if (selected) list.glideTo(box)
+                        onBoxChanged: if (selected) list.glideTo(box)
+                        // made while entering: fade in rising 8 px, 20 ms after the row above
+                        Component.onCompleted: {
+                            if (selected)
+                                list.glideTo(box);
+                            if (!list.entering)
+                                return;
+                            opacity = 0;
+                            rise.y = 8;
+                            arrive.start();
+                        }
+
+                        SequentialAnimation {
+                            id: arrive
+
+                            PauseAnimation {
+                                duration: Math.min(entry.index, 8) * 20
+                            }
+                            ParallelAnimation {
+                                NumberAnimation {
+                                    target: entry
+                                    property: "opacity"
+                                    to: 1
+                                    duration: Theme.motionDuration
+                                    easing.type: Theme.easing
+                                }
+                                NumberAnimation {
+                                    target: rise
+                                    property: "y"
+                                    to: 0
+                                    duration: Theme.motionDuration
+                                    easing.type: Theme.easing
+                                }
+                            }
+                        }
 
                         // This row's slice of its card's outline: the outline is drawn taller than the row and
                         // clipped, so the slices of a card's rows join into one rounded card.
@@ -845,10 +1033,18 @@ PanelWindow {
                                 width: loader.width
                                 height: 60
                                 radius: Theme.tileRadius
-                                color: entry.selected ? Theme.overlay2 : entry.card ? "transparent" : Theme.overlay
+                                // selected: the list's chip shows through, as this fades while it arrives
+                                color: entry.selected || entry.card ? "transparent" : Theme.overlay
                                 Accessible.role: Accessible.CheckBox
                                 Accessible.name: row.title
                                 Accessible.checked: on
+
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Theme.motionDuration
+                                        easing.type: Theme.easing
+                                    }
+                                }
 
                                 MouseArea {
                                     anchors.fill: parent
@@ -925,7 +1121,7 @@ PanelWindow {
                                 width: loader.width
                                 height: 56
                                 radius: Theme.tileRadius
-                                color: entry.selected ? Theme.overlay2 : "transparent"
+                                color: "transparent" // selected: the list's chip shows through
 
                                 MouseArea {
                                     anchors.fill: parent
@@ -1162,7 +1358,7 @@ PanelWindow {
                                 width: loader.width
                                 height: 60
                                 radius: Theme.tileRadius
-                                color: entry.selected ? Theme.overlay2 : "transparent"
+                                color: "transparent" // selected: the list's chip shows through
 
                                 Icon {
                                     id: sliderIcon
@@ -1194,7 +1390,7 @@ PanelWindow {
                                     width: 130
                                     elide: Text.ElideRight
                                     textFormat: Text.StyledText // app names are escaped
-                                    text: `${Fuzzy.escape(entry.modelData.title)}  <font color="${Theme.subtext}">${parent.muted ? "Muted" : parent.warmth ? Math.round(parent.value) + " K" : Math.round(parent.value * 100) + "%"}</font>`
+                                    text: `${Fuzzy.escape(entry.modelData.title)}  <font color="${Theme.subtext}">${parent.muted ? "Muted" : parent.warmth ? Math.round(rowSlider.shownValue) + " K" : Math.round(rowSlider.shownValue * 100) + "%"}</font>`
                                     color: Theme.textBright
                                     font.family: Theme.fontUi
                                     font.pixelSize: 13
@@ -1202,6 +1398,7 @@ PanelWindow {
                                 }
 
                                 Slider {
+                                    id: rowSlider
                                     anchors.left: sliderLabel.right
                                     anchors.right: parent.right
                                     anchors.rightMargin: 22
@@ -1209,7 +1406,7 @@ PanelWindow {
                                     focusPolicy: Qt.NoFocus // keep typing in the search field
                                     from: parent.warmth ? 2500 : 0
                                     to: parent.warmth ? 6500 : 1
-                                    stepSize: parent.warmth ? 100 : 0
+                                    stepSize: parent.warmth ? 250 : 0.05 // a wheel notch, as ← →
                                     value: parent.value
                                     Accessible.name: entry.modelData.title
                                     onMoved: parent.node ? Audio.setStreamVolume(parent.node, value) : parent.volume ? Audio.setVolume(value) : parent.warmth ? NightLight.setTemperature(value) : Brightness.set(value)

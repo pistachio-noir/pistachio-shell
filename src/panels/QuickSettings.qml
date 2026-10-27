@@ -249,7 +249,6 @@ PanelWindow {
                     label: "Volume"
                     onIconClicked: Audio.toggleMute()
                     value: Audio.volume
-                    valueText: Math.round(Audio.volume * 100)
                     onMoved: v => Audio.setVolume(v)
                 }
 
@@ -258,7 +257,6 @@ PanelWindow {
                     icon: Icons.sun
                     label: "Brightness"
                     value: Brightness.value
-                    valueText: Math.round(Brightness.value * 100)
                     onMoved: v => Brightness.set(v)
                 }
 
@@ -268,9 +266,9 @@ PanelWindow {
                     label: "Night light warmth, kelvin"
                     from: 2500
                     to: 6500
-                    stepSize: 100
+                    stepSize: 250 // as the launcher's ← →
                     value: NightLight.temperature
-                    valueText: `${NightLight.temperature}K`
+                    format: k => `${Math.round(k)}K`
                     onMoved: v => NightLight.setTemperature(v)
                 }
             }
@@ -685,7 +683,7 @@ PanelWindow {
         property alias to: slider.to
         property alias stepSize: slider.stepSize
         property real value
-        property string valueText
+        property var format: v => Math.round(v * 100) // the value as shown beside the slider
 
         signal moved(real newValue)
         signal iconClicked
@@ -733,7 +731,7 @@ PanelWindow {
             anchors.verticalCenter: parent.verticalCenter
             width: 42
             horizontalAlignment: Text.AlignRight
-            text: row.valueText
+            text: row.format(slider.shownValue) // counts along as the slider eases
             color: Theme.subtext
             font.family: Theme.fontUi
             font.pixelSize: 12

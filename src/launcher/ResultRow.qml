@@ -4,7 +4,8 @@ import QtQuick
 import "fuzzy.js" as Fuzzy
 
 // A launcher result (Launcher boards): icon, title with the matched letters in pistachio, subtitle,
-// an optional workspace badge, and while selected an action label with a pistachio ↵ chip.
+// an optional workspace badge, and while selected an action label and room for the pistachio ↵ chip,
+// which the launcher draws on its gliding selection so the two move together.
 Rectangle {
     id: root
 
@@ -25,7 +26,7 @@ Rectangle {
 
     height: compact ? 56 : 60
     radius: Theme.tileRadius
-    color: selected ? Theme.overlay2 : "transparent"
+    color: "transparent" // selected: the launcher's gliding chip is under it
     Accessible.role: Accessible.ListItem
     Accessible.name: title + (subtitle ? ", " + subtitle : "")
     Accessible.selected: selected
@@ -132,29 +133,26 @@ Rectangle {
         Text {
             visible: (root.selected || root.actionAlways) && root.action !== ""
             anchors.verticalCenter: parent.verticalCenter
+            opacity: visible ? 1 : 0 // fades in as the selection arrives
             text: root.action
             color: root.selected ? Theme.textBright : Theme.subtext
             font.family: Theme.fontUi
             font.pixelSize: 12
             font.weight: Font.Bold
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.motionDuration
+                    easing.type: Theme.easing
+                }
+            }
         }
 
-        Rectangle {
+        // where the launcher's ↵ chip lands (28 x 26, as Launcher.qml draws it)
+        Item {
             visible: root.selected
-            anchors.verticalCenter: parent.verticalCenter
             width: 28
             height: 26
-            radius: 13
-            color: Theme.pistachio
-
-            Text {
-                anchors.centerIn: parent
-                text: "↵"
-                color: Theme.bg
-                font.family: Theme.fontUi
-                font.pixelSize: 12
-                font.weight: Font.ExtraBold
-            }
         }
     }
 }

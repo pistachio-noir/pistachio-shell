@@ -6,8 +6,24 @@ import QtQuick.Controls.Basic as Basic // namespaced: this file is itself called
 Basic.Slider {
     id: root
 
+    // What's drawn: it eases to a new value (keys, the wheel, a change made elsewhere) but follows a
+    // drag as it is. shownValue is the same in the slider's units, for a label that counts along.
+    property real shown: position
+    readonly property real shownValue: from + shown * (to - from)
+
     implicitHeight: 44
     padding: 0
+    // the wheel moves it a step per notch (a touchpad smoothly) and emits moved(), like a drag
+    wheelEnabled: true
+    stepSize: (to - from) / 20 // 5 %, as the launcher's ← →
+
+    Behavior on shown {
+        enabled: !root.pressed
+        NumberAnimation {
+            duration: Theme.motionDuration
+            easing.type: Theme.easing
+        }
+    }
 
     background: Rectangle {
         y: (root.height - height) / 2
@@ -25,7 +41,7 @@ Basic.Slider {
     }
 
     handle: Rectangle {
-        x: root.visualPosition * (root.width - width)
+        x: (root.mirrored ? 1 - root.shown : root.shown) * (root.width - width)
         y: (root.height - height) / 2
         width: 20
         height: 20

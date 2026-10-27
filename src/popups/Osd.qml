@@ -14,6 +14,11 @@ PanelWindow {
 
     property string kind: "volume" // or "brightness", or "output"
     property bool suppressed // set by the bar while quick settings (which has the same sliders) is open
+    property int lift // the pill's distance from the screen's bottom edge; the bar sets it
+    // room around the pill for its shadow; below, at most what's left down to the screen edge
+    readonly property int side: Theme.shadowSmall.blur
+    readonly property int above: Theme.shadowSmall.blur - Theme.shadowSmall.y
+    readonly property int below: Math.min(lift, Theme.shadowSmall.blur + Theme.shadowSmall.y)
     property bool settling: true // after startup and output switches, when volume "changes" on its own
     readonly property bool output: kind === "output"
     readonly property bool muted: kind !== "brightness" && Audio.muted
@@ -30,8 +35,9 @@ PanelWindow {
 
     visible: reveal.shown
     exclusiveZone: 0
-    implicitWidth: 320
-    implicitHeight: 56
+    margins.bottom: lift - below
+    implicitWidth: side + 320 + side
+    implicitHeight: above + 56 + below
     color: "transparent"
     mask: Region {} // clicks go through
     WlrLayershell.layer: WlrLayer.Overlay // above fullscreen windows
@@ -109,16 +115,25 @@ PanelWindow {
     Rectangle {
         id: pill
 
-        width: parent.width
-        height: parent.height
+        x: root.side
+        width: 320
+        height: 56
         radius: height / 2
         color: Theme.bgAlt
         border.width: 1
         border.color: Theme.overlay2
         // fades in rising 12 px, and back
         opacity: reveal.progress
-        y: 12 * (1 - reveal.progress)
+        y: root.above + 12 * (1 - reveal.progress)
         Accessible.role: Accessible.StatusBar
+
+        // beneath the pill (z -1), so it fades and rises with it
+        Shadow {
+            z: -1
+            kind: Theme.shadowSmall
+            anchors.fill: parent
+            radius: parent.radius
+        }
         Accessible.name: root.output ? `Output ${root.outputName}`
             : root.muted ? "Volume muted" : `${root.kind === "volume" ? "Volume" : "Brightness"} ${label.text} percent`
 

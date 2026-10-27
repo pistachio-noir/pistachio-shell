@@ -20,6 +20,7 @@ Singleton {
         property bool nightSchedule
         property int nightFrom: 1200 // minutes after midnight: 20:00
         property int nightTo: 420 // 07:00
+        property bool shadows: true // drop shadows under panels and popups
         property var notifications: [] // newest first, plain records
     }
 

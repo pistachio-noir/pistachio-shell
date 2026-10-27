@@ -8,15 +8,26 @@ import QtQuick
 PanelWindow {
     id: root
 
+    // room around the toasts for their shadows (Theme.shadowSmall: 36 px blur, 14 px down); the bar
+    // places the window with `below`
+    readonly property int side: Theme.shadowSmall.blur
+    readonly property int above: Theme.shadowSmall.blur - Theme.shadowSmall.y
+    readonly property int below: Theme.shadowSmall.blur + Theme.shadowSmall.y
+
     exclusiveZone: 0
-    implicitWidth: 400
-    implicitHeight: Math.max(1, stack.implicitHeight)
+    implicitWidth: side + 400 + side
+    implicitHeight: above + Math.max(1, stack.implicitHeight) + below
     color: "transparent"
+    mask: Region {
+        item: stack // the shadows' room lets clicks through
+    }
 
     Column {
         id: stack
 
-        width: parent.width
+        x: root.side
+        y: root.above
+        width: 400
         spacing: 12
 
         Repeater {
@@ -59,6 +70,14 @@ PanelWindow {
         }
         Accessible.role: critical ? Accessible.AlertMessage : Accessible.StatusBar
         Accessible.name: n.summary + ". " + n.body
+
+        // beneath the card (z -1), so it fades and rises with it
+        Shadow {
+            z: -1
+            kind: Theme.shadowSmall
+            anchors.fill: parent
+            radius: parent.radius
+        }
 
         // fade in and rise 12 px
         Component.onCompleted: arrive.start()

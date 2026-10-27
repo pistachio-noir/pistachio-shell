@@ -30,6 +30,13 @@ Singleton {
     readonly property int tileRadius: 20
     readonly property int panelRadius: 28
 
+    // Drop shadows from the boards (CSS box-shadow: 0 <y> <blur> black at <alpha>), for panels and
+    // popups; the bar and the tray pill stay flat (owner's call).
+    readonly property color shadow: "#000000"
+    readonly property var shadowPanel: ({ y: 18, blur: 44, alpha: 0.6 }) // quick settings
+    readonly property var shadowSmall: ({ y: 14, blur: 36, alpha: 0.55 }) // toasts, OSD
+    readonly property var shadowModal: ({ y: 24, blur: 60, alpha: 0.65 }) // launcher, power menu
+
     readonly property string fontUi: "Manrope"
 
     // One easing curve for everything; CSS ease-out is close to OutCubic.

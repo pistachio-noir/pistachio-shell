@@ -130,8 +130,8 @@ PanelWindow {
         id: quickSettings
         anchors.bottom: true
         anchors.left: true
-        margins.left: (screen.width + root.width) / 2 - width
-        margins.bottom: root.height + 12
+        margins.left: (screen.width + root.width) / 2 - width + quickSettings.side
+        margins.bottom: root.height + 12 - quickSettings.below
         onOpenChanged: grab.active = open || centre.open
         onPowerRequested: {
             open = false;
@@ -158,15 +158,16 @@ PanelWindow {
 
     // only the bottom edge is anchored, so the compositor centres it, like the bar
     Toasts {
+        id: toasts
         visible: Notifs.popups.length > 0 && !centre.open
         anchors.bottom: true
-        margins.bottom: root.height + 16
+        margins.bottom: root.height + 16 - toasts.below
     }
 
     // where the pill is while the bar is hidden, else above it like the toasts
     Osd {
         anchors.bottom: true
-        margins.bottom: root.shown ? root.height + 16 : Theme.barMargin
+        lift: root.shown ? root.height + 16 : Theme.barMargin
         suppressed: quickSettings.open
     }
 

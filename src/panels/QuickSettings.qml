@@ -25,12 +25,19 @@ PanelWindow {
     signal powerRequested
     signal launcherRequested(string mode)
 
+    // room around the panel for its shadow; the bar places the window with these
+    readonly property int side: shadow.side
+    readonly property int below: shadow.below
+
     visible: reveal.shown
     focusable: true // for Escape
     exclusiveZone: 0
-    implicitWidth: 380
-    implicitHeight: panel.height
+    implicitWidth: side + panel.width + side
+    implicitHeight: shadow.above + panel.height + below
     color: "transparent"
+    mask: Region {
+        item: panel // the shadow's room lets clicks through
+    }
 
     onOpenChanged: {
         if (open)
@@ -44,10 +51,22 @@ PanelWindow {
         open: root.open
     }
 
+    Shadow {
+        id: shadow
+        kind: Theme.shadowPanel
+        anchors.fill: panel
+        radius: panel.radius
+        opacity: panel.opacity
+        scale: panel.scale
+        transformOrigin: panel.transformOrigin
+    }
+
     Rectangle {
         id: panel
 
-        width: parent.width
+        x: shadow.side
+        y: shadow.above
+        width: 380
         height: content.implicitHeight + 40
         radius: Theme.panelRadius
         color: Theme.bgAlt

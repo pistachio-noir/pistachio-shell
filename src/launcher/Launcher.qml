@@ -193,7 +193,11 @@ PanelWindow {
         const devices = Audio.sinks.map(n => ({ kind: "device", key: "device:" + n.id, title: Audio.deviceName(n), node: n }));
         const keep = r => !q || Fuzzy.match(q, r.title);
         const a = streams.filter(keep), d = devices.filter(keep);
-        return cards.concat(a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []);
+        // the shell's own look, at the end (owner's request; not on the board)
+        const shell = card("Shell settings", q, [
+            { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) }
+        ]);
+        return cards.concat(a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(shell.length ? [section("Shell settings")].concat(shell) : []);
     }
 
     function bluetoothRows(q: string): var {
@@ -514,11 +518,14 @@ PanelWindow {
 
     visible: reveal.shown
     anchors.top: true // only the top edge is anchored, so the compositor centres it horizontally
-    margins.top: Math.round(screen.height * 0.12)
+    margins.top: Math.round(screen.height * 0.12) - shadow.above // the panel's top at 12 % of the screen
     exclusiveZone: 0
-    implicitWidth: 640
-    implicitHeight: panel.height
+    implicitWidth: shadow.side + panel.width + shadow.side
+    implicitHeight: shadow.above + panel.height + shadow.below
     color: "transparent"
+    mask: Region {
+        item: panel // the shadow's room lets clicks through (and a click there closes, as outside)
+    }
     WlrLayershell.layer: WlrLayer.Overlay // above fullscreen windows
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive // typing goes here while it is open
 
@@ -578,10 +585,20 @@ PanelWindow {
         }
     }
 
+    // beside the panel, not in it: the panel clips its children
+    Shadow {
+        id: shadow
+        kind: Theme.shadowModal
+        anchors.fill: panel
+        radius: panel.radius
+        opacity: panel.opacity
+    }
+
     Rectangle {
         id: panel
 
-        width: parent.width
+        x: shadow.side
+        width: 640
         height: body.implicitHeight
         radius: Theme.panelRadius
         color: Theme.bgAlt
@@ -590,7 +607,7 @@ PanelWindow {
         clip: true
         // fades in rising 12 px, and back
         opacity: reveal.progress
-        y: 12 * (1 - reveal.progress)
+        y: shadow.above + 12 * (1 - reveal.progress)
 
         Column {
             id: body

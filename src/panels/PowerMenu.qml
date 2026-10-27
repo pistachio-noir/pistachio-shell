@@ -145,6 +145,13 @@ PanelWindow {
             Accessible.role: Accessible.Grouping
             Accessible.name: "Power menu"
 
+            Shadow {
+                z: -1 // beneath the panel, fading with it
+                kind: Theme.shadowModal
+                anchors.fill: parent
+                radius: parent.radius
+            }
+
             // clicks between the buttons don't reach the background
             MouseArea {
                 anchors.fill: parent

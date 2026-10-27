@@ -14,7 +14,7 @@ What you get:
 - **Bluetooth pairing:** the shell is the pairing agent, so devices that show or ask for a code pair too (phones, keyboards). The question ("Pair with …?", the code to compare or to type) opens in the launcher.
 - **OSD:** a volume and brightness indicator, which also names the new output device when the sound moves, e.g. to headphones as they connect. It names the apps that start recording from the microphone, and says when they've all stopped (a privacy cue, so it shows even in Do not disturb and fullscreen).
 - **Power menu:** lock, log out, suspend, reboot and shut down, over a blurred still of the screen.
-- **Lock screen:** checks your password through PAM.
+- **Lock screen:** checks your password through PAM, over a blurred still of the desktop (kept in memory, never written to disk), with what's playing and its controls. The password shows as dots that pop in as you type; a wrong one shakes the field. An empty Enter is ignored, so it can't cost a failed-login strike.
 - **Admin password dialog:** the shell is the polkit agent, so apps that need admin rights (`pkexec`, GParted, an app managing system services) ask for your password in a dialog of its own, with details on which app asked and for what. Cancelling it never counts as a failed login.
 
 ## Requirements

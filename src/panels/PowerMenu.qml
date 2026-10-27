@@ -25,10 +25,13 @@ PanelWindow {
     // The still arrived (or took too long: then the menu opens over the dim alone). The menu waits
     // for it, so the capture never contains the menu itself.
     property bool captured
+    // the action picked, run once the menu has faded out, so the lock screen's still of the desktop
+    // doesn't show the menu
+    property var pending: null
 
     function run(i: int) {
+        pending = actions[i];
         open = false;
-        actions[i].run();
     }
 
     function key(event) {
@@ -46,6 +49,7 @@ PanelWindow {
     onOpenChanged: {
         if (!open)
             return;
+        pending = null;
         current = 0;
         shot.captureSource = screen;
         captureTimeout.restart();
@@ -55,6 +59,9 @@ PanelWindow {
             return;
         captured = false;
         shot.captureSource = null; // so the next opening waits for a fresh still
+        const action = pending;
+        pending = null;
+        action?.run();
     }
 
     // up (transparent) while the still is taken, then until the fade-out ends

@@ -22,6 +22,7 @@ Singleton {
         property int nightTo: 420 // 07:00
         property bool shadows: true // drop shadows under panels and popups
         property bool quietFullscreen: true // toasts wait while a fullscreen window has focus
+        property var launches: ({}) // app id -> its last launches (ms since epoch), at most 10, oldest first
         property var notifications: [] // newest first, plain records
     }
 

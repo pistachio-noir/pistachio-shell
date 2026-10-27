@@ -52,12 +52,17 @@ Scope {
                 micMuted: Audio.micMuted,
                 sources: Audio.sources.map(n => n.name),
                 unplugged: Audio.unplugged,
-                recorders: Audio.recorders.map(n => Audio.appName(n))
+                recorders: Audio.recorders.map(n => Audio.appName(n)),
+                cpu: SystemStats.cpu,
+                memTotal: SystemStats.memTotal,
+                memUsed: SystemStats.memUsed,
+                gpuFound: SystemStats.gpuFound
             });
         }
         function setVolume(v: real): void { Audio.setVolume(v); }
         function setMicVolume(v: real): void { Audio.setMicVolume(v); }
         function toggleMicMute(): void { Audio.toggleMicMute(); }
+        function setStatsWatching(on: bool): void { SystemStats.setWatching(on); }
         function setBluetooth(on: bool): void { Bluetooth.setEnabled(on); }
         function setBrightness(v: real): void { Brightness.set(v); }
         function setNightLight(on: bool): void { NightLight.setEnabled(on); }

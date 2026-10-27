@@ -67,6 +67,9 @@ PanelWindow {
     // scan for new devices only while the Bluetooth view is on screen
     readonly property bool scanWanted: open && mode === "bluetooth" && Bluetooth.ready
     onScanWantedChanged: Bluetooth.setScanning(scanWanted)
+    // and read the machine's load only while the System monitor card is
+    readonly property bool statsWanted: open && rows.some(r => r.kind === "stat")
+    onStatsWantedChanged: SystemStats.setWatching(statsWanted)
 
     // opens in mode m, switches to it, or closes if it's already showing it
     function toggleMode(m: string) {
@@ -106,9 +109,37 @@ PanelWindow {
         return out.sort((a, b) => b.score - a.score || a.length - b.length).slice(0, limit);
     }
 
+    // An app as a result row; `prefix` keeps the key apart when it's listed twice (Frequent).
+    function appRow(h, prefix: string): var {
+        return {
+            kind: "app",
+            key: prefix + h.item.id,
+            title: h.item.name,
+            indices: h.indices,
+            subtitle: h.item.genericName || h.item.comment,
+            icon: Apps.icon(h.item.icon),
+            app: h.item
+        };
+    }
+
+    // the apps launched most and most lately (Apps.frecency), for the top of Apps mode
+    function frequentRows(limit: int): var {
+        return Apps.list.map(a => ({ item: a, f: Apps.frecency(a), indices: [] })).filter(h => h.f > 0.05)
+            .sort((a, b) => b.f - a.f).slice(0, limit).map(h => appRow(h, "frequent:"));
+    }
+
     function appRows(q: string, limit: int): var {
         const byName = Apps.list.slice().sort((a, b) => a.name.localeCompare(b.name));
-        let hits = ranked(byName, q, a => a.name, limit);
+        let hits = ranked(byName, q, a => a.name, q ? byName.length : limit);
+        // Apps you launch often rise among equally good matches: up to 250 points on top of the match's
+        // score, less than the gap between a match at the start, at a word start and a scattered one.
+        const top = Math.max(0, ...Apps.list.map(a => Apps.frecency(a)));
+        if (q && top > 0) {
+            for (const h of hits)
+                h.score += 250 * Apps.frecency(h.item) / top;
+            hits.sort((a, b) => b.score - a.score || a.length - b.length);
+        }
+        hits = hits.slice(0, limit);
         // also find apps by what they are ("browser" finds Firefox), below name matches, unhighlighted;
         // this needs the whole query in the description, not scattered letters
         if (q && hits.length < limit) {
@@ -116,15 +147,7 @@ PanelWindow {
             const extra = byName.filter(a => !hits.some(h => h.item === a) && [a.genericName, ...a.keywords].join(" ").toLowerCase().includes(ql));
             hits = hits.concat(extra.slice(0, limit - hits.length).map(a => ({ item: a, indices: [] })));
         }
-        return hits.map(h => ({
-            kind: "app",
-            key: "app:" + h.item.id,
-            title: h.item.name,
-            indices: h.indices,
-            subtitle: h.item.genericName || h.item.comment,
-            icon: Apps.icon(h.item.icon),
-            app: h.item
-        }));
+        return hits.map(h => appRow(h, "app:"));
     }
 
     function windowRows(q: string, limit: int): var {
@@ -198,12 +221,18 @@ PanelWindow {
         const inputs = Audio.sources.map(n => ({ kind: "device", key: "input:" + n.id, title: Audio.deviceName(n), node: n, input: true, off: Audio.isUnplugged(n) }));
         const keep = r => !q || Fuzzy.match(q, r.title);
         const a = streams.filter(keep), d = devices.filter(keep), i = inputs.filter(keep);
+        // the machine's load (owner's request; not on a board): readings, not controls, so the keys
+        // pass them by; the GPU once nvidia-smi has answered
+        const stats = [{ kind: "stat", key: "cpu", title: "CPU" }, { kind: "stat", key: "memory", title: "Memory" }];
+        if (SystemStats.gpuFound)
+            stats.push({ kind: "stat", key: "gpu", title: "GPU" });
+        const monitor = card("System monitor", q, stats);
         // the shell's own look, at the end (owner's request; not on the board)
         const shell = card("Shell settings", q, [
             { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) },
             { kind: "switch", key: "quietFullscreen", title: "Quiet in fullscreen", icon: Icons.bellOff, on: () => ShellSettings.quietFullscreen, status: () => ShellSettings.quietFullscreen ? "Toasts wait while a fullscreen window has focus" : "Off", toggle: () => ShellSettings.setQuietFullscreen(!ShellSettings.quietFullscreen) }
         ]);
-        return cards.concat(a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(i.length ? [section("Input device")].concat(i) : []).concat(shell.length ? [section("Shell settings")].concat(shell) : []);
+        return cards.concat(a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(i.length ? [section("Input device")].concat(i) : []).concat(monitor.length ? [section("System monitor")].concat(monitor) : []).concat(shell.length ? [section("Shell settings")].concat(shell) : []);
     }
 
     function bluetoothRows(q: string): var {
@@ -282,7 +311,8 @@ PanelWindow {
             return [{ kind: "confirm", key: "confirm:" + confirming.id, action: confirming, question: { icon: confirming.icon, danger: confirming.danger ?? false, title: `${confirming.title}?`, text: confirming.confirm, choices: ["Cancel", confirming.title] } }];
         let rows;
         if (mode === "apps") {
-            rows = calcRows(q).concat([section("Applications")], appRows(q, 200));
+            const frequent = q ? [] : frequentRows(5);
+            rows = calcRows(q).concat(frequent.length ? [section("Frequent")].concat(frequent) : [], [section("Applications")], appRows(q, 200));
         } else if (mode === "windows") {
             const w = windowRows(q, 50);
             rows = [section(`${w.length} window${w.length === 1 ? "" : "s"} · most recent first`)].concat(w);
@@ -314,7 +344,7 @@ PanelWindow {
     // ---- selection and actions ------------------------------------------------------------------
 
     function selectable(i: int): bool {
-        return i >= 0 && i < rows.length && !["section", "empty", "calc"].includes(rows[i].kind) && !rows[i].off;
+        return i >= 0 && i < rows.length && !["section", "empty", "calc", "stat"].includes(rows[i].kind) && !rows[i].off;
     }
 
     function step(from: int, dir: int): int {
@@ -982,6 +1012,7 @@ PanelWindow {
                                 window: resultView,
                                 device: resultView,
                                 slider: sliderView,
+                                stat: statView,
                                 controls: controlsView,
                                 workspaces: workspacesView,
                                 btlink: resultView,
@@ -1424,6 +1455,104 @@ PanelWindow {
                                     value: parent.value
                                     Accessible.name: entry.modelData.title
                                     onMoved: parent.node ? Audio.setStreamVolume(parent.node, value) : parent.volume ? Audio.setVolume(value) : parent.mic ? Audio.setMicVolume(value) : parent.warmth ? NightLight.setTemperature(value) : Brightness.set(value)
+                                }
+                            }
+                        }
+
+                        Component {
+                            id: statView
+
+                            // A reading (System monitor card): icon, name and details, a meter and the
+                            // load, which ease to each new reading. Lined up with the slider rows.
+                            Item {
+                                id: stat
+
+                                readonly property string key: entry.modelData.key
+                                readonly property real load: key === "cpu" ? Math.max(0, SystemStats.cpu) : key === "memory" ? SystemStats.memUsed / Math.max(1, SystemStats.memTotal) : SystemStats.gpu
+                                readonly property bool known: key !== "cpu" || SystemStats.cpu >= 0
+                                readonly property string detail: key === "cpu" ? (SystemStats.cpuTemp >= 0 ? `${Math.round(SystemStats.cpuTemp)} °C · ` : "") + SystemStats.cpuName
+                                    : key === "memory" ? `${SystemStats.memUsed.toFixed(1)} of ${SystemStats.memTotal.toFixed(1)} GB`
+                                    : `${Math.round(SystemStats.gpuTemp)} °C · ${SystemStats.vramUsed.toFixed(1)} of ${SystemStats.vramTotal.toFixed(1)} GB`
+                                property real shown: load
+
+                                width: loader.width
+                                height: 56
+                                Accessible.role: Accessible.ProgressBar
+                                Accessible.name: `${entry.modelData.title}${key === "gpu" ? " " + SystemStats.gpuName : ""} ${known ? Math.round(load * 100) + " percent" : "reading"}, ${detail}`
+
+                                Behavior on shown {
+                                    NumberAnimation {
+                                        duration: Theme.motionDuration
+                                        easing.type: Theme.easing
+                                    }
+                                }
+
+                                Icon {
+                                    id: statIcon
+                                    x: 22
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    size: 20
+                                    paths: stat.key === "cpu" ? Icons.cpu : stat.key === "memory" ? Icons.memory : Icons.gpu
+                                }
+
+                                Column {
+                                    id: statText
+                                    anchors.left: statIcon.right
+                                    anchors.leftMargin: 14
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 130
+                                    spacing: 1
+
+                                    Text {
+                                        text: entry.modelData.title
+                                        color: Theme.textBright
+                                        font.family: Theme.fontUi
+                                        font.pixelSize: 13
+                                        font.weight: Font.Bold
+                                    }
+
+                                    Text {
+                                        width: parent.width
+                                        text: stat.detail
+                                        elide: Text.ElideRight
+                                        color: Theme.subtext
+                                        font.family: Theme.fontUi
+                                        font.pixelSize: 11
+                                        font.weight: Font.Medium
+                                        font.features: { "tnum": 1 }
+                                    }
+                                }
+
+                                Rectangle {
+                                    anchors.left: statText.right
+                                    anchors.right: statValue.left
+                                    anchors.rightMargin: 14
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: 6
+                                    radius: 3
+                                    color: Theme.overlay
+
+                                    Rectangle {
+                                        width: parent.width * Math.min(1, stat.shown)
+                                        height: parent.height
+                                        radius: 3
+                                        color: Theme.sageBlue
+                                    }
+                                }
+
+                                Text {
+                                    id: statValue
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 22
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 38
+                                    horizontalAlignment: Text.AlignRight
+                                    text: stat.known ? `${Math.round(stat.shown * 100)}%` : "—"
+                                    color: Theme.textBright
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: 13
+                                    font.weight: Font.Bold
+                                    font.features: { "tnum": 1 }
                                 }
                             }
                         }

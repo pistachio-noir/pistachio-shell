@@ -1,6 +1,6 @@
 #!/bin/bash
 # Self-check that the quick settings services change real system state: volume, per-app volume and the
-# microphone (PipeWire), with the apps recording,
+# microphone (PipeWire), with the apps recording, the System monitor's readings,
 # Bluetooth power and the pairing agent (BlueZ), monitor brightness (DDC/CI) and night light (hyprsunset, if installed).
 # Everything is put back on exit. Ethernet is only read: toggling it would cut the network.
 set -euo pipefail
@@ -151,6 +151,13 @@ sleep 1.5
 check "'pistachio-rec-test' in s['recorders']" "recording app listed"
 kill "$RECORD_PID"; RECORD_PID=; sleep 0.8
 check "'pistachio-rec-test' not in s['recorders']" "gone once it stops"
+
+# The System monitor's readings, taken while watched.
+ipc setStatsWatching true; sleep 2.5
+check "0 <= s['cpu'] <= 1 and 0 < s['memUsed'] < s['memTotal']" "CPU load and memory read"
+GPU=$(command -v nvidia-smi > /dev/null && echo True || echo False)
+check "s['gpuFound'] == $GPU" "GPU read exactly when nvidia-smi is there"
+ipc setStatsWatching false
 
 # Settings survive a restart (the test shell keeps its own state file, not the real shell's).
 ipc setDnd true; sleep 0.8 # saved 300 ms after a change

@@ -34,6 +34,7 @@ Singleton {
     readonly property list<string> shieldAlert: ["M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z", "M12 9v4", "M12 17h.01"]
     readonly property list<string> minus: ["M5 12h14"]
     readonly property list<string> plus: ["M5 12h14", "M12 5v14"]
+    readonly property list<string> mic: ["M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z", "M19 10v2a7 7 0 0 1-14 0v-2", "M12 19v3"]
     readonly property list<string> micOff: ["M2 2l20 20", "M18.89 13.23A7.12 7.12 0 0 0 19 12v-2", "M5 10v2a7 7 0 0 0 12 5", "M15 9.34V5a3 3 0 0 0-5.68-1.33", "M9 9v3a3 3 0 0 0 5.12 2.12", "M12 19v3"]
     readonly property list<string> clock: ["M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0", "M12 6v6l4 2"]
     readonly property list<string> power: ["M18.36 6.64a9 9 0 1 1-12.73 0", "M12 2v10"]

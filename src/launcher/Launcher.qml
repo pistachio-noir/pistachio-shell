@@ -179,6 +179,8 @@ PanelWindow {
 
     function systemRows(q: string): var {
         const audio = [{ kind: "slider", key: "volume", title: "Volume" }];
+        if (Audio.source)
+            audio.push({ kind: "slider", key: "mic", title: "Microphone" });
         if (Brightness.available)
             audio.push({ kind: "slider", key: "brightness", title: "Brightness" });
         const night = [{ kind: "switch", key: "nightlight", title: "Night light", icon: Icons.moon, on: () => NightLight.enabled, status: () => NightLight.status, toggle: () => NightLight.setEnabled(!NightLight.enabled) }];
@@ -192,14 +194,16 @@ PanelWindow {
         cards.forEach((r, i) => r.gap = i > 0 && (r.card === "top" || r.card === "single") ? 10 : 0);
         const streams = Audio.streams.map(n => ({ kind: "slider", key: "stream:" + n.id, title: Audio.appName(n), node: n }));
         const devices = Audio.sinks.map(n => ({ kind: "device", key: "device:" + n.id, title: Audio.deviceName(n), node: n }));
+        // an input with nothing plugged in is greyed out, and the keys pass it by
+        const inputs = Audio.sources.map(n => ({ kind: "device", key: "input:" + n.id, title: Audio.deviceName(n), node: n, input: true, off: Audio.isUnplugged(n) }));
         const keep = r => !q || Fuzzy.match(q, r.title);
-        const a = streams.filter(keep), d = devices.filter(keep);
+        const a = streams.filter(keep), d = devices.filter(keep), i = inputs.filter(keep);
         // the shell's own look, at the end (owner's request; not on the board)
         const shell = card("Shell settings", q, [
             { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) },
             { kind: "switch", key: "quietFullscreen", title: "Quiet in fullscreen", icon: Icons.bellOff, on: () => ShellSettings.quietFullscreen, status: () => ShellSettings.quietFullscreen ? "Toasts wait while a fullscreen window has focus" : "Off", toggle: () => ShellSettings.setQuietFullscreen(!ShellSettings.quietFullscreen) }
         ]);
-        return cards.concat(a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(shell.length ? [section("Shell settings")].concat(shell) : []);
+        return cards.concat(a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(i.length ? [section("Input device")].concat(i) : []).concat(shell.length ? [section("Shell settings")].concat(shell) : []);
     }
 
     function bluetoothRows(q: string): var {
@@ -310,7 +314,7 @@ PanelWindow {
     // ---- selection and actions ------------------------------------------------------------------
 
     function selectable(i: int): bool {
-        return i >= 0 && i < rows.length && !["section", "empty", "calc"].includes(rows[i].kind);
+        return i >= 0 && i < rows.length && !["section", "empty", "calc"].includes(rows[i].kind) && !rows[i].off;
     }
 
     function step(from: int, dir: int): int {
@@ -338,6 +342,8 @@ PanelWindow {
             Audio.setStreamVolume(row.node, row.node.audio.volume + dir * 0.05);
         else if (row.key === "volume")
             Audio.setVolume(Audio.volume + dir * 0.05);
+        else if (row.key === "mic")
+            Audio.setMicVolume(Audio.micVolume + dir * 0.05);
         else if (row.key === "brightness")
             Brightness.set(Brightness.value + dir * 0.05);
         else if (row.key === "warmth")
@@ -371,11 +377,16 @@ PanelWindow {
             else if (id === "volume" || id === "brightness")
                 mode = "system";
         } else if (row.kind === "device") {
-            Audio.setSink(row.node);
+            if (row.input)
+                Audio.setSource(row.node);
+            else
+                Audio.setSink(row.node);
         } else if (row.kind === "slider" && row.node) {
             Audio.toggleStreamMute(row.node);
         } else if (row.kind === "slider" && row.key === "volume") {
             Audio.toggleMute();
+        } else if (row.kind === "slider" && row.key === "mic") {
+            Audio.toggleMicMute();
         } else if (row.kind === "btlink") {
             mode = "bluetooth";
         } else if (row.kind === "switch") {
@@ -1314,20 +1325,22 @@ PanelWindow {
 
                             ResultRow {
                                 readonly property var row: entry.modelData
-                                readonly property bool current: row.kind === "device" && Audio.sink === row.node
+                                readonly property bool current: row.kind === "device" && (row.input ? Audio.source : Audio.sink) === row.node
                                 readonly property var bt: row.device // Bluetooth device rows; read live
 
                                 width: loader.width
+                                enabled: !row.off
                                 compact: row.compact ?? false
                                 selected: entry.selected
                                 title: row.title
                                 indices: row.indices ?? []
-                                subtitle: row.kind === "device" ? (current ? "current" : "")
+                                subtitle: row.off ? (current ? "current, nothing plugged in" : "Nothing plugged in")
+                                    : row.kind === "device" ? (current ? "current" : "")
                                     : row.kind === "btdevice" ? Bluetooth.status(bt)
                                     : row.kind === "btlink" ? (Bluetooth.enabled ? "Pair, connect and forget devices" : "Bluetooth is off")
                                     : row.subtitle ?? ""
                                 icon: row.icon ?? ""
-                                glyph: row.glyph ?? (row.kind === "device" ? Icons.volume : row.kind.startsWith("bt") ? Icons.bluetooth : row.kind === "calc" ? Icons.calculator : Icons.window)
+                                glyph: row.glyph ?? (row.kind === "device" ? (row.input ? Icons.mic : Icons.volume) : row.kind.startsWith("bt") ? Icons.bluetooth : row.kind === "calc" ? Icons.calculator : Icons.window)
                                 glyphColor: row.danger ? Theme.terracotta : row.kind === "btdevice" && bt.connected ? Theme.sageBlue : Theme.subtext
                                 badge: row.badge ?? ""
                                 badgeActive: row.badgeActive ?? false
@@ -1352,8 +1365,9 @@ PanelWindow {
                                 readonly property var node: entry.modelData.node ?? null // an app's stream
                                 readonly property bool volume: entry.modelData.key === "volume"
                                 readonly property bool warmth: entry.modelData.key === "warmth" // night light, in kelvin
-                                readonly property real value: node ? node.audio?.volume ?? 0 : volume ? Audio.volume : warmth ? NightLight.temperature : Brightness.value
-                                readonly property bool muted: node ? node.audio?.muted ?? false : volume && Audio.muted
+                                readonly property bool mic: entry.modelData.key === "mic"
+                                readonly property real value: node ? node.audio?.volume ?? 0 : volume ? Audio.volume : mic ? Audio.micVolume : warmth ? NightLight.temperature : Brightness.value
+                                readonly property bool muted: node ? node.audio?.muted ?? false : volume ? Audio.muted : mic && Audio.micMuted
 
                                 width: loader.width
                                 height: 60
@@ -1366,7 +1380,7 @@ PanelWindow {
                                     anchors.verticalCenter: parent.verticalCenter
                                     size: 20
                                     visible: !appIcon.visible
-                                    paths: parent.volume || parent.node ? (parent.muted ? Icons.volumeMuted : Icons.volume) : parent.warmth ? Icons.thermometer : Icons.sun
+                                    paths: parent.volume || parent.node ? (parent.muted ? Icons.volumeMuted : Icons.volume) : parent.mic ? (parent.muted ? Icons.micOff : Icons.mic) : parent.warmth ? Icons.thermometer : Icons.sun
                                 }
 
                                 Image {
@@ -1409,7 +1423,7 @@ PanelWindow {
                                     stepSize: parent.warmth ? 250 : 0.05 // a wheel notch, as ← →
                                     value: parent.value
                                     Accessible.name: entry.modelData.title
-                                    onMoved: parent.node ? Audio.setStreamVolume(parent.node, value) : parent.volume ? Audio.setVolume(value) : parent.warmth ? NightLight.setTemperature(value) : Brightness.set(value)
+                                    onMoved: parent.node ? Audio.setStreamVolume(parent.node, value) : parent.volume ? Audio.setVolume(value) : parent.mic ? Audio.setMicVolume(value) : parent.warmth ? NightLight.setTemperature(value) : Brightness.set(value)
                                 }
                             }
                         }

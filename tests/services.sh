@@ -1,5 +1,6 @@
 #!/bin/bash
-# Self-check that the quick settings services change real system state: volume and per-app volume (PipeWire),
+# Self-check that the quick settings services change real system state: volume, per-app volume and the
+# microphone (PipeWire), with the apps recording,
 # Bluetooth power and the pairing agent (BlueZ), monitor brightness (DDC/CI) and night light (hyprsunset, if installed).
 # Everything is put back on exit. Ethernet is only read: toggling it would cut the network.
 set -euo pipefail
@@ -21,6 +22,8 @@ expect() {
 
 VOLUME=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print $2}')
 MUTED=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -q MUTED && echo 1 || echo 0)
+MIC_VOLUME=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | awk '{print $2}')
+MIC_MUTED=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | grep -q MUTED && echo 1 || echo 0)
 BT_POWERED=$(bluetoothctl show | grep -q 'Powered: yes' && echo on || echo off)
 BRIGHTNESS=$(ddcutil getvcp 10 --brief 2>/dev/null | awk '{print $4}' || true)
 SINK=$(wpctl inspect @DEFAULT_AUDIO_SINK@ | awk -F'"' '/node.name =/ { print $2; exit }')
@@ -28,6 +31,9 @@ restore() {
     ipc setSink "$SINK" > /dev/null 2>&1 || true
     wpctl set-volume @DEFAULT_AUDIO_SINK@ "$VOLUME"
     wpctl set-mute @DEFAULT_AUDIO_SINK@ "$MUTED"
+    wpctl set-volume @DEFAULT_AUDIO_SOURCE@ "$MIC_VOLUME"
+    wpctl set-mute @DEFAULT_AUDIO_SOURCE@ "$MIC_MUTED"
+    if [ -n "${RECORD_PID:-}" ]; then kill "$RECORD_PID" 2>/dev/null || true; fi
     bluetoothctl power "$BT_POWERED" > /dev/null
     if [ -n "$BRIGHTNESS" ]; then ddcutil setvcp 10 "$BRIGHTNESS" --noverify; fi
     if [ -n "${STREAM_PID:-}" ]; then kill "$STREAM_PID" 2>/dev/null || true; fi
@@ -65,7 +71,10 @@ ipc setDnd true
 check "s['dnd']" "do not disturb on"
 ipc setDnd false
 
-if ipc state | grep -q '"nightLightAvailable":true'; then
+if pgrep -x hyprsunset > /dev/null; then
+    # one hyprsunset at a time: the test shell's can't start next to the running shell's
+    echo "skip: night light is on in the running shell"
+elif ipc state | grep -q '"nightLightAvailable":true'; then
     ipc setNightLight true; sleep 1
     expect "hyprsunset running" pgrep -x hyprsunset
     ipc setTemperature 3000; sleep 1
@@ -122,6 +131,26 @@ expect "app volume set to 0.30" sh -c "wpctl get-volume $STREAM_ID | grep -qx 'V
 ipc toggleStreamMute pistachio-test; sleep 0.5
 expect "app muted" sh -c "wpctl get-volume $STREAM_ID | grep -q MUTED"
 expect "default output untouched" sh -c "wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -qx 'Volume: 0.42'"
+
+# The microphone: its level and mute reach PipeWire.
+ipc setMicVolume 0.37; sleep 0.5
+expect "mic level set to 0.37" sh -c "wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | grep -qx 'Volume: 0.37'"
+check "abs(s['micVolume'] - 0.37) < 0.01 and not s['micMuted']" "service reports the mic at 0.37, unmuted"
+ipc toggleMicMute; sleep 0.5
+expect "mic muted" sh -c "wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | grep -q MUTED"
+check "s['micMuted']" "service reports the mic muted"
+check "len(s['sources']) > 0" "microphones listed as inputs"
+# Inputs with nothing plugged in: every jack "not available", as pactl reports them.
+UNPLUGGED=$(pactl -f json list sources | python3 -I -c "import json, sys; print(sorted(s['name'] for s in json.load(sys.stdin) if s['ports'] and all(p['availability'] == 'not available' for p in s['ports'])))")
+check "sorted(s['unplugged']) == $UNPLUGGED" "inputs with nothing plugged in found ($UNPLUGGED)"
+
+# An app recording (pw-cat capturing to /dev/null, nothing kept) shows as one.
+pw-cat -r -a --format s16 --rate 48000 --channels 1 -P '{ application.name = "pistachio-rec-test" }' - > /dev/null 2>&1 &
+RECORD_PID=$!
+sleep 1.5
+check "'pistachio-rec-test' in s['recorders']" "recording app listed"
+kill "$RECORD_PID"; RECORD_PID=; sleep 0.8
+check "'pistachio-rec-test' not in s['recorders']" "gone once it stops"
 
 # Settings survive a restart (the test shell keeps its own state file, not the real shell's).
 ipc setDnd true; sleep 0.8 # saved 300 ms after a change

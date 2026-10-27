@@ -47,10 +47,17 @@ Scope {
                 inSchedule: NightLight.inSchedule,
                 dnd: Notifs.dnd,
                 uptime: Uptime.seconds,
-                streams: Audio.streams.map(n => Audio.appName(n))
+                streams: Audio.streams.map(n => Audio.appName(n)),
+                micVolume: Audio.micVolume,
+                micMuted: Audio.micMuted,
+                sources: Audio.sources.map(n => n.name),
+                unplugged: Audio.unplugged,
+                recorders: Audio.recorders.map(n => Audio.appName(n))
             });
         }
         function setVolume(v: real): void { Audio.setVolume(v); }
+        function setMicVolume(v: real): void { Audio.setMicVolume(v); }
+        function toggleMicMute(): void { Audio.toggleMicMute(); }
         function setBluetooth(on: bool): void { Bluetooth.setEnabled(on); }
         function setBrightness(v: real): void { Brightness.set(v); }
         function setNightLight(on: bool): void { NightLight.setEnabled(on); }

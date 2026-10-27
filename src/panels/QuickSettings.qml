@@ -253,6 +253,17 @@ PanelWindow {
                 }
 
                 SliderRow {
+                    visible: Audio.source !== null
+                    icon: Audio.micMuted ? Icons.micOff : Icons.mic
+                    off: Audio.micMuted
+                    iconAction: Audio.micMuted ? "Unmute microphone" : "Mute microphone"
+                    label: "Microphone"
+                    onIconClicked: Audio.toggleMicMute()
+                    value: Audio.micVolume
+                    onMoved: v => Audio.setMicVolume(v)
+                }
+
+                SliderRow {
                     visible: Brightness.available
                     icon: Icons.sun
                     label: "Brightness"

@@ -6,13 +6,15 @@ import Quickshell.Io
 import Quickshell.Wayland // layer-shell layer for this window (a Wayland protocol, not a compositor module)
 import QtQuick
 
-// Volume, brightness and output device OSD (Osd board; the output one isn't on it). Volume shows on
-// any PipeWire change, whoever made it, and so does a new default output, e.g. headphones connecting;
-// brightness only through IPC, because the monitor reports nothing. The bar positions it.
+// Volume, brightness, output device and microphone OSD (Osd board; the last two aren't on it). Volume
+// shows on any PipeWire change, whoever made it, and so does a new default output, e.g. headphones
+// connecting; brightness only through IPC, because the monitor reports nothing. The microphone one
+// names the apps that start recording, and says when all have stopped (owner's request: a privacy
+// cue, so it shows even in Do not disturb, fullscreen or with quick settings open). The bar positions it.
 PanelWindow {
     id: root
 
-    property string kind: "volume" // or "brightness", or "output"
+    property string kind: "volume" // or "brightness", "output" or "mic"
     property bool suppressed // set by the bar while quick settings (which has the same sliders) is open
     property int lift // the pill's distance from the screen's bottom edge; the bar sets it
     // room around the pill for its shadow; below, at most what's left down to the screen edge
@@ -21,7 +23,8 @@ PanelWindow {
     readonly property int below: Math.min(lift, Theme.shadowSmall.blur + Theme.shadowSmall.y)
     property bool settling: true // after startup and output switches, when volume "changes" on its own
     readonly property bool output: kind === "output"
-    readonly property bool muted: kind !== "brightness" && Audio.muted
+    readonly property bool mic: kind === "mic"
+    readonly property bool muted: (kind === "volume" || output) && Audio.muted
     readonly property real value: kind === "brightness" ? Brightness.value : Audio.volume
     // The bar and number ease to a new value; they start at it while hidden and on a switch between
     // volume and brightness, rather than sweep from the other one.
@@ -31,6 +34,11 @@ PanelWindow {
     property string outputNode
     property string outputName
     Component.onCompleted: outputNode = Audio.sink?.name ?? ""
+    // the apps recording as last announced; null until the first look after startup, which isn't news
+    property var micApps: null
+    property bool micOn // false: the apps in micNames have stopped
+    property string micNames
+    readonly property string micTitle: !micOn ? "Microphone not in use" : Audio.micMuted ? "Microphone in use, muted" : "Microphone in use"
 
     function show(k: string) {
         snap = k !== kind;
@@ -58,12 +66,12 @@ PanelWindow {
 
     Reveal {
         id: reveal
-        open: hide.running && !root.suppressed
+        open: hide.running && (!root.suppressed || root.mic)
     }
 
     Timer {
         id: hide
-        interval: root.output ? 2500 : 1500 // a name takes longer to read than a bar
+        interval: root.output || root.mic ? 2500 : 1500 // a name takes longer to read than a bar
     }
 
     Timer {
@@ -91,6 +99,33 @@ PanelWindow {
             show("output");
     }
 
+    // Apps open the mic for a moment to look at the devices, so a change counts once it has lasted a
+    // second. A new app shows the OSD again; one stopping while others record doesn't.
+    Timer {
+        id: micSettle
+        running: true
+        interval: 1000
+        onTriggered: root.micMoved()
+    }
+
+    function micMoved() {
+        const all = Audio.recorders.map(n => Audio.appName(n));
+        const now = all.filter((a, i) => all.indexOf(a) === i);
+        const was = micApps;
+        micApps = now;
+        if (was === null)
+            return;
+        if (now.some(a => !was.includes(a))) {
+            micOn = true;
+            micNames = now.join(", ");
+            show("mic");
+        } else if (now.length === 0 && was.length > 0) {
+            micOn = false;
+            micNames = was.join(", ");
+            show("mic");
+        }
+    }
+
     Connections {
         target: Audio
 
@@ -104,6 +139,9 @@ PanelWindow {
             root.settling = true;
             settle.restart();
             Qt.callLater(root.outputMoved);
+        }
+        function onRecordersChanged() {
+            micSettle.restart();
         }
     }
 
@@ -148,7 +186,8 @@ PanelWindow {
             anchors.fill: parent
             radius: parent.radius
         }
-        Accessible.name: root.output ? `Output ${root.outputName}`
+        Accessible.name: root.mic ? `${root.micTitle}, ${root.micNames}`
+            : root.output ? `Output ${root.outputName}`
             : root.muted ? "Volume muted" : `${root.kind === "volume" ? "Volume" : "Brightness"} ${label.text} percent`
 
         Icon {
@@ -158,8 +197,11 @@ PanelWindow {
             size: 20
             paths: root.kind === "brightness" ? Icons.sun
                 : root.output ? (Audio.isHeadphones(Audio.sink) ? Icons.headphones : Icons.speaker)
+                : root.mic ? (root.micOn && Audio.micMuted ? Icons.micOff : Icons.mic)
                 : root.muted ? Icons.volumeMuted : Icons.volume
-            color: root.muted ? Theme.subtext : Theme.textBright
+            // the mic as the bar shows it: clay while recorded from, subtext when muted or let go
+            color: root.mic ? (root.micOn && !Audio.micMuted ? Theme.clay : Theme.subtext)
+                : root.muted ? Theme.subtext : Theme.textBright
         }
 
         // the new output's name in place of the bar
@@ -178,8 +220,40 @@ PanelWindow {
             font.weight: Font.Bold
         }
 
+        // the mic's news in place of the bar: what happened, and to which apps
+        Column {
+            visible: root.mic
+            anchors.left: icon.right
+            anchors.leftMargin: 14
+            anchors.right: parent.right
+            anchors.rightMargin: 22
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 1
+
+            Text {
+                width: parent.width
+                text: root.micTitle
+                elide: Text.ElideRight
+                color: Theme.textBright
+                font.family: Theme.fontUi
+                font.pixelSize: 14
+                font.weight: Font.Bold
+            }
+
+            Text {
+                width: parent.width
+                text: root.micNames
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: Theme.subtext
+                font.family: Theme.fontUi
+                font.pixelSize: 12
+                font.weight: Font.Medium
+            }
+        }
+
         Rectangle {
-            visible: !root.output
+            visible: !root.output && !root.mic
             anchors.left: icon.right
             anchors.leftMargin: 14
             anchors.right: label.left
@@ -204,7 +278,7 @@ PanelWindow {
             anchors.verticalCenter: parent.verticalCenter
             width: root.muted ? 50 : 30
             // a new output's volume reads 0 until PipeWire has bound it
-            visible: !root.output || (Audio.sink?.ready ?? false)
+            visible: !root.mic && (!root.output || (Audio.sink?.ready ?? false))
             horizontalAlignment: Text.AlignRight
             text: root.muted ? "Muted" : Math.round(root.level * 100)
             color: root.muted ? Theme.subtext : Theme.textBright

@@ -4,8 +4,9 @@ import qs.services
 import QtQuick
 
 // Ethernet, Bluetooth and volume. Off states turn subtext and get a slash. While a device that reports
-// its battery is connected (e.g. headphones), its level replaces the Bluetooth icon; a muted microphone
-// adds a mic icon. Opens quick settings.
+// its battery is connected (e.g. headphones), its level replaces the Bluetooth icon. A muted
+// microphone adds a slashed mic icon, and one an app is recording from a mic in clay (a privacy
+// cue, like a phone's). Opens quick settings.
 Chip {
     id: chip
 
@@ -13,15 +14,17 @@ Chip {
     Accessible.name: "Quick settings: Ethernet " + (Network.connected ? "connected" : "unplugged")
         + ", Bluetooth " + (Bluetooth.enabled ? "on" : "off")
         + (Bluetooth.battery >= 0 ? `, ${Bluetooth.name(Bluetooth.batteryDevice)} battery ${Bluetooth.battery}%` : "")
-        + (Audio.micMuted ? ", microphone muted" : "")
+        + (Audio.micMuted ? ", microphone muted" : Audio.recorders.length ? `, microphone in use by ${Audio.recorders.map(n => Audio.appName(n)).join(", ")}` : "")
         + (Audio.muted ? ", muted" : `, volume ${Math.round(Audio.volume * 100)}%`)
-    // each thing the chip shows, named, with the output device
+    // each thing the chip shows, named, with the output device and the microphone
     tooltip: {
         const lines = [
             ["Ethernet", Network.connected ? (Network.speed >= 1000 ? `${Network.speed / 1000} Gbps` : `${Network.speed} Mbps`) : "unplugged"],
             ["Bluetooth", Bluetooth.summary],
             [Audio.sink ? Audio.deviceName(Audio.sink) : "Sound", Audio.muted ? "muted" : `${Math.round(Audio.volume * 100)}%`]
         ];
+        if (Audio.source)
+            lines.push(["Microphone", Audio.micMuted ? "muted" : Audio.recorders.length ? `in use by ${Audio.recorders.map(n => Audio.appName(n)).join(", ")}` : `${Math.round(Audio.micVolume * 100)}%`]);
         return lines;
     }
 
@@ -59,8 +62,8 @@ Chip {
 
     Icon {
         anchors.verticalCenter: parent.verticalCenter
-        visible: Audio.micMuted
-        color: Theme.subtext
-        paths: Icons.micOff
+        visible: Audio.micMuted || Audio.recorders.length > 0
+        color: Audio.micMuted ? Theme.subtext : Theme.clay
+        paths: Audio.micMuted ? Icons.micOff : Icons.mic
     }
 }

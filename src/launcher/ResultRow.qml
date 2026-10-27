@@ -5,7 +5,8 @@ import "fuzzy.js" as Fuzzy
 
 // A launcher result (Launcher boards): icon, title with the matched letters in pistachio, subtitle,
 // an optional workspace badge, and while selected an action label and room for the pistachio ↵ chip,
-// which the launcher draws on its gliding selection so the two move together.
+// which the launcher draws on its gliding selection so the two move together. Disabled (`enabled`
+// false), it is greyed out and takes no clicks, e.g. an input with nothing plugged in.
 Rectangle {
     id: root
 
@@ -63,7 +64,7 @@ Rectangle {
             anchors.centerIn: parent
             visible: !image.visible
             paths: root.glyph
-            color: root.glyphColor
+            color: root.enabled ? root.glyphColor : Theme.muted
         }
     }
 
@@ -80,7 +81,7 @@ Rectangle {
             textFormat: Text.StyledText // for the highlight; fuzzy.highlight() escapes the title
             text: Fuzzy.highlight(root.title, root.indices, Theme.pistachio)
             elide: Text.ElideRight
-            color: root.selected ? Theme.textBright : Theme.text
+            color: !root.enabled ? Theme.subtext : root.selected ? Theme.textBright : Theme.text
             font.family: Theme.fontUi
             font.pixelSize: root.compact ? 14 : 15
             font.weight: Font.Bold

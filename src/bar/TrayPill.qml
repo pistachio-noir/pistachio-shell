@@ -14,6 +14,10 @@ PanelWindow {
     readonly property bool hovered: hover.hovered
     readonly property bool menuOpen: menu.open // the bar stays up meanwhile
     property real menuCentre // x of the icon whose menu is open, in this window
+    // the icon under the pointer, for the bar's tooltip: the app's name, centred on it on screen
+    property Item tipIcon: null
+    readonly property var tipLines: tipIcon ? [[tipIcon.modelData.tooltipTitle || tipIcon.modelData.title || tipIcon.modelData.id]] : []
+    readonly property real tipCentre: tipIcon ? margins.left + tipIcon.mapToItem(null, tipIcon.width / 2, 0).x : 0
 
     // the app's menu above its icon; the same icon again closes it
     function openMenu(icon) {
@@ -58,30 +62,31 @@ PanelWindow {
         onCleared: menu.open = false
     }
 
+    // 0 hidden, 1 shown, on the bar's curve: the pill buds out of its edge beside the bar as the bar's
+    // content shows, and goes with it (Bar.qml grows the bar out of its handle)
+    property real grown: shown ? 1 : 0
+
+    Behavior on grown {
+        NumberAnimation {
+            duration: Theme.growDuration
+            easing.type: Theme.easing
+        }
+    }
+
     Rectangle {
         id: pill
 
+        readonly property real shownPart: Math.max(0, 2 * root.grown - 1)
+
         width: icons.implicitWidth + 18 // 1 px border + 8 px padding each side, as in the bar
         height: Theme.barHeight
-        y: root.shown ? 0 : root.height
-        opacity: root.shown ? 1 : 0
+        opacity: shownPart
+        scale: 0.8 + 0.2 * shownPart
+        transformOrigin: Item.Left // the edge nearest the bar
         radius: Theme.barRadius
         color: Theme.bgAlt
         border.width: 1
         border.color: Theme.overlay2
-
-        Behavior on y {
-            NumberAnimation {
-                duration: Theme.motionDuration
-                easing.type: Theme.easing
-            }
-        }
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Theme.motionDuration
-                easing.type: Theme.easing
-            }
-        }
 
         Row {
             id: icons
@@ -134,6 +139,12 @@ PanelWindow {
             anchors.fill: parent
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+            onContainsMouseChanged: {
+                if (containsMouse)
+                    root.tipIcon = icon;
+                else if (root.tipIcon === icon)
+                    root.tipIcon = null;
+            }
             cursorShape: Qt.PointingHandCursor
             onClicked: event => {
                 const item = icon.modelData;

@@ -15,6 +15,15 @@ Chip {
         + (Bluetooth.battery >= 0 ? `, ${Bluetooth.name(Bluetooth.batteryDevice)} battery ${Bluetooth.battery}%` : "")
         + (Audio.micMuted ? ", microphone muted" : "")
         + (Audio.muted ? ", muted" : `, volume ${Math.round(Audio.volume * 100)}%`)
+    // each thing the chip shows, named, with the output device
+    tooltip: {
+        const lines = [
+            ["Ethernet", Network.connected ? (Network.speed >= 1000 ? `${Network.speed / 1000} Gbps` : `${Network.speed} Mbps`) : "unplugged"],
+            ["Bluetooth", Bluetooth.summary],
+            [Audio.sink ? Audio.deviceName(Audio.sink) : "Sound", Audio.muted ? "muted" : `${Math.round(Audio.volume * 100)}%`]
+        ];
+        return lines;
+    }
 
     Icon {
         anchors.verticalCenter: parent.verticalCenter

@@ -11,6 +11,11 @@ Chip {
     leftPadding: 14
     spacing: 10
     Accessible.name: (Notifs.dnd ? "Do not disturb is on. " : "Notifications. ") + Qt.formatDateTime(clock.date, "hh:mm, dddd d MMMM")
+    // the full date, and what's waiting in the centre
+    tooltip: {
+        const fresh = Notifs.notifications.filter(n => Notifs.received(n) > Notifs.seenAt).length;
+        return [[Qt.formatDate(clock.date, "dddd d MMMM yyyy")], Notifs.dnd ? ["Do not disturb", "on"] : ["Notifications", fresh ? `${fresh} new` : "nothing new"]];
+    }
 
     SystemClock {
         id: clock

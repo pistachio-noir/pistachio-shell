@@ -44,4 +44,5 @@ Singleton {
     readonly property int easing: Easing.OutCubic
     readonly property int hoverDuration: 120
     readonly property int motionDuration: 200
+    readonly property int growDuration: 300 // the bar growing out of its handle, a touch slower (owner's request)
 }

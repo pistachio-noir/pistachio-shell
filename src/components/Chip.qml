@@ -11,7 +11,9 @@ Rectangle {
     property int rightPadding: 16
     property alias spacing: row.spacing
     property bool highlighted
-    readonly property bool lit: highlighted || mouse.containsMouse
+    readonly property bool hovered: mouse.containsMouse
+    readonly property bool lit: highlighted || hovered
+    property var tooltip: [] // lines for the bar's tooltip: [[label, detail], …]
     readonly property color foreground: lit ? Theme.textBright : Theme.text
 
     signal clicked

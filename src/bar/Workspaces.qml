@@ -8,6 +8,14 @@ Row {
 
     // Always 1–5, plus any higher workspace that exists.
     readonly property int count: Math.max(5, ...Compositor.workspaces.map(w => w.id))
+    // the dot under the pointer, and its line for the bar's tooltip: the apps on that workspace
+    property Item hoveredSlot: null
+    readonly property var tooltip: {
+        if (!hoveredSlot)
+            return [];
+        const apps = [...new Set(Compositor.windows.filter(w => w.workspace === hoveredSlot.wsId).map(w => Apps.nameFor(w.appId)))];
+        return [[`Workspace ${hoveredSlot.wsId}`, apps.length ? apps.join(", ") : "empty"]];
+    }
 
     leftPadding: 10
     rightPadding: 6
@@ -63,8 +71,15 @@ Row {
 
             MouseArea {
                 anchors.fill: parent
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: Compositor.goto(slot.wsId)
+                onContainsMouseChanged: {
+                    if (containsMouse)
+                        root.hoveredSlot = slot;
+                    else if (root.hoveredSlot === slot)
+                        root.hoveredSlot = null;
+                }
             }
         }
     }

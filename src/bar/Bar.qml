@@ -23,6 +23,50 @@ PanelWindow {
 
     onPointedChanged: if (!pointed) linger.restart()
 
+    // Tooltips (owner's request; not on a board): what the pointer rests on, as lines and the x to
+    // centre on, or null. It shows after half a second; moving on to the next item swaps it at once,
+    // across the gaps between them too, and the bar hiding, a panel or a tray menu drops it.
+    readonly property var tipTarget: !shown || quickSettings.open || centre.open || tray.menuOpen ? null
+        : clock.hovered ? { lines: clock.tooltip, x: centreOf(clock) }
+        : status.hovered ? { lines: status.tooltip, x: centreOf(status) }
+        : workspaces.hoveredSlot ? { lines: workspaces.tooltip, x: centreOf(workspaces.hoveredSlot) }
+        : tray.tipIcon ? { lines: tray.tipLines, x: tray.tipCentre }
+        : null
+
+    function centreOf(item: Item): real {
+        return (screen.width - width) / 2 + item.mapToItem(null, item.width / 2, 0).x;
+    }
+
+    onTipTargetChanged: {
+        if (tipTarget) {
+            tipClose.stop();
+            tip.lines = tipTarget.lines;
+            tip.centre = tipTarget.x;
+            if (!tip.open)
+                tipDelay.restart();
+        } else {
+            tipDelay.stop();
+            tipClose.restart();
+        }
+    }
+
+    Timer {
+        id: tipDelay
+        interval: 500
+        onTriggered: tip.open = true
+    }
+
+    Timer {
+        id: tipClose
+        interval: 150 // long enough to cross to the next item
+        onTriggered: tip.open = false
+    }
+
+    BarTooltip {
+        id: tip
+        lift: Theme.barHeight + Theme.barMargin + 8
+    }
+
     Timer {
         id: linger
         interval: 400
@@ -56,28 +100,43 @@ PanelWindow {
         id: hover
     }
 
+    // From the handle left behind while hidden (AutoHide board: 72 x 4, 2 px above the screen edge,
+    // in subtext) to the pill and back: 0 is the handle, 1 the bar (owner's request).
+    property real grown: shown ? 1 : 0
+
+    Behavior on grown {
+        NumberAnimation {
+            duration: Theme.growDuration
+            easing.type: Theme.easing
+        }
+    }
+
+    // The pill, grown out of the handle: it widens and rises as the handle's colour gives way to the
+    // bar's within the first third.
     Rectangle {
+        width: 72 + (parent.width - 72) * root.grown
+        height: 4 + (Theme.barHeight - 4) * root.grown
+        x: (parent.width - width) / 2
+        y: (root.height - 2 - 4) * (1 - root.grown)
+        radius: height / 2 // 2 for the handle, Theme.barRadius for the bar
+        color: Qt.tint(Theme.bgAlt, Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, Math.max(0, 1 - 3 * root.grown)))
+        border.width: 1
+        border.color: Qt.rgba(Theme.overlay2.r, Theme.overlay2.g, Theme.overlay2.b, root.grown)
+    }
+
+    // The bar's content, at its full size: it fades in rising 6 px once the pill is half grown, and
+    // goes first when it shrinks.
+    Item {
+        id: content
+
+        readonly property real shownPart: Math.max(0, 2 * root.grown - 1)
+
         width: parent.width
         height: Theme.barHeight
-        // hides by sliding down its own height plus the margin while fading
-        y: root.shown ? 0 : root.height
-        opacity: root.shown ? 1 : 0
-        radius: Theme.barRadius
-        color: Theme.bgAlt
-        border.width: 1
-        border.color: Theme.overlay2
-
-        Behavior on y {
-            NumberAnimation {
-                duration: Theme.motionDuration
-                easing.type: Theme.easing
-            }
-        }
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Theme.motionDuration
-                easing.type: Theme.easing
-            }
+        opacity: shownPart
+        visible: opacity > 0
+        transform: Translate {
+            y: 6 * (1 - content.shownPart)
         }
 
         // Edges sit 9 px in (1 px border + 8 px padding) with 8 px gaps, as on the board.
@@ -198,25 +257,6 @@ PanelWindow {
 
         function toggleDnd(): void {
             Notifs.setDnd(!Notifs.dnd);
-        }
-    }
-
-    // The handle left behind while hidden (AutoHide board).
-    Rectangle {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 2
-        width: 72
-        height: 4
-        radius: 2
-        color: Theme.subtext
-        opacity: root.shown ? 0 : 1
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Theme.motionDuration
-                easing.type: Theme.easing
-            }
         }
     }
 }

@@ -15,6 +15,7 @@ What you get:
 - **OSD:** a volume and brightness indicator, which also names the new output device when the sound moves, e.g. to headphones as they connect.
 - **Power menu:** lock, log out, suspend, reboot and shut down, over a blurred still of the screen.
 - **Lock screen:** checks your password through PAM.
+- **Admin password dialog:** the shell is the polkit agent, so apps that need admin rights (`pkexec`, GParted, an app managing system services) ask for your password in a dialog of its own, with details on which app asked and for what. Cancelling it never counts as a failed login.
 
 ## Requirements
 
@@ -28,6 +29,7 @@ Tested on Arch Linux with Hyprland 0.56.2 (Lua config) and Quickshell 0.3.2 on Q
 | Media | any player that speaks MPRIS (browsers, Spotify, mpv with `mpv-mpris`) | the media card in quick settings | the card stays hidden |
 | Bluetooth | `bluez`, `bluez-utils`, with `bluetooth.service` running | Bluetooth tile, chip, launcher Bluetooth view | Bluetooth shows as off |
 | Pairing agent | `python-gobject` | pairing devices that show or ask for a code, and devices asking to connect | only devices that need no code pair; the log says `bluetooth agent exited` |
+| Polkit agent | `python-gobject`, `polkit` (its Python bindings come with it) | the admin password dialog | apps that need admin rights fail or hang; the log says `polkit agent` |
 | Network | `networkmanager`, with `NetworkManager.service` running | Ethernet tile and chip (Quickshell only talks to NetworkManager) | Ethernet shows as unplugged |
 | Brightness | `ddcutil`, and DDC/CI switched on in your monitor's own menu | brightness slider, brightness keys, OSD | the brightness slider is hidden |
 | Night light | `hyprsunset` | Night light tile, warmth slider and schedule; the shell starts and stops it itself | the tile says "Not installed" |
@@ -35,12 +37,13 @@ Tested on Arch Linux with Hyprland 0.56.2 (Lua config) and Quickshell 0.3.2 on Q
 | Power actions | `systemd` (already there) | suspend, reboot, shut down | |
 | Terminal apps | `kitty`, or set `$TERMINAL` | launching apps marked `Terminal=true` | those apps don't start |
 | Font | Manrope (weights 500 to 800), installed by `install.sh`; needs `curl` | all text | Qt falls back to another font |
+| Mono font (optional) | `ttf-jetbrains-mono` | the details in the admin password dialog | another monospace font |
 
 The `ddcutil` package already loads the `i2c-dev` module and gives the logged-in user access to the monitor, so it needs no group or module setup. Not every monitor supports DDC/CI; check with `ddcutil getvcp 10`.
 
 Manrope isn't in the official repos, so `install.sh` downloads it: Google Fonts' variable TTF (every weight from 200 to 800 in one file) and its licence go into `~/.local/share/fonts/manrope/`. Not Fontsource's files: they name every weight "Manrope ExtraLight", so nothing matches "Manrope" and the shell falls back to another font. By hand: download `Manrope[wght].ttf` from [Google Fonts](https://fonts.google.com/specimen/Manrope) into that folder and run `fc-cache -f`.
 
-For the tests in `tests/` you also need `nodejs` and `libnotify` (`notify-send`); `pw-cat` (part of `pipewire`) plays the silent test stream, and `gdbus` (part of `glib2`) asks the pairing agent its test questions.
+For the tests in `tests/` you also need `nodejs` and `libnotify` (`notify-send`); `pw-cat` (part of `pipewire`) plays the silent test stream, and `gdbus` (part of `glib2`) asks the pairing and polkit agents their test questions.
 
 ## Installation
 
@@ -304,6 +307,7 @@ SDDM isn't part of the shell, and the theme works on its own: it brings its own 
 - **Brightness slider missing:** the monitor didn't answer. Run `ddcutil getvcp 10` and turn on DDC/CI in the monitor's menu.
 - **Night light tile says "Not installed":** install `hyprsunset`.
 - **A device that shows a code won't pair:** `psc log` shows a `bluetooth agent` line when the pairing agent can't start or register; install `python-gobject` if it says so. While the shell runs it is BlueZ's default agent, so it also takes over from another one, such as a KDE session's.
+- **An app that needs admin rights fails or hangs without asking:** no polkit agent runs. `psc log` shows a `polkit agent` line when the shell's can't start or register: install `python-gobject` if it says so, and stop any other agent for this session (polkit takes one per session, e.g. `polkit-gnome` or `hyprpolkitagent` started from the Hyprland config).
 - **An app's tray icon doesn't show:** the shell shows StatusNotifierItem icons, which most current apps use; apps with only the old X11 tray don't appear. Icons an app marks as passive (idle) are left out on purpose.
 - **App icons missing in the launcher:** Qt couldn't find an icon theme. Install one, for example `papirus-icon-theme` or `breeze-icons`, and select it in `qt6ct`, which needs `hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")` in `hyprland.lua`.
 - **A change in `src/` didn't show:** reloading occasionally misses a save; restart the shell (see "Updating and restarting").

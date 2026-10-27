@@ -195,7 +195,8 @@ PanelWindow {
         const a = streams.filter(keep), d = devices.filter(keep);
         // the shell's own look, at the end (owner's request; not on the board)
         const shell = card("Shell settings", q, [
-            { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) }
+            { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) },
+            { kind: "switch", key: "quietFullscreen", title: "Quiet in fullscreen", icon: Icons.bellOff, on: () => ShellSettings.quietFullscreen, status: () => ShellSettings.quietFullscreen ? "Toasts wait while a fullscreen window has focus" : "Off", toggle: () => ShellSettings.setQuietFullscreen(!ShellSettings.quietFullscreen) }
         ]);
         return cards.concat(a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(shell.length ? [section("Shell settings")].concat(shell) : []);
     }

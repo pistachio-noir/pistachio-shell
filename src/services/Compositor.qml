@@ -18,6 +18,8 @@ Singleton {
 
     // Hyprland.activeToplevel stays null until the first focus change; the Wayland one is right from the start.
     readonly property Toplevel focusedWindow: ToplevelManager.activeToplevel
+    // the focused window fills the screen (a game, a video): toasts wait meanwhile
+    readonly property bool fullscreen: focusedWindow?.fullscreen ?? false
 
     // Every window, for the launcher. `address` is what focus(), moveWindow() and close() take.
     readonly property var windows: Hyprland.toplevels.values.map(t => ({

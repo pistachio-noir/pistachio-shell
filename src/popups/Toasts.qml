@@ -232,39 +232,4 @@ PanelWindow {
             }
         }
     }
-
-    component ActionButton: Rectangle {
-        id: button
-
-        property string text
-        property bool primary
-
-        signal clicked
-
-        width: label.implicitWidth + 32
-        height: 40
-        radius: 20
-        color: primary ? Theme.pistachio : mouse.containsMouse ? Theme.overlay2 : Theme.overlay
-        Accessible.role: Accessible.Button
-        Accessible.name: text
-
-        Text {
-            id: label
-            anchors.centerIn: parent
-            text: button.text
-            textFormat: Text.PlainText
-            color: button.primary ? Theme.bg : Theme.text
-            font.family: Theme.fontUi
-            font.pixelSize: 12
-            font.weight: button.primary ? Font.ExtraBold : Font.Bold
-        }
-
-        MouseArea {
-            id: mouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: button.clicked()
-        }
-    }
 }

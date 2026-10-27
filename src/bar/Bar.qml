@@ -124,8 +124,9 @@ PanelWindow {
         shown: root.shown
     }
 
-    // Panels are right-aligned with the bar, above it (12 px for quick settings, 16 px for the
-    // notification centre, as on their boards). Toasts are centred over the bar, 16 px above it.
+    // Quick settings is right-aligned with the bar, 12 px above it. The notification centre, wider
+    // with the calendar beside it, and the toasts are centred over the bar, 16 px above it (as on
+    // their boards).
     QuickSettings {
         id: quickSettings
         anchors.bottom: true
@@ -150,9 +151,7 @@ PanelWindow {
     NotificationCentre {
         id: centre
         anchors.bottom: true
-        anchors.left: true
-        margins.left: (screen.width + root.width) / 2 - width
-        margins.bottom: root.height + 16
+        margins.bottom: root.height + 16 - centre.below
         onOpenChanged: grab.active = open || quickSettings.open
     }
 

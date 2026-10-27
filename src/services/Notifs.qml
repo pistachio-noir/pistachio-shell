@@ -12,6 +12,8 @@ Singleton {
 
     // new notifications are kept but not shown as popups, except critical ones
     readonly property bool dnd: Store.saved.dnd
+    // the same while a fullscreen window has focus, if the shell setting is on
+    readonly property bool quiet: dnd || ShellSettings.quietFullscreen && Compositor.fullscreen
     // records from before the last restart, newest first
     property var saved: []
     property bool historyLoaded // until then, saving would overwrite the saved history
@@ -63,6 +65,15 @@ Singleton {
             n.dismiss();
     }
 
+    // one app's notifications, from the notification centre's group header
+    function clearApp(app: string) {
+        saved = saved.filter(r => (r.appName ?? "") !== app);
+        for (const n of server.trackedNotifications.values.slice()) {
+            if ((n.appName ?? "") === app)
+                n.dismiss();
+        }
+    }
+
     function same(record, n): bool {
         return record.summary === n.summary && record.body === n.body && record.appName === n.appName;
     }
@@ -108,10 +119,13 @@ Singleton {
         n.actions.find(a => a.identifier === "default")?.invoke();
     }
 
-    // An image source for the notification: its image, else its app icon, else "".
+    // An image source for the notification: its image, else its app icon, else "". An icon name sent
+    // as the image (notify-send -i does) arrives as an unchecked "image://icon/…", which draws
+    // Quickshell's magenta checkerboard when the theme lacks it, so it only counts if the theme has it.
     function iconSource(n): string {
-        if (n.image)
-            return n.image;
+        const themed = n.image.startsWith("image://icon/") ? Quickshell.iconPath(n.image.slice(13), true) : n.image;
+        if (themed)
+            return themed;
         if (n.appIcon.startsWith("/") || n.appIcon.includes("://"))
             return n.appIcon;
         return n.appIcon ? Quickshell.iconPath(n.appIcon, true) : "";
@@ -132,7 +146,7 @@ Singleton {
             if (kept)
                 root.saved = root.saved.filter(r => r !== kept);
             root.receivedAt = Object.assign({}, root.receivedAt, { [n.id]: n.lastGeneration ? kept?.time ?? 0 : Date.now() });
-            if ((!root.dnd || root.isCritical(n)) && !n.lastGeneration)
+            if ((!root.quiet || root.isCritical(n)) && !n.lastGeneration)
                 root.popups = root.popups.filter(p => p !== n).concat([n]);
         }
     }

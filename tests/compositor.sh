@@ -1,6 +1,7 @@
 #!/bin/bash
 # Self-check for src/services/Compositor.qml against the running Hyprland session.
-# It opens a throwaway kitty window, moves it to workspace 9, focuses and closes it, and ends on workspace 1.
+# It opens a throwaway kitty window, moves it to workspace 9, floats and tiles it, sends it to 8 without
+# following, focuses and closes it, and ends on workspace 1.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)/harness"
 
@@ -25,11 +26,19 @@ ADDR=$(ipc state | python3 -I -c "import json, sys; print(next(x['address'] for 
 ipc moveWindow "$ADDR" 9; sleep 1
 check "w[0]['workspace'] == 9 and 9 in [x['id'] for x in s['workspaces']]" "moveWindow to workspace 9"
 
+ipc toggleFloating "$ADDR"; sleep 1
+check "w[0]['floating']" "toggleFloating floats it"
+ipc toggleFloating "$ADDR"; sleep 1
+check "not w[0]['floating']" "toggleFloating tiles it again"
+
+ipc sendWindow "$ADDR" 8; sleep 1
+check "w[0]['workspace'] == 8 and s['active'] == [9]" "sendWindow to workspace 8 stays on 9"
+
 ipc goto 1; sleep 1
 check "s['active'] == [1]" "goto 1"
 
 ipc focus "$ADDR"; sleep 1
-check "s['active'] == [9] and s['focused'] == 'pistachio-test'" "focus switches to the window's workspace"
+check "s['active'] == [8] and s['focused'] == 'pistachio-test'" "focus switches to the window's workspace"
 
 ipc close "$ADDR"; sleep 1
 check "not w" "close"

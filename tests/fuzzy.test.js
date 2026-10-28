@@ -4,7 +4,7 @@ const assert = require("assert");
 const path = require("path");
 
 const src = fs.readFileSync(path.join(__dirname, "../src/launcher/fuzzy.js"), "utf8").replace(".pragma library", "");
-const { match, highlight } = new Function(src + "\nreturn { match, highlight };")();
+const { match, highlight, fold } = new Function(src + "\nreturn { match, highlight, fold };")();
 
 // the board's example: prefix matches (which tie; the launcher then puts shorter names first)
 // beat a match inside a word, and a non-match is dropped
@@ -22,6 +22,19 @@ assert.strictEqual(match("zz", "Firefox"), null);
 // letters scattered across a long text do not count (seen: "fire" matched a file manager's keywords)
 assert.strictEqual(match("fire", "file manager file explorer"), null);
 assert.strictEqual(match("", "Firefox").score, 0);
+
+// accents don't matter either way, and the indices still point into the text as written
+assert.deepStrictEqual(match("zolty", "Żółty").indices, [0, 1, 2, 3, 4]);
+assert.ok(match("łódź", "Lodz"));
+assert.ok(match("gesla", "Gęśla"));
+assert.ok(match("zolw", "Żółw").score > match("zolw", "Mój żółw").score);
+assert.deepStrictEqual(match("cafe", "Le Café").indices, [3, 4, 5, 6]);
+assert.strictEqual(fold("Żółć ĄĘ"), "zolc ae");
+assert.strictEqual(fold("Ærø ß"), "æro ß"); // ligatures stay whole: one character for one
+// characters outside the BMP (emoji) keep their two code units, so later indices stay right
+assert.deepStrictEqual(match("é", "😀 e").indices, [3]);
+assert.strictEqual(fold("😀ą").length, "😀ą".length);
+assert.strictEqual(highlight("Żółty", match("zo", "Żółty").indices, "c"), '<font color="c">Żó</font>łty');
 
 // highlighting wraps runs and escapes markup in names
 assert.strictEqual(highlight("Neovim", [0, 1], "#9fd88a"), '<font color="#9fd88a">Ne</font>ovim');

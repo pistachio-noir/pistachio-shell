@@ -1,7 +1,8 @@
 #!/bin/bash
 # Self-check that the quick settings services change real system state: volume, per-app volume and the
 # microphone (PipeWire), with the apps recording, the System monitor's readings,
-# Bluetooth power and the pairing agent (BlueZ), monitor brightness (DDC/CI) and night light (hyprsunset, if installed).
+# Bluetooth power and the pairing agent (BlueZ; power is left alone while a device is connected), monitor
+# brightness (DDC/CI), Do not disturb's schedule and night light (hyprsunset, if installed).
 # Everything is put back on exit. Ethernet is only read: toggling it would cut the network.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)/harness"
@@ -27,13 +28,23 @@ MIC_MUTED=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | grep -q MUTED && echo 1 ||
 BT_POWERED=$(bluetoothctl show | grep -q 'Powered: yes' && echo on || echo off)
 BRIGHTNESS=$(ddcutil getvcp 10 --brief 2>/dev/null | awk '{print $4}' || true)
 SINK=$(wpctl inspect @DEFAULT_AUDIO_SINK@ | awk -F'"' '/node.name =/ { print $2; exit }')
+SOURCE=$(wpctl inspect @DEFAULT_AUDIO_SOURCE@ | awk -F'"' '/node.name =/ { print $2; exit }')
+# a node's id by its name, or nothing once it's gone
+node_id() {
+    pw-dump | python3 -I -c "import json, sys; print(next((o['id'] for o in json.load(sys.stdin) if o.get('info', {}).get('props', {}).get('node.name') == sys.argv[1]), ''))" "$1"
+}
 restore() {
     ipc setSink "$SINK" > /dev/null 2>&1 || true
-    wpctl set-volume @DEFAULT_AUDIO_SINK@ "$VOLUME"
-    wpctl set-mute @DEFAULT_AUDIO_SINK@ "$MUTED"
-    wpctl set-volume @DEFAULT_AUDIO_SOURCE@ "$MIC_VOLUME"
-    wpctl set-mute @DEFAULT_AUDIO_SOURCE@ "$MIC_MUTED"
+    # the devices the test started on, not whichever is the default by now (it changed once when
+    # Bluetooth power dropped the headphones that were the default)
+    local id
+    id=$(node_id "$SINK")
+    if [ -n "$id" ]; then wpctl set-volume "$id" "$VOLUME"; wpctl set-mute "$id" "$MUTED"; fi
+    id=$(node_id "$SOURCE")
+    if [ -n "$id" ]; then wpctl set-volume "$id" "$MIC_VOLUME"; wpctl set-mute "$id" "$MIC_MUTED"; fi
     if [ -n "${RECORD_PID:-}" ]; then kill "$RECORD_PID" 2>/dev/null || true; fi
+    if [ -n "${READER_PID:-}" ]; then kill "$READER_PID" 2>/dev/null || true; fi
+    if [ -n "${CAST_PID:-}" ]; then kill "$CAST_PID" 2>/dev/null || true; fi
     bluetoothctl power "$BT_POWERED" > /dev/null
     if [ -n "$BRIGHTNESS" ]; then ddcutil setvcp 10 "$BRIGHTNESS" --noverify; fi
     if [ -n "${STREAM_PID:-}" ]; then kill "$STREAM_PID" 2>/dev/null || true; fi
@@ -54,11 +65,16 @@ expect "volume set to 0.42" sh -c "wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep 
 check "abs(s['volume'] - 0.42) < 0.01 and not s['muted']" "service reports 0.42, unmuted"
 
 check "s['agent']" "pairing agent registered with BlueZ"
-ipc setBluetooth false; sleep 2
-expect "Bluetooth powered off" sh -c "bluetoothctl show | grep -q 'Powered: no'"
-ipc setBluetooth true; sleep 2
-expect "Bluetooth powered on" sh -c "bluetoothctl show | grep -q 'Powered: yes'"
-check "s['agent']" "pairing agent still registered"
+if bluetoothctl devices Connected | grep -q .; then
+    # powering off drops connected devices, and headphones don't come back by themselves
+    echo "skip: Bluetooth power, a device is connected ($(bluetoothctl devices Connected | cut -d' ' -f3- | paste -sd,))"
+else
+    ipc setBluetooth false; sleep 2
+    expect "Bluetooth powered off" sh -c "bluetoothctl show | grep -q 'Powered: no'"
+    ipc setBluetooth true; sleep 2
+    expect "Bluetooth powered on" sh -c "bluetoothctl show | grep -q 'Powered: yes'"
+    check "s['agent']" "pairing agent still registered"
+fi
 
 if [ -n "$BRIGHTNESS" ]; then
     ipc setBrightness 0.6; sleep 2
@@ -70,6 +86,18 @@ fi
 ipc setDnd true
 check "s['dnd']" "do not disturb on"
 ipc setDnd false
+
+# Do not disturb's schedule: a window around now switches it on, one that leaves now out switches it
+# off, and night light's times do the same once it follows them (night light itself stays off).
+NOW=$(( $(date +%-H) * 60 + $(date +%-M) ))
+ipc setDndTimes $(( NOW - 30 )) $(( NOW + 30 )); ipc setDndSchedule true; sleep 0.5
+check "s['dnd'] and s['inDndSchedule']" "a Do not disturb schedule around now turns it on"
+ipc setDndTimes $(( NOW + 60 )) $(( NOW + 120 )); sleep 0.5
+check "not s['dnd'] and not s['inDndSchedule']" "one away from now turns it off"
+ipc setNightSchedule false $(( NOW - 30 )) $(( NOW + 30 )); ipc setDndFollowsNight true; sleep 0.5
+check "s['dnd'] and s['inDndSchedule']" "night light's times around now turn it on once it follows them"
+ipc setDndFollowsNight false; ipc setDndSchedule false; ipc setNightSchedule false 1200 420; ipc setDnd false; sleep 0.5
+check "not s['dnd'] and not s['dndScheduled']" "schedule off again"
 
 if pgrep -x hyprsunset > /dev/null; then
     # one hyprsunset at a time: the test shell's can't start next to the running shell's
@@ -152,11 +180,35 @@ check "'pistachio-rec-test' in s['recorders']" "recording app listed"
 kill "$RECORD_PID"; RECORD_PID=; sleep 0.8
 check "'pistachio-rec-test' not in s['recorders']" "gone once it stops"
 
+# A screen shared through the portal: a stand-in for xdg-desktop-portal-hyprland's video source (a
+# GStreamer test pattern, named like its node) and an app reading it. WirePlumber won't link the two
+# by itself ("target not found"), so pw-link does.
+if gst-inspect-1.0 pipewiresink > /dev/null 2>&1; then
+    gst-launch-1.0 -q videotestsrc is-live=true ! video/x-raw,width=320,height=180,framerate=10/1 \
+        ! pipewiresink mode=provide stream-properties="props,media.class=Video/Source,node.name=xdg-desktop-portal-hyprland" > /dev/null 2>&1 &
+    CAST_PID=$!
+    gst-launch-1.0 -q pipewiresrc autoconnect=false \
+        stream-properties="props,application.name=pistachio-share-test,node.name=pistachio-share-test" ! fakesink > /dev/null 2>&1 &
+    READER_PID=$!
+    sleep 1.2
+    pw-link "$(pw-link -o | grep -m1 '^xdg-desktop-portal-hyprland:')" "$(pw-link -i | grep -m1 pistachio-share-test)"
+    sleep 0.8
+    check "'pistachio-share-test' in s['screen']" "app sharing the screen listed"
+    kill "$READER_PID"; READER_PID=; sleep 0.8
+    check "s['screen'] == []" "gone once it stops reading"
+    kill "$CAST_PID"; CAST_PID=
+else
+    echo "skip: screen sharing (no GStreamer PipeWire plugin)"
+fi
+
 # The System monitor's readings, taken while watched.
 ipc setStatsWatching true; sleep 2.5
 check "0 <= s['cpu'] <= 1 and 0 < s['memUsed'] < s['memTotal']" "CPU load and memory read"
 GPU=$(command -v nvidia-smi > /dev/null && echo True || echo False)
 check "s['gpuFound'] == $GPU" "GPU read exactly when nvidia-smi is there"
+# / and /home, once each: a /home on the root filesystem (btrfs subvolumes) shows as one disk
+DISKS=$(df -P / /home | awk 'NR > 1 { print $1 }' | sort -u | wc -l)
+check "len(s['disks']) == $DISKS and s['disks'][0]['mount'] == '/' and all(0 < d['free'] <= d['size'] for d in s['disks'])" "free disk space read for / and /home"
 ipc setStatsWatching false
 
 # Settings survive a restart (the test shell keeps its own state file, not the real shell's).

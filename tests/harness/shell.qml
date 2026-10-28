@@ -24,6 +24,8 @@ Scope {
         function goto(id: int): void { Compositor.goto(id); }
         function focus(address: string): void { Compositor.focus(address); }
         function moveWindow(address: string, ws: int): void { Compositor.moveWindow(address, ws); }
+        function sendWindow(address: string, ws: int): void { Compositor.sendWindow(address, ws); }
+        function toggleFloating(address: string): void { Compositor.toggleFloating(address); }
         function close(address: string): void { Compositor.close(address); }
     }
 
@@ -46,6 +48,8 @@ Scope {
                 nightSchedule: NightLight.scheduled,
                 inSchedule: NightLight.inSchedule,
                 dnd: Notifs.dnd,
+                dndScheduled: Notifs.dndScheduled,
+                inDndSchedule: Notifs.inDndSchedule,
                 uptime: Uptime.seconds,
                 streams: Audio.streams.map(n => Audio.appName(n)),
                 micVolume: Audio.micVolume,
@@ -53,10 +57,12 @@ Scope {
                 sources: Audio.sources.map(n => n.name),
                 unplugged: Audio.unplugged,
                 recorders: Audio.recorders.map(n => Audio.appName(n)),
+                screen: ScreenShare.apps,
                 cpu: SystemStats.cpu,
                 memTotal: SystemStats.memTotal,
                 memUsed: SystemStats.memUsed,
-                gpuFound: SystemStats.gpuFound
+                gpuFound: SystemStats.gpuFound,
+                disks: SystemStats.disks
             });
         }
         function setVolume(v: real): void { Audio.setVolume(v); }
@@ -69,6 +75,9 @@ Scope {
         function setTemperature(k: int): void { NightLight.setTemperature(k); }
         function setNightSchedule(on: bool, from: int, to: int): void { NightLight.setSchedule(on, from, to); }
         function setDnd(on: bool): void { Notifs.setDnd(on); }
+        function setDndSchedule(on: bool): void { Notifs.setDndSchedule(on); }
+        function setDndFollowsNight(on: bool): void { Notifs.setDndFollowsNight(on); }
+        function setDndTimes(from: int, to: int): void { Notifs.setDndTimes(from, to); }
         function sinks(): string { return JSON.stringify(Audio.sinks.map(n => n.name)); }
         function setSink(name: string): void {
             const node = Audio.sinks.find(n => n.name === name);

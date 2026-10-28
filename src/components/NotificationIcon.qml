@@ -2,7 +2,8 @@ import qs
 import qs.services
 import QtQuick
 
-// Round icon for a notification: its image or app icon, else a bell (terracotta when critical).
+// Round icon for a notification: its image or app icon, else a bell (terracotta when critical); the
+// shell's own screenshot notification gets the screenshot menu's Region glyph.
 Rectangle {
     id: root
 
@@ -31,7 +32,7 @@ Rectangle {
         anchors.centerIn: parent
         visible: !image.visible
         size: root.size / 2
-        paths: Icons.bell
+        paths: Notifs.own(root.notification) ? Icons.region : Icons.bell
         color: root.critical ? Theme.terracotta : Theme.subtext
     }
 }

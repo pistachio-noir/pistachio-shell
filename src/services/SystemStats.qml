@@ -4,9 +4,9 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 
-// CPU, memory and GPU load for the launcher's System monitor card. services/stats.sh takes a reading
-// (/proc for the CPU and memory, the CPU's hwmon sensor, nvidia-smi for an NVIDIA card); it runs
-// every 1.5 s, and only while something shows the readings (setWatching).
+// CPU, memory, GPU and disk readings for the launcher's System monitor card. services/stats.sh takes
+// a reading (/proc for the CPU and memory, the CPU's hwmon sensor, nvidia-smi for an NVIDIA card, df
+// for / and /home); it runs every 1.5 s, and only while something shows the readings (setWatching).
 Singleton {
     id: root
 
@@ -22,6 +22,11 @@ Singleton {
     property real gpuTemp // °C
     property real vramUsed // GiB
     property real vramTotal
+    // / and /home, or only / when /home is on the same filesystem (btrfs subvolumes are): each
+    // { mount, size, free } in GiB, and `low` under 10 % free (owner's request, after phase 8)
+    property var disks: []
+    // their mount points, which change far less often: the launcher's rows are built from these
+    property var diskMounts: []
     property var last: null // the previous CPU counters: [busy, total]
 
     function setWatching(on: bool) {
@@ -31,6 +36,7 @@ Singleton {
     }
 
     function parse(text: string) {
+        const found = [];
         for (const line of text.trim().split("\n")) {
             const f = line.trim().split(/\s+/);
             if (f[0] === "stat") {
@@ -58,8 +64,14 @@ Singleton {
                 vramUsed = Number(g[3]) / 1024;
                 vramTotal = Number(g[4]) / 1024;
                 gpuFound = true;
+            } else if (f[0] === "disk" && !found.some(d => d.device === f[1])) {
+                const size = Number(f[2]) / 1048576, free = Number(f[3]) / 1048576;
+                found.push({ device: f[1], mount: f[4], size: size, free: free, low: free < 0.1 * size });
             }
         }
+        disks = found;
+        if (found.map(d => d.mount).join(" ") !== diskMounts.join(" "))
+            diskMounts = found.map(d => d.mount);
     }
 
     Timer {

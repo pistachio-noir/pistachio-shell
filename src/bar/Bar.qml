@@ -11,22 +11,44 @@ import QtQuick
 PanelWindow {
     id: root
 
-    // The bar's area on screen (the pill, the tray pill if shown, and the gap under them), grown by a small margin.
+    // The bar's area on screen (the pill, the tray and media pills if shown, and the gap under them),
+    // grown by a small margin.
     readonly property int trayGap: 12
-    readonly property rect zone: Qt.rect((screen.width - width) / 2 - 8, screen.height - height - 8, width + 16 + (tray.visible ? trayGap + tray.width : 0), height + 8)
+    readonly property real mediaSpace: media.visible ? trayGap + media.width : 0
+    readonly property rect zone: Qt.rect((screen.width - width) / 2 - 8 - mediaSpace, screen.height - height - 8, width + 16 + mediaSpace + (tray.visible ? trayGap + tray.width : 0), height + 8)
     readonly property bool overlapped: Compositor.windowBounds.some(r => r.x < zone.x + zone.width && r.x + r.width > zone.x && r.y + r.height > zone.y)
-    // the pointer is on the bar or the tray pill, or a tray menu is open
-    readonly property bool pointed: hover.hovered || tray.hovered || tray.menuOpen
+    // the pointer is on the bar or a pill beside it, or a tray menu or the media card is open
+    readonly property bool pointed: hover.hovered || tray.hovered || tray.menuOpen || media.hovered || media.cardOpen
+    // A fullscreen window (a game, a video; not a maximized one) has the screen to itself: no reveal
+    // strip, so a stray pointer at the bottom edge doesn't bring the bar up over it (owner's request,
+    // after phase 8). A panel opened by keybind still shows it.
+    readonly property bool fullscreen: Compositor.fullscreen
     // Stays up while pointed (even if a window moves under it), for a moment after, long enough to
-    // cross the gap to the tray pill, and while a panel is open.
-    readonly property bool shown: !overlapped || pointed || linger.running || quickSettings.open || centre.open
+    // cross the gap to the tray pill, and while a panel or a tray menu is open.
+    readonly property bool shown: !held && (!fullscreen && (!overlapped || pointed || linger.running) || tray.menuOpen || media.cardOpen || quickSettings.open || centre.open)
+
+    // The startup animation (owner's request, after phase 8; shell.qml): as the shell starts, the bar
+    // and its pills wait as the handle while the wallpaper fades in, then grow out of it. Not on a
+    // live reload. `instant` makes the drop to the handle at the start jump instead of ease.
+    property bool held
+    property bool instant
+
+    function startIntro() {
+        instant = true;
+        held = true;
+        instant = false;
+    }
+
+    function endIntro() {
+        held = false;
+    }
 
     onPointedChanged: if (!pointed) linger.restart()
 
     // Tooltips (owner's request; not on a board): what the pointer rests on, as lines and the x to
     // centre on, or null. It shows after half a second; moving on to the next item swaps it at once,
     // across the gaps between them too, and the bar hiding, a panel or a tray menu drops it.
-    readonly property var tipTarget: !shown || quickSettings.open || centre.open || tray.menuOpen ? null
+    readonly property var tipTarget: !shown || quickSettings.open || centre.open || tray.menuOpen || media.cardOpen ? null
         : clock.hovered ? { lines: clock.tooltip, x: centreOf(clock) }
         : status.hovered ? { lines: status.tooltip, x: centreOf(status) }
         : workspaces.hoveredSlot ? { lines: workspaces.tooltip, x: centreOf(workspaces.hoveredSlot) }
@@ -75,6 +97,12 @@ PanelWindow {
     // quick settings asks for a launcher mode; shell.qml owns the launcher
     signal launcherRequested(string mode)
 
+    // the notification centre at one notification (the launcher's "!")
+    function showNotification(n) {
+        quickSettings.open = false;
+        centre.show(n);
+    }
+
     // One panel at a time.
     function toggle(panel) {
         const open = !panel.open;
@@ -89,11 +117,12 @@ PanelWindow {
     implicitHeight: Theme.barHeight + Theme.barMargin // reaches the screen edge, where the reveal strip is
     color: "transparent"
 
-    // Hidden, only a 4 px strip at the screen edge takes the pointer; clicks elsewhere reach the windows below.
+    // Hidden, only a 4 px strip at the screen edge takes the pointer (none over a fullscreen window);
+    // clicks elsewhere reach the windows below.
     mask: Region {
         y: root.shown ? 0 : root.height - 4
         width: root.width
-        height: root.shown ? root.height : 4
+        height: root.shown ? root.height : root.fullscreen ? 0 : 4
     }
 
     HoverHandler {
@@ -105,6 +134,8 @@ PanelWindow {
     property real grown: shown ? 1 : 0
 
     Behavior on grown {
+        enabled: !root.instant
+
         NumberAnimation {
             duration: Theme.growDuration
             easing.type: Theme.easing
@@ -122,6 +153,15 @@ PanelWindow {
         color: Qt.tint(Theme.bgAlt, Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, Math.max(0, 1 - 3 * root.grown)))
         border.width: 1
         border.color: Qt.rgba(Theme.overlay2.r, Theme.overlay2.g, Theme.overlay2.b, root.grown)
+        // no handle over a fullscreen window, as there's no strip to point at
+        opacity: root.fullscreen && !root.shown ? 0 : 1
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.growDuration
+                easing.type: Theme.easing
+            }
+        }
     }
 
     // The bar's content, at its full size: it fades in rising 6 px once the pill is half grown, and
@@ -174,6 +214,16 @@ PanelWindow {
         }
     }
 
+    // what's playing, left of the bar while a player has a track
+    MediaPill {
+        id: media
+        anchors.bottom: true
+        anchors.left: true
+        margins.left: (screen.width - root.width) / 2 - root.trayGap - media.width
+        shown: root.shown
+        instant: root.instant
+    }
+
     // the tray pill, right of the bar while any app has a tray icon
     TrayPill {
         id: tray
@@ -181,6 +231,7 @@ PanelWindow {
         anchors.left: true
         margins.left: (screen.width + root.width) / 2 + root.trayGap
         shown: root.shown
+        instant: root.instant
     }
 
     // Quick settings is right-aligned with the bar, 12 px above it. The notification centre, wider

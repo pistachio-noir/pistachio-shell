@@ -22,7 +22,7 @@ Singleton {
     readonly property bool scheduled: Store.saved.nightSchedule
     readonly property int from: Store.saved.nightFrom
     readonly property int to: Store.saved.nightTo
-    readonly property bool inSchedule: scheduled && within(clock.date)
+    readonly property bool inSchedule: scheduled && within(clock.date, from, to)
     property bool wanted // what the schedule last asked for
     // for the quick settings tile and the launcher: "Until 07:00", "4000 K", "From 20:00", "Off"
     readonly property string status: !available ? "Not installed"
@@ -52,9 +52,11 @@ Singleton {
         follow(true);
     }
 
-    function within(d): bool {
+    // whether the time of `d` falls from `start` to `end` (minutes after midnight; past midnight too);
+    // Notifs uses it for Do not disturb's schedule
+    function within(d, start: int, end: int): bool {
         const m = d.getHours() * 60 + d.getMinutes();
-        return from <= to ? m >= from && m < to : m >= from || m < to;
+        return start <= end ? m >= start && m < end : m >= start || m < end;
     }
 
     // "07:00"
@@ -66,7 +68,7 @@ Singleton {
     function follow(force: bool) {
         if (!scheduled || !Store.ready || !available)
             return;
-        const w = within(clock.date);
+        const w = within(clock.date, from, to);
         if (force || w !== wanted)
             setEnabled(w);
         wanted = w;

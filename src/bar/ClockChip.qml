@@ -14,7 +14,7 @@ Chip {
     // the full date, and what's waiting in the centre
     tooltip: {
         const fresh = Notifs.notifications.filter(n => Notifs.received(n) > Notifs.seenAt).length;
-        return [[Qt.formatDate(clock.date, "dddd d MMMM yyyy")], Notifs.dnd ? ["Do not disturb", "on"] : ["Notifications", fresh ? `${fresh} new` : "nothing new"]];
+        return [[Qt.formatDate(clock.date, "dddd d MMMM yyyy")], Notifs.dnd ? ["Do not disturb", Notifs.inDndSchedule ? `until ${NightLight.timeText(Notifs.dndTo)}` : "on"] : ["Notifications", fresh ? `${fresh} new` : "nothing new"]];
     }
 
     SystemClock {

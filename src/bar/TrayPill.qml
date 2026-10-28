@@ -11,6 +11,7 @@ PanelWindow {
     id: root
 
     property bool shown: true // the bar's state
+    property bool instant // the bar's: a change of `shown` jumps instead of easing
     readonly property bool hovered: hover.hovered
     readonly property bool menuOpen: menu.open // the bar stays up meanwhile
     property real menuCentre // x of the icon whose menu is open, in this window
@@ -67,6 +68,8 @@ PanelWindow {
     property real grown: shown ? 1 : 0
 
     Behavior on grown {
+        enabled: !root.instant
+
         NumberAnimation {
             duration: Theme.growDuration
             easing.type: Theme.easing

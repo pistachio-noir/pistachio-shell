@@ -475,24 +475,66 @@ Scope {
                     }
                 }
 
-                // status capsule
+                // Status capsule: the network, and how many notifications came that you haven't seen
+                // (owner's request, after phase 8: only the count, so nothing private shows here). It
+                // widens as the count comes.
                 Rectangle {
                     id: capsule
 
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 24
-                    width: 54
+                    width: status.width + 36
                     height: 40
                     radius: 20
                     color: Theme.bgAlt
                     border.width: 1
                     border.color: Theme.overlay2
+                    clip: true
 
-                    Icon {
-                        anchors.centerIn: parent
-                        color: Network.connected ? Theme.text : Theme.subtext
-                        paths: Network.connected ? Icons.ethernet : Icons.ethernet.concat(Icons.slash)
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: Theme.motionDuration
+                            easing.type: Theme.easing
+                        }
+                    }
+
+                    Row {
+                        id: status
+
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: 18
+                        spacing: 14
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: Network.connected ? Theme.text : Theme.subtext
+                            paths: Network.connected ? Icons.ethernet : Icons.ethernet.concat(Icons.slash)
+                        }
+
+                        Row {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: Notifs.unreadCount > 0
+                            spacing: 8
+                            Accessible.role: Accessible.StaticText
+                            Accessible.name: newText.text
+
+                            Icon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                paths: Icons.bell
+                            }
+
+                            Text {
+                                id: newText
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: `${Notifs.unreadCount} new notification${Notifs.unreadCount === 1 ? "" : "s"}`
+                                color: Theme.text
+                                font.family: Theme.fontUi
+                                font.pixelSize: 13
+                                font.weight: Font.Bold
+                                font.features: { "tnum": 1 }
+                            }
+                        }
                     }
                 }
             }

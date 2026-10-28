@@ -7,6 +7,13 @@ import QtQuick
 
 // The only file that talks to the compositor; UI files use this API and nothing else.
 Singleton {
+    id: root
+
+    // Window addresses, most recently focused first, from Hyprland's activewindowv2 events. Its own
+    // focusHistoryID (lastIpcObject) only moves on a refresh, and a switch made while a layer held the
+    // keyboard (Alt+Tab) reached the history only after the event, so the next refresh read it stale.
+    property var focusOrder: []
+
     // Hyprland lists only workspaces that exist (occupied or shown); special and named ones have negative ids.
     readonly property var workspaces: Hyprland.workspaces.values.filter(w => w.id > 0).map(w => ({
         id: w.id,
@@ -28,8 +35,11 @@ Singleton {
         appId: t.wayland?.appId ?? "",
         workspace: t.workspace?.id ?? 0,
         urgent: t.urgent,
+        floating: t.lastIpcObject.floating ?? false,
         focused: t.wayland !== null && t.wayland === ToplevelManager.activeToplevel,
-        recency: t.lastIpcObject.focusHistoryID ?? 1e6, // 0 = most recently focused
+        // 0 = most recently focused; windows not focused since the shell started follow, in Hyprland's order
+        recency: root.focusOrder.includes(t.address) ? root.focusOrder.indexOf(t.address) : 1000 + (t.lastIpcObject.focusHistoryID ?? 1000),
+        toplevel: t.wayland, // the Wayland window, for a ScreencopyView still of it (Alt+Tab)
         bounds: t.lastIpcObject.size ? Qt.rect(t.lastIpcObject.at[0], t.lastIpcObject.at[1], t.lastIpcObject.size[0], t.lastIpcObject.size[1]) : Qt.rect(0, 0, 0, 0)
     }))
 
@@ -49,6 +59,15 @@ Singleton {
 
     function moveWindow(address: string, workspace: int) {
         dispatch(`hl.dsp.window.move({ workspace = ${workspace}, window = "address:0x${address}" })`, `movetoworkspace ${workspace},address:0x${address}`);
+    }
+
+    // moves it without following it there (the launcher's Ctrl+1–9, which stays open)
+    function sendWindow(address: string, workspace: int) {
+        dispatch(`hl.dsp.window.move({ workspace = ${workspace}, follow = false, window = "address:0x${address}" })`, `movetoworkspacesilent ${workspace},address:0x${address}`);
+    }
+
+    function toggleFloating(address: string) {
+        dispatch(`hl.dsp.window.float({ action = "toggle", window = "address:0x${address}" })`, `togglefloating address:0x${address}`);
     }
 
     function close(address: string) {
@@ -72,6 +91,10 @@ Singleton {
     Connections {
         target: Hyprland
         function onRawEvent(event) {
+            if (event.name === "activewindowv2" && event.data)
+                root.focusOrder = [event.data].concat(root.focusOrder.filter(a => a !== event.data));
+            else if (event.name === "closewindow")
+                root.focusOrder = root.focusOrder.filter(a => a !== event.data);
             if (!event.name.startsWith("windowtitle"))
                 refresh.restart();
         }

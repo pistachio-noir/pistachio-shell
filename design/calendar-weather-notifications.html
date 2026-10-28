@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Calendar, weather and notifications</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font:inherit}
+</style>
+</helmet>
+<div style="position:relative;width:800px;height:680px;overflow:hidden;background:#0D0F09;font-family:'Manrope',system-ui,sans-serif;color:#E5E9D8">
+
+  <!-- Two panels, one row, 16 px apart, centred over the bar -->
+  <div style="position:absolute;left:62px;bottom:88px;display:flex;flex-direction:column;gap:16px">
+
+    <section aria-label="Weather" style="width:676px;box-sizing:border-box;padding:20px;display:flex;flex-direction:column;gap:14px;border-radius:28px;background:#1D2016;border:1px solid #39412A;box-shadow:0 18px 44px rgba(0,0,0,.6)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0">
+          <span style="width:52px;height:52px;border-radius:26px;background:#2A2F1F;display:flex;align-items:center;justify-content:center;flex:none"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E0B15E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg></span>
+          <span style="font-size:40px;font-weight:800;line-height:44px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:#F6F8EF">11°</span>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <span style="font-size:14px;font-weight:800;color:#F6F8EF;white-space:nowrap">Partly cloudy</span>
+            <span style="font-size:12px;font-weight:600;color:#A3B08F;white-space:nowrap">Warsaw · H 13° · L 6°</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div role="list" aria-label="Five day forecast" style="display:flex;gap:4px;padding-left:20px;border-left:1px solid #2A2F1F"><div style="width:52px;display:flex;flex-direction:column;align-items:center;gap:6px">
+            <span style="font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">THU</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7DA3B3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>
+            <span style="display:flex;align-items:baseline;gap:5px;font-variant-numeric:tabular-nums"><span style="font-size:13px;font-weight:700;color:#F6F8EF">12°</span><span style="font-size:11px;font-weight:600;color:#A3B08F">7°</span></span>
+          </div><div style="width:52px;display:flex;flex-direction:column;align-items:center;gap:6px">
+            <span style="font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">FRI</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7DA3B3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>
+            <span style="display:flex;align-items:baseline;gap:5px;font-variant-numeric:tabular-nums"><span style="font-size:13px;font-weight:700;color:#F6F8EF">10°</span><span style="font-size:11px;font-weight:600;color:#A3B08F">6°</span></span>
+          </div><div style="width:52px;display:flex;flex-direction:column;align-items:center;gap:6px">
+            <span style="font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">SAT</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A3B08F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+            <span style="display:flex;align-items:baseline;gap:5px;font-variant-numeric:tabular-nums"><span style="font-size:13px;font-weight:700;color:#F6F8EF">9°</span><span style="font-size:11px;font-weight:600;color:#A3B08F">5°</span></span>
+          </div><div style="width:52px;display:flex;flex-direction:column;align-items:center;gap:6px">
+            <span style="font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">SUN</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E0B15E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+            <span style="display:flex;align-items:baseline;gap:5px;font-variant-numeric:tabular-nums"><span style="font-size:13px;font-weight:700;color:#F6F8EF">11°</span><span style="font-size:11px;font-weight:600;color:#A3B08F">4°</span></span>
+          </div><div style="width:52px;display:flex;flex-direction:column;align-items:center;gap:6px">
+            <span style="font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">MON</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E0B15E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg>
+            <span style="display:flex;align-items:baseline;gap:5px;font-variant-numeric:tabular-nums"><span style="font-size:13px;font-weight:700;color:#F6F8EF">12°</span><span style="font-size:11px;font-weight:600;color:#A3B08F">6°</span></span>
+          </div></div>
+          <button type="button" aria-expanded="false" aria-label="Show weather details" style="width:44px;height:44px;border:0;border-radius:22px;background:#2A2F1F;color:#E5E9D8;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+      </div>
+    </section>
+
+    <div style="display:flex;align-items:stretch;gap:16px">
+
+    <!-- Calendar, 300 wide -->
+    <section aria-label="Calendar" style="width:300px;box-sizing:border-box;padding:20px;display:flex;flex-direction:column;gap:14px;border-radius:28px;background:#1D2016;border:1px solid #39412A;box-shadow:0 18px 44px rgba(0,0,0,.6)">
+      <div style="display:flex;align-items:center;justify-content:space-between;height:44px">
+        <h2 style="margin:0;padding-left:4px;font-size:17px;font-weight:800;color:#F6F8EF">October 2026</h2>
+        <div style="display:flex;margin-right:-8px">
+          <button type="button" aria-label="Previous month" style="width:44px;height:44px;border:0;border-radius:22px;background:none;color:#A3B08F;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+          <button type="button" aria-label="Next month" style="width:44px;height:44px;border:0;border-radius:22px;background:none;color:#A3B08F;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+        </div>
+      </div>
+      <div role="grid" aria-label="October 2026" style="display:flex;flex-direction:column;gap:8px">
+        <div role="row" style="display:grid;grid-template-columns:repeat(7,1fr)"><span role="columnheader" aria-label="Monday" style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">Mo</span><span role="columnheader" aria-label="Tuesday" style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">Tu</span><span role="columnheader" aria-label="Wednesday" style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">We</span><span role="columnheader" aria-label="Thursday" style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">Th</span><span role="columnheader" aria-label="Friday" style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">Fr</span><span role="columnheader" aria-label="Saturday" style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">Sa</span><span role="columnheader" aria-label="Sunday" style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3B08F">Su</span></div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:36px">
+          <button type="button" role="gridcell" aria-label="Monday 28 September" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#A3B08F;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">28</span></button>
+          <button type="button" role="gridcell" aria-label="Tuesday 29 September" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#A3B08F;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">29</span></button>
+          <button type="button" role="gridcell" aria-label="Wednesday 30 September" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#A3B08F;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">30</span></button>
+          <button type="button" role="gridcell" aria-label="Thursday 1 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">1</span></button>
+          <button type="button" role="gridcell" aria-label="Friday 2 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">2</span></button>
+          <button type="button" role="gridcell" aria-label="Saturday 3 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">3</span></button>
+          <button type="button" role="gridcell" aria-label="Sunday 4 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">4</span></button>
+          <button type="button" role="gridcell" aria-label="Monday 5 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">5</span></button>
+          <button type="button" role="gridcell" aria-label="Tuesday 6 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">6</span></button>
+          <button type="button" role="gridcell" aria-label="Wednesday 7 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">7</span></button>
+          <button type="button" role="gridcell" aria-label="Thursday 8 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">8</span></button>
+          <button type="button" role="gridcell" aria-label="Friday 9 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">9</span></button>
+          <button type="button" role="gridcell" aria-label="Saturday 10 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">10</span></button>
+          <button type="button" role="gridcell" aria-label="Sunday 11 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">11</span></button>
+          <button type="button" role="gridcell" aria-label="Monday 12 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">12</span></button>
+          <button type="button" role="gridcell" aria-label="Tuesday 13 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">13</span></button>
+          <button type="button" role="gridcell" aria-label="Wednesday 14 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">14</span></button>
+          <button type="button" role="gridcell" aria-label="Thursday 15 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">15</span></button>
+          <button type="button" role="gridcell" aria-label="Friday 16 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">16</span></button>
+          <button type="button" role="gridcell" aria-label="Saturday 17 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">17</span></button>
+          <button type="button" role="gridcell" aria-label="Sunday 18 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">18</span></button>
+          <button type="button" role="gridcell" aria-label="Monday 19 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">19</span></button>
+          <button type="button" role="gridcell" aria-label="Tuesday 20 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">20</span></button>
+          <button type="button" role="gridcell" aria-label="Wednesday 21 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">21</span></button>
+          <button type="button" role="gridcell" aria-label="Thursday 22 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">22</span></button>
+          <button type="button" role="gridcell" aria-label="Friday 23 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">23</span></button>
+          <button type="button" role="gridcell" aria-label="Saturday 24 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">24</span></button>
+          <button type="button" role="gridcell" aria-label="Sunday 25 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">25</span></button>
+          <button type="button" role="gridcell" aria-label="Wednesday 28 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">26</span></button>
+          <button type="button" role="gridcell" aria-label="Tuesday 27 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">27</span></button>
+          <button type="button" role="gridcell" aria-label="Wednesday 28 October, today" aria-current="date" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;background:#9FD88A;color:#15170F;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">28</span></button>
+          <button type="button" role="gridcell" aria-label="Thursday 29 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">29</span></button>
+          <button type="button" role="gridcell" aria-label="Friday 30 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">30</span></button>
+          <button type="button" role="gridcell" aria-label="Saturday 31 October" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#E5E9D8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">31</span></button>
+          <button type="button" role="gridcell" aria-label="Sunday 1 November" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#A3B08F;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">1</span></button>
+          <button type="button" role="gridcell" aria-label="Monday 2 November" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#A3B08F;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">2</span></button>
+          <button type="button" role="gridcell" aria-label="Tuesday 3 November" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#A3B08F;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">3</span></button>
+          <button type="button" role="gridcell" aria-label="Wednesday 4 November" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#A3B08F;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">4</span></button>
+          <button type="button" role="gridcell" aria-label="Thursday 5 November" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#A3B08F;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">5</span></button>
+          <button type="button" role="gridcell" aria-label="Friday 6 November" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#A3B08F;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">6</span></button>
+          <button type="button" role="gridcell" aria-label="Saturday 7 November" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#A3B08F;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">7</span></button>
+          <button type="button" role="gridcell" aria-label="Sunday 8 November" style="height:36px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:34px;height:34px;border-radius:17px;color:#A3B08F;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">8</span></button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;height:44px;margin-top:auto;padding-top:14px;border-top:1px solid #2A2F1F;box-sizing:content-box">
+        <span style="padding-left:4px;font-size:13px;font-weight:700;color:#F6F8EF">Wednesday 28 Oct</span>
+        <button type="button" aria-label="Jump to today" style="height:36px;padding:0 16px;border:0;border-radius:18px;background:#2A2F1F;color:#E5E9D8;font-size:13px;font-weight:700;cursor:pointer">Today</button>
+      </div>
+    </section>
+
+    <!-- Notification centre, 360 wide, same height; list scrolls past 60% of the screen -->
+    <section aria-label="Notification centre" style="width:360px;box-sizing:border-box;padding:20px;display:flex;flex-direction:column;gap:14px;border-radius:28px;background:#1D2016;border:1px solid #39412A;box-shadow:0 18px 44px rgba(0,0,0,.6)">
+      <div style="display:flex;align-items:center;justify-content:space-between;height:44px">
+        <h2 style="margin:0;padding-left:4px;font-size:17px;font-weight:800;color:#F6F8EF">Notifications</h2>
+        <button type="button" style="height:44px;padding:0 14px;margin-right:-8px;border:0;border-radius:22px;background:none;color:#A3B08F;font-size:13px;font-weight:700;cursor:pointer">Clear all</button>
+      </div>
+      <ul aria-label="Notifications" style="list-style:none;margin:0;padding:0;flex:1 1 0;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:10px;-webkit-mask-image:linear-gradient(to bottom,#000 82%,transparent);mask-image:linear-gradient(to bottom,#000 82%,transparent)">
+        <li style="display:flex;gap:12px;align-items:flex-start;padding:14px 8px 14px 14px;border-radius:20px;background:#2A2F1F">
+          <span style="width:36px;height:36px;border-radius:18px;background:#39412A;color:#7FC9A8;display:flex;align-items:center;justify-content:center;flex:none">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          </span>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="width:6px;height:6px;border-radius:3px;background:#9FD88A;flex:none"></span>
+              <span style="font-size:13px;font-weight:700;color:#F6F8EF;white-space:nowrap">Build finished</span>
+              <span style="margin-left:auto;font-size:11px;font-weight:600;color:#A3B08F;white-space:nowrap">2 min</span>
+            </div>
+            <span style="font-size:12px;font-weight:500;line-height:17px;color:#A3B08F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">kawaii-wc built and ran in 0.42 s.</span>
+          </div>
+          <button type="button" aria-label="Dismiss notification" style="width:44px;height:44px;margin:-8px -2px -8px 0;border:0;background:none;color:#A3B08F;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </li>
+        <li style="display:flex;gap:12px;align-items:flex-start;padding:14px 8px 14px 14px;border-radius:20px;background:#2A2F1F">
+          <span style="width:36px;height:36px;border-radius:18px;background:#39412A;color:#E0B15E;display:flex;align-items:center;justify-content:center;flex:none">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          </span>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="width:6px;height:6px;border-radius:3px;background:#9FD88A;flex:none"></span>
+              <span style="font-size:13px;font-weight:700;color:#F6F8EF;white-space:nowrap">Rust exercises</span>
+              <span style="margin-left:auto;font-size:11px;font-weight:600;color:#A3B08F;white-space:nowrap">28 min</span>
+            </div>
+            <span style="font-size:12px;font-weight:500;line-height:17px;color:#A3B08F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Starts at 12:00. Ownership and borrowing, chapter 4.</span>
+          </div>
+          <button type="button" aria-label="Dismiss notification" style="width:44px;height:44px;margin:-8px -2px -8px 0;border:0;background:none;color:#A3B08F;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </li>
+        <li style="display:flex;gap:12px;align-items:flex-start;padding:14px 8px 14px 14px;border-radius:20px;background:#2A2F1F">
+          <span style="width:36px;height:36px;border-radius:18px;background:#39412A;color:#7DA3B3;display:flex;align-items:center;justify-content:center;flex:none">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+          </span>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="width:6px;height:6px;border-radius:3px;background:#9FD88A;flex:none"></span>
+              <span style="font-size:13px;font-weight:700;color:#F6F8EF;white-space:nowrap">System updates</span>
+              <span style="margin-left:auto;font-size:11px;font-weight:600;color:#A3B08F;white-space:nowrap">1 h</span>
+            </div>
+            <span style="font-size:12px;font-weight:500;line-height:17px;color:#A3B08F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">14 packages can be upgraded.</span>
+          </div>
+          <button type="button" aria-label="Dismiss notification" style="width:44px;height:44px;margin:-8px -2px -8px 0;border:0;background:none;color:#A3B08F;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </li>
+        <li style="display:flex;gap:12px;align-items:flex-start;padding:14px 8px 14px 14px;border-radius:20px;background:#2A2F1F">
+          <span style="width:36px;height:36px;border-radius:18px;background:#39412A;color:#DB8267;display:flex;align-items:center;justify-content:center;flex:none">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+          </span>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="width:6px;height:6px;border-radius:3px;background:#9FD88A;flex:none"></span>
+              <span style="font-size:13px;font-weight:700;color:#F6F8EF;white-space:nowrap">Disk almost full</span>
+              <span style="margin-left:auto;font-size:11px;font-weight:600;color:#A3B08F;white-space:nowrap">3 h</span>
+            </div>
+            <span style="font-size:12px;font-weight:500;line-height:17px;color:#A3B08F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">/home is 92% full.</span>
+          </div>
+          <button type="button" aria-label="Dismiss notification" style="width:44px;height:44px;margin:-8px -2px -8px 0;border:0;background:none;color:#A3B08F;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </li>
+      </ul>
+      <div style="display:flex;align-items:center;gap:12px;height:44px;padding-top:14px;border-top:1px solid #2A2F1F;box-sizing:content-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A3B08F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-left:4px"><path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5"/><path d="M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="m2 2 20 20"/></svg>
+        <span style="flex:1;font-size:13px;font-weight:700;color:#F6F8EF">Do not disturb</span>
+        <button type="button" role="switch" aria-checked="false" aria-label="Do not disturb" style="width:52px;height:44px;margin-right:-4px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer">
+          <span style="width:48px;height:28px;border-radius:14px;background:#39412A;position:relative;display:block">
+            <span style="position:absolute;left:4px;top:4px;width:20px;height:20px;border-radius:10px;background:#A3B08F"></span>
+          </span>
+        </button>
+      </div>
+    </section>
+
+    </div>
+
+  </div>
+
+  <!-- Bar, clock chip pressed -->
+  <div style="position:absolute;left:80px;bottom:16px;width:640px;height:56px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:8px;border-radius:28px;background:#1D2016;border:1px solid #39412A;box-shadow:0 14px 36px rgba(0,0,0,.6)">
+    <div style="display:flex;align-items:center;height:40px;padding:0 6px 0 10px">
+      <button type="button" aria-label="Workspace 1" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;background:#A3B08F"></span></button>
+      <button type="button" aria-label="Workspace 2, active" aria-current="true" style="width:34px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:26px;height:8px;border-radius:4px;background:#9FD88A"></span></button>
+      <button type="button" aria-label="Workspace 3" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;background:#A3B08F"></span></button>
+      <button type="button" aria-label="Workspace 4, empty" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;box-sizing:border-box;border:1.5px solid #626F51"></span></button>
+      <button type="button" aria-label="Workspace 5, empty" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;box-sizing:border-box;border:1.5px solid #626F51"></span></button>
+    </div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:0 4px">
+      <span style="font-size:13px;font-weight:700;line-height:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#F6F8EF">src/main.rs</span>
+      <span style="font-size:11px;font-weight:600;line-height:14px;color:#A3B08F">nvim</span>
+    </div>
+    <button type="button" aria-expanded="true" aria-label="Notifications, open. 09:58, Wednesday 28 October" style="display:flex;align-items:center;gap:10px;height:40px;padding:0 16px 0 14px;border:0;border-radius:20px;background:#39412A;color:#F6F8EF;cursor:pointer;text-align:left">
+      <span style="position:relative;width:18px;height:18px;display:block">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span style="position:absolute;top:-5px;right:-5px;width:9px;height:9px;border-radius:5px;background:#9FD88A;border:2px solid #39412A;box-sizing:content-box"></span>
+      </span>
+      <span style="display:flex;flex-direction:column">
+        <span style="font-size:14px;font-weight:800;line-height:17px;font-variant-numeric:tabular-nums;color:#F6F8EF">09:58</span>
+        <span style="font-size:11px;font-weight:600;line-height:14px;color:#A3B08F">Wed 28 Oct</span>
+      </span>
+    </button>
+    <button type="button" aria-label="Quick settings: Ethernet connected, Bluetooth on, volume 62%" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 16px;border:0;border-radius:20px;background:#2A2F1F;color:#E5E9D8;cursor:pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 20 3-3h2a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2l3 3z"/><path d="M6 8v1"/><path d="M10 8v1"/><path d="M14 8v1"/><path d="M18 8v1"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+    </button>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

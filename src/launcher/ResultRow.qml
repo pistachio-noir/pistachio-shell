@@ -14,6 +14,7 @@ Rectangle {
     property var indices: []
     property string subtitle
     property string icon // image source; "" shows `glyph`
+    property string emoji // shown in place of the icon, e.g. for the emoji picker
     property list<string> glyph: Icons.window
     property color glyphColor: Theme.subtext
     property string badge
@@ -48,6 +49,14 @@ Rectangle {
         radius: width / 2
         color: Theme.overlay
 
+        Text {
+            anchors.centerIn: parent
+            visible: root.emoji !== ""
+            text: root.emoji
+            font.family: Theme.fontEmoji
+            font.pixelSize: root.compact ? 18 : 20
+        }
+
         Image {
             id: image
             anchors.centerIn: parent
@@ -62,7 +71,7 @@ Rectangle {
 
         Icon {
             anchors.centerIn: parent
-            visible: !image.visible
+            visible: !image.visible && root.emoji === ""
             paths: root.glyph
             color: root.enabled ? root.glyphColor : Theme.muted
         }

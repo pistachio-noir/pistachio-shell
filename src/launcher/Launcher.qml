@@ -8,6 +8,7 @@ import QtQuick
 import QtQuick.Shapes
 import "fuzzy.js" as Fuzzy
 import "calc.js" as Calc
+import "emoji.js" as Emoji
 
 // The launcher (Launcher boards): search, mode tabs, results, key hints. Every mode is a flat list of
 // rows built from the services; the selected row gets the keys. Opened by keybind:
@@ -26,7 +27,8 @@ PanelWindow {
     readonly property var hints: ({
         all: [["↑↓", "navigate"], ["↵", "open"], ["Tab", "switch mode"], ["Esc", "close"]],
         apps: [["↑↓", "navigate"], ["↵", "open"], ["Tab", "switch mode"], ["Esc", "close"]],
-        windows: [["↑↓", "navigate"], ["↵", "switch"], ["Ctrl W", "close window"], ["Esc", "close"]],
+        // (no ↑↓ here, to make room for the window actions)
+        windows: [["↵", "switch"], ["Ctrl W", "close window"], ["Ctrl F", "float"], ["Ctrl 1–9", "move"], ["Esc", "close"]],
         workspaces: [["←→", "choose"], ["↵", "go"], ["Shift ↵", "move window here"], ["Esc", "close"]],
         system: [["↑↓", "navigate"], ["←→", "adjust"], ["↵", "switch / select"], ["Ctrl M", "mute"], ["Esc", "close"]],
         // Ctrl, unlike the board's plain ⌫: Backspace also edits the search, and forgetting is not undoable
@@ -35,12 +37,23 @@ PanelWindow {
 
     property bool open
     property string mode: "all"
+    signal wallpapersRequested // the Wallpapers row: shell.qml opens the switcher
+    signal notificationRequested(var n) // a "!" result: shell.qml has the bar show it in the centre
     property var confirming: null // a power action waiting for a yes: the results make way for the question
+    // A text setting being changed (owner's request, after phase 8: the weather's city): the results
+    // make way for a question, as for a power action, and the value is typed into the search field.
+    // Save checks it first (`check`, which may take a moment: `editBusy`) and keeps the question
+    // open with the problem (`editError`) if it fails, so a wrong value is never saved.
+    property var editing: null // { key, title, icon, hint(), check(text, then(value, problem)), apply(value) }
+    property bool editBusy
+    property string editError
     readonly property string query: field.text
     // The pairing agent's question (Bluetooth.request) also takes the place of the results; the
     // launcher opens for it. A PIN or passkey is typed into the search field.
     readonly property bool codeWanted: Bluetooth.request?.kind === "pin" || Bluetooth.request?.kind === "passkey"
     readonly property bool codeValid: Bluetooth.request?.kind === "pin" ? query.length > 0 : /^\d{1,6}$/.test(query)
+    // what the question's typed answer needs before its last choice (Pair, Save) can be picked
+    readonly property bool inputValid: editing ? query.trim() !== "" && !editBusy : codeValid
     // Windows and workspaces as they were when the launcher opened, so the rows only change when you
     // type or switch mode, not under the cursor (window titles change all the time).
     property var windows: []
@@ -58,11 +71,15 @@ PanelWindow {
     // the System tab stays highlighted.
     readonly property string tab: mode === "bluetooth" ? "system" : mode
     readonly property string placeholder: Bluetooth.request ? (Bluetooth.request.kind === "pin" ? "PIN" : Bluetooth.request.kind === "passkey" ? "6-digit code" : "Bluetooth")
+        : editing ? editing.placeholder
         : mode === "bluetooth" ? "Filter devices…" : modes.find(m => m.id === mode).placeholder
     readonly property var keyHints: Bluetooth.request ? (codeWanted ? [["↵", "pair"], ["Esc", "cancel"]]
             : Bluetooth.request.id ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "decline"]]
             : [["Esc", "cancel pairing"]])
         : confirming ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "back"]]
+        : editing ? [["↵", "save"], ["Esc", "back"]]
+        : filesWanted ? [["↑↓", "navigate"], ["↵", "open"], ["Shift ↵", "show in folder"], ["Esc", "close"]]
+        : (mode === "all" || mode === "apps") && query.startsWith("!") ? [["↑↓", "navigate"], ["↵", "show in centre"], ["Esc", "close"]]
         : hints[mode]
     // scan for new devices only while the Bluetooth view is on screen
     readonly property bool scanWanted: open && mode === "bluetooth" && Bluetooth.ready
@@ -70,6 +87,13 @@ PanelWindow {
     // and read the machine's load only while the System monitor card is
     readonly property bool statsWanted: open && rows.some(r => r.kind === "stat")
     onStatsWantedChanged: SystemStats.setWatching(statsWanted)
+    // and look through the home folder only while a "/" search is
+    readonly property bool filesWanted: open && (mode === "all" || mode === "apps") && query.startsWith("/")
+    onFilesWantedChanged: {
+        Files.setActive(filesWanted);
+        if (filesWanted)
+            Files.search(query.slice(1).trim());
+    }
 
     // opens in mode m, switches to it, or closes if it's already showing it
     function toggleMode(m: string) {
@@ -82,12 +106,63 @@ PanelWindow {
     function show(m: string) {
         list.enter();
         confirming = null;
+        editing = null;
         snapshot();
         mode = m === "bluetooth" || modes.some(x => x.id === m) ? m : "all";
         field.text = "";
         resetSelection();
         open = true;
         field.forceActiveFocus();
+    }
+
+    // The weather's city (Shell settings), checked with Open-Meteo before it's saved; Store keeps it.
+    readonly property var weatherSetting: ({
+        key: "weatherCity",
+        title: "Weather location",
+        icon: Icons.mapPin,
+        placeholder: "City",
+        hint: () => `Type a city, then press Enter. Now: ${Weather.placeName}.`,
+        check: (text, then) => Weather.lookup(text, then),
+        apply: place => Weather.setCity(place.name)
+    })
+
+    function startEditing(setting) {
+        editing = setting;
+        editBusy = false;
+        editError = "";
+        field.text = "";
+        resetSelection(); // on Save: Enter saves what's typed
+    }
+
+    // back to the results, at the setting's row
+    function stopEditing() {
+        const key = editing?.key;
+        editing = null;
+        editBusy = false;
+        editError = "";
+        field.text = "";
+        const i = rows.findIndex(r => r.key === key);
+        if (i >= 0) {
+            current = i;
+            backToRow.restart();
+        }
+    }
+
+    function saveEditing() {
+        const asked = editing, text = query.trim();
+        editBusy = true;
+        editError = "";
+        asked.check(text, (value, problem) => {
+            if (editing !== asked)
+                return; // cancelled meanwhile: nothing changes
+            editBusy = false;
+            if (!value) {
+                editError = problem;
+                return;
+            }
+            asked.apply(value);
+            stopEditing();
+        });
     }
 
     // ---- rows ----------------------------------------------------------------------------------
@@ -143,8 +218,8 @@ PanelWindow {
         // also find apps by what they are ("browser" finds Firefox), below name matches, unhighlighted;
         // this needs the whole query in the description, not scattered letters
         if (q && hits.length < limit) {
-            const ql = q.toLowerCase();
-            const extra = byName.filter(a => !hits.some(h => h.item === a) && [a.genericName, ...a.keywords].join(" ").toLowerCase().includes(ql));
+            const ql = Fuzzy.fold(q);
+            const extra = byName.filter(a => !hits.some(h => h.item === a) && Fuzzy.fold([a.genericName, ...a.keywords].join(" ")).includes(ql));
             hits = hits.concat(extra.slice(0, limit - hits.length).map(a => ({ item: a, indices: [] })));
         }
         return hits.map(h => appRow(h, "app:"));
@@ -158,7 +233,7 @@ PanelWindow {
             key: "window:" + h.item.address,
             title: h.item.title || h.item.appId,
             indices: h.indices,
-            subtitle: h.item.appId + (h.item.recency === 0 ? " · focused" : h.item.urgent ? " · needs attention" : ""),
+            subtitle: h.item.appId + (h.item.recency === 0 ? " · focused" : h.item.urgent ? " · needs attention" : "") + (h.item.floating ? " · floating" : ""),
             icon: Apps.iconFor(h.item.appId),
             badge: String(h.item.workspace),
             badgeActive: h.item.workspace === active,
@@ -173,7 +248,7 @@ PanelWindow {
             const ws = workspaces.find(w => w.id === id);
             const wins = windows.filter(w => w.workspace === id);
             const apps = [...new Set(wins.map(w => Apps.nameFor(w.appId)))];
-            if (q && !String(id).startsWith(q) && !apps.some(a => a.toLowerCase().includes(q.toLowerCase())))
+            if (q && !String(id).startsWith(q) && !apps.some(a => Fuzzy.fold(a).includes(Fuzzy.fold(q))))
                 continue;
             cards.push({
                 id: id,
@@ -210,10 +285,21 @@ PanelWindow {
         if (NightLight.available)
             night.push({ kind: "slider", key: "warmth", title: "Warmth" },
                 { kind: "switch", key: "schedule", title: "Schedule", icon: Icons.clock, on: () => NightLight.scheduled, status: () => NightLight.scheduleText, toggle: () => NightLight.setSchedule(!NightLight.scheduled, NightLight.from, NightLight.to) },
-                { kind: "time", key: "from", title: "Turns on" },
-                { kind: "time", key: "to", title: "Turns off" });
+                { kind: "time", key: "from", title: "Turns on", minutes: () => NightLight.from, set: m => NightLight.setSchedule(NightLight.scheduled, m, NightLight.to) },
+                { kind: "time", key: "to", title: "Turns off", minutes: () => NightLight.to, set: m => NightLight.setSchedule(NightLight.scheduled, NightLight.from, m) });
+        // Do not disturb and its schedule, with its own times or night light's (owner's request, after phase 8)
+        const dnd = [
+            { kind: "switch", key: "dnd", title: "Do not disturb", icon: Icons.bellOff, on: () => Notifs.dnd, status: () => Notifs.dndStatus, toggle: () => Notifs.setDnd(!Notifs.dnd) },
+            { kind: "switch", key: "dndSchedule", title: "Schedule", icon: Icons.clock, on: () => Notifs.dndScheduled, status: () => Notifs.dndScheduleText, toggle: () => Notifs.setDndSchedule(!Notifs.dndScheduled) },
+            { kind: "switch", key: "dndNight", title: "Night light's times", icon: Icons.moon, on: () => Notifs.dndFollowsNight, status: () => Notifs.dndFollowsNight ? `${NightLight.timeText(Notifs.dndFrom)}–${NightLight.timeText(Notifs.dndTo)}, as night light` : "Its own times below", toggle: () => Notifs.setDndFollowsNight(!Notifs.dndFollowsNight) }
+        ];
+        if (!Notifs.dndFollowsNight)
+            dnd.push({ kind: "time", key: "dndFrom", title: "Turns on", minutes: () => Notifs.dndFrom, set: m => Notifs.setDndTimes(m, Notifs.dndTo) },
+                { kind: "time", key: "dndTo", title: "Turns off", minutes: () => Notifs.dndTo, set: m => Notifs.setDndTimes(Notifs.dndFrom, m) });
         const bluetooth = [bluetoothSwitch(), { kind: "btlink", key: "btlink", title: "Scan for devices" }];
-        const cards = card("Audio", q, audio).concat(card("Night light", q, night), card("Bluetooth", q, bluetooth));
+        // the apps with a notification rule (set from a card's right click); switching one off undoes it
+        const rules = Object.keys(Notifs.rules).sort().map(app => ({ kind: "switch", key: "rule:" + app, title: app || "Unnamed app", icon: Icons.bellOff, on: () => true, status: () => Notifs.ruleText(app), toggle: () => Notifs.setRule(app, null) }));
+        const cards = card("Audio", q, audio).concat(card("Night light", q, night), card("Do not disturb", q, dnd), card("Notification rules", q, rules), card("Bluetooth", q, bluetooth));
         cards.forEach((r, i) => r.gap = i > 0 && (r.card === "top" || r.card === "single") ? 10 : 0);
         const streams = Audio.streams.map(n => ({ kind: "slider", key: "stream:" + n.id, title: Audio.appName(n), node: n }));
         const devices = Audio.sinks.map(n => ({ kind: "device", key: "device:" + n.id, title: Audio.deviceName(n), node: n }));
@@ -226,10 +312,16 @@ PanelWindow {
         const stats = [{ kind: "stat", key: "cpu", title: "CPU" }, { kind: "stat", key: "memory", title: "Memory" }];
         if (SystemStats.gpuFound)
             stats.push({ kind: "stat", key: "gpu", title: "GPU" });
+        // free space (owner's request, after phase 8): one row when /home is on the root filesystem
+        const mounts = SystemStats.diskMounts;
+        for (const m of mounts)
+            stats.push({ kind: "stat", key: "disk:" + m, title: mounts.length === 1 ? "Disk" : m === "/" ? "System disk" : "Home" });
         const monitor = card("System monitor", q, stats);
         // the shell's own look, at the end (owner's request; not on the board)
         const shell = card("Shell settings", q, [
             { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) },
+            { kind: "wplink", key: "wplink", title: "Wallpapers", subtitle: Wallpapers.current.split("/").pop() || "None", glyph: Icons.image },
+            { kind: "setting", key: "weatherCity", title: "Weather location", subtitle: Weather.placeName, glyph: Icons.mapPin, setting: weatherSetting },
             { kind: "switch", key: "quietFullscreen", title: "Quiet in fullscreen", icon: Icons.bellOff, on: () => ShellSettings.quietFullscreen, status: () => ShellSettings.quietFullscreen ? "Toasts wait while a fullscreen window has focus" : "Off", toggle: () => ShellSettings.setQuietFullscreen(!ShellSettings.quietFullscreen) }
         ]);
         return cards.concat(a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(i.length ? [section("Input device")].concat(i) : []).concat(monitor.length ? [section("System monitor")].concat(monitor) : []).concat(shell.length ? [section("Shell settings")].concat(shell) : []);
@@ -260,13 +352,89 @@ PanelWindow {
     function powerRows(q: string): var {
         if (!q)
             return [];
-        const lower = q.toLowerCase();
+        const lower = Fuzzy.fold(q);
         const hits = powerActions.map(a => ({ a: a, m: Fuzzy.match(q, a.title) })).filter(h => h.m || h.a.words.some(w => w.includes(lower)));
         const rows = hits.map(h => ({ kind: "power", key: "power:" + h.a.id, title: h.a.title, subtitle: h.a.confirm ? "Asks first" : "Locks the screen right away", indices: h.m?.indices ?? [], glyph: h.a.icon, danger: h.a.danger ?? false, action: h.a }));
         return rows.length ? [section("Power")].concat(rows) : [];
     }
 
     // the answer when the query is a calculation, e.g. "12*3"; shown only (no clipboard, owner's call)
+    // Emoji, only after a ":" (owner's request, after phase 8): names first, then keywords; with
+    // nothing after it, the ones copied lately, then all of them in Unicode's order.
+    function emojiRows(q: string): var {
+        const row = (e, indices, prefix) => ({ kind: "emoji", key: prefix + e[0], title: e[1], subtitle: e[2], emoji: e[0], indices: indices });
+        if (!q) {
+            const recent = Clipboard.recentEmoji.map(c => Emoji.list.find(e => e[0] === c)).filter(e => e);
+            return (recent.length ? [section("Recently used")].concat(recent.map(e => row(e, [], "recent:"))) : [])
+                .concat([section("Emoji")], Emoji.list.map(e => row(e, [], "emoji:")));
+        }
+        const named = ranked(Emoji.list, q, e => e[1], 60);
+        const seen = new Set(named.map(h => h.item[0]));
+        const tagged = ranked(Emoji.list.filter(e => !seen.has(e[0])), q, e => e[2], 60 - named.length);
+        const hits = named.map(h => row(h.item, h.indices, "emoji:")).concat(tagged.map(h => row(h.item, [], "emoji:")));
+        return hits.length ? [section("Emoji")].concat(hits) : [];
+    }
+
+    // A command after a "$" (owner's request, after phase 8): the typed one first, then the recent
+    // ones that match; Enter runs it in kitty, Shift+Enter in the background.
+    function commandRows(q: string): var {
+        const row = (c, prefix) => ({ kind: "command", key: prefix + c, title: c, command: c, subtitle: "In kitty · Shift+Enter: in the background", glyph: Icons.terminal });
+        const recent = ranked(Apps.recentCommands.filter(c => c !== q), q, c => c, 20).map(h => Object.assign(row(h.item, "recent:"), { indices: h.indices }));
+        const typed = q ? [section("Run"), row(q, "run:")] : [];
+        const rows = typed.concat(recent.length ? [section("Recent commands")].concat(recent) : []);
+        return rows.length ? rows : [{ kind: "empty", key: "empty", title: "Type a command to run it in kitty" }];
+    }
+
+    // Files and folders in the home folder after a "/" (owner's request, after phase 8), found by
+    // services/files.py (Files). Its answer to the last query stays until the next one comes, kept to
+    // what still matches, so typing narrows the list at once. A query with a "/" matches the path.
+    function fileRows(q: string): var {
+        const waiting = { kind: "empty", key: "empty", title: "Looking through your home folder…" };
+        if (!q)
+            return [Files.ready ? { kind: "empty", key: "empty", title: `Type to search ${Files.count.toLocaleString()} files and folders in your home folder` } : waiting];
+        const byPath = q.includes("/");
+        const rows = [];
+        for (const e of Files.results) {
+            const m = Fuzzy.match(q, byPath ? e.path : e.name);
+            if (!m)
+                continue;
+            const from = e.path.length - e.name.length; // the name's place in the path
+            rows.push({ kind: "file", key: "file:" + e.path, title: e.name, indices: byPath ? m.indices.filter(i => i >= from).map(i => i - from) : m.indices, subtitle: Files.place(e), glyph: e.folder ? Icons.folder : Icons.file, entry: e });
+        }
+        return rows.length ? [section("Home folder")].concat(rows) : [Files.ready ? { kind: "empty", key: "empty", title: "No matches" } : waiting];
+    }
+
+    // Notifications after a "!" (owner's request, after phase 8): matches in the summary first, then
+    // the body or the app, newest first otherwise; Enter shows one in the notification centre. With
+    // nothing typed, all of them under Clear all, which asks first.
+    function notificationRows(q: string): var {
+        const all = Notifs.notifications;
+        if (!all.length)
+            return [{ kind: "empty", key: "empty", title: "No notifications" }];
+        const now = new Date();
+        const row = (n, indices) => ({
+            kind: "notification",
+            key: "notification:" + all.indexOf(n),
+            title: n.summary || n.appName || "Notification",
+            indices: n.summary ? indices : [],
+            subtitle: [n.appName, Notifs.age(Notifs.received(n), now), n.body.replace(/\s+/g, " ")].filter(x => x).join(" · "),
+            icon: Notifs.iconSource(n),
+            glyph: Notifs.own(n) ? Icons.region : Icons.bell,
+            danger: Notifs.isCritical(n),
+            notification: n
+        });
+        if (!q) {
+            const clear = { id: "clearNotifications", title: "Clear all", question: "Clear all notifications?", icon: Icons.trash, danger: true, confirm: `All ${all.length} go, from the notification centre too.`, run: () => Notifs.clearAll() };
+            return [{ kind: "power", key: "power:clear", title: clear.title, subtitle: `${all.length} notification${all.length === 1 ? "" : "s"} · asks first`, glyph: clear.icon, danger: true, action: clear }, section("Notifications")].concat(all.map(n => row(n, [])));
+        }
+        const named = ranked(all, q, n => n.summary, 100);
+        const seen = new Set(named.map(h => h.item));
+        const folded = Fuzzy.fold(q);
+        const other = all.filter(n => !seen.has(n) && Fuzzy.fold(`${n.body} ${n.appName ?? ""}`).includes(folded));
+        const rows = named.map(h => row(h.item, h.indices)).concat(other.map(n => row(n, [])));
+        return rows.length ? [section("Notifications")].concat(rows) : [];
+    }
+
     function calcRows(q: string): var {
         const v = Calc.evaluate(q);
         return v === null ? [] : [{ kind: "calc", key: "calc", title: "= " + Calc.format(v), subtitle: q.trim() }];
@@ -307,10 +475,20 @@ PanelWindow {
     function buildRows(mode: string, q: string, windows, workspaces): var {
         if (Bluetooth.request)
             return [{ kind: "pairing", key: "pairing", question: pairingQuestion(Bluetooth.request) }];
+        if (editing)
+            return [{ kind: "edit", key: "edit", question: { icon: editing.icon, title: editing.title, text: editBusy ? `Looking up “${q.trim()}”…` : editError || editing.hint(), error: editError !== "", code: "", entered: -1, input: true, choices: ["Cancel", "Save"] } }];
         if (confirming)
-            return [{ kind: "confirm", key: "confirm:" + confirming.id, action: confirming, question: { icon: confirming.icon, danger: confirming.danger ?? false, title: `${confirming.title}?`, text: confirming.confirm, choices: ["Cancel", confirming.title] } }];
+            return [{ kind: "confirm", key: "confirm:" + confirming.id, action: confirming, question: { icon: confirming.icon, danger: confirming.danger ?? false, title: confirming.question ?? `${confirming.title}?`, text: confirming.confirm, choices: ["Cancel", confirming.title] } }];
         let rows;
-        if (mode === "apps") {
+        if (q.startsWith(":") && (mode === "all" || mode === "apps")) {
+            rows = emojiRows(q.slice(1).trim());
+        } else if (q.startsWith("$") && (mode === "all" || mode === "apps")) {
+            rows = commandRows(q.slice(1).trim());
+        } else if (q.startsWith("/") && (mode === "all" || mode === "apps")) {
+            rows = fileRows(q.slice(1).trim());
+        } else if (q.startsWith("!") && (mode === "all" || mode === "apps")) {
+            rows = notificationRows(q.slice(1).trim());
+        } else if (mode === "apps") {
             const frequent = q ? [] : frequentRows(5);
             rows = calcRows(q).concat(frequent.length ? [section("Frequent")].concat(frequent) : [], [section("Applications")], appRows(q, 200));
         } else if (mode === "windows") {
@@ -379,7 +557,7 @@ PanelWindow {
         else if (row.key === "warmth")
             NightLight.setTemperature(Math.max(2500, Math.min(6500, NightLight.temperature + dir * 250)));
         else if (row.kind === "time")
-            NightLight.setSchedule(NightLight.scheduled, NightLight.from + (row.key === "from" ? dir * 15 : 0), NightLight.to + (row.key === "to" ? dir * 15 : 0));
+            row.set(row.minutes() + dir * 15);
     }
 
     function activate(row, col: int, shift: bool) {
@@ -417,6 +595,31 @@ PanelWindow {
             Audio.toggleMute();
         } else if (row.kind === "slider" && row.key === "mic") {
             Audio.toggleMicMute();
+        } else if (row.kind === "command") {
+            Apps.run(row.command, !shift);
+            open = false;
+        } else if (row.kind === "notification") {
+            open = false;
+            notificationRequested(row.notification);
+        } else if (row.kind === "file") {
+            if (shift)
+                Files.reveal(row.entry);
+            else
+                Files.open(row.entry);
+            open = false;
+        } else if (row.kind === "wplink") {
+            open = false;
+            wallpapersRequested();
+        } else if (row.kind === "setting") {
+            startEditing(row.setting);
+        } else if (row.kind === "edit") {
+            if (col === 0)
+                stopEditing();
+            else if (inputValid)
+                saveEditing();
+        } else if (row.kind === "emoji") {
+            Clipboard.copyEmoji(row.emoji);
+            open = false;
         } else if (row.kind === "btlink") {
             mode = "bluetooth";
         } else if (row.kind === "switch") {
@@ -461,12 +664,14 @@ PanelWindow {
                 Bluetooth.answer(false, ""); // back to the devices
             else if (confirming)
                 confirming = null; // back to the results
+            else if (editing)
+                stopEditing();
             else
                 open = false;
             break;
         case Qt.Key_Tab:
         case Qt.Key_Backtab: {
-            if (Bluetooth.request)
+            if (Bluetooth.request || editing)
                 break; // answer it first
             const i = modes.findIndex(m => m.id === mode);
             mode = modes[(i + (event.key === Qt.Key_Backtab ? -1 : 1) + modes.length) % modes.length].id;
@@ -493,10 +698,34 @@ PanelWindow {
             if (selectable(current))
                 activate(row, column, shift);
             break;
+        // Window actions on a window row (owner's request, after phase 8): Ctrl+W or Ctrl+Q close it,
+        // Ctrl+F floats or tiles it, Ctrl+1–9 sends it to that workspace without following it. The
+        // launcher stays open, and the row shows the change once Hyprland has made it.
         case Qt.Key_W:
+        case Qt.Key_Q:
             if (!ctrl || row?.kind !== "window")
                 return;
             Compositor.close(row.address);
+            resnap.restart();
+            break;
+        case Qt.Key_F:
+            if (!ctrl || row?.kind !== "window")
+                return;
+            Compositor.toggleFloating(row.address);
+            resnap.restart();
+            break;
+        case Qt.Key_1:
+        case Qt.Key_2:
+        case Qt.Key_3:
+        case Qt.Key_4:
+        case Qt.Key_5:
+        case Qt.Key_6:
+        case Qt.Key_7:
+        case Qt.Key_8:
+        case Qt.Key_9:
+            if (!ctrl || row?.kind !== "window")
+                return;
+            Compositor.sendWindow(row.address, pressed - Qt.Key_0);
             resnap.restart();
             break;
         case Qt.Key_M:
@@ -520,8 +749,11 @@ PanelWindow {
         resetSelection();
     }
     onConfirmingChanged: list.enter() // a question in place of the results, or back from it
+    onEditingChanged: list.enter()
     onQueryChanged: {
         confirming = null; // typing goes back to searching
+        if (filesWanted)
+            Files.search(query.slice(1).trim());
         resetSelection();
     }
     // rows also change under the launcher (windows open and close); keep the selection valid
@@ -529,8 +761,10 @@ PanelWindow {
 
     onOpenChanged: {
         grab.active = open;
-        if (!open)
+        if (!open) {
+            editing = null; // closing leaves a setting as it was
             Bluetooth.answer(false, ""); // closing declines a question still waiting
+        }
     }
 
     Connections {
@@ -587,7 +821,15 @@ PanelWindow {
         onCleared: root.open = false
     }
 
-    // after closing a window, show the list without it once Hyprland has reported the close
+    // A setting saved or left: its row, once the list has laid its rows out again (it scrolls to the
+    // top as it does; Qt.callLater came too soon)
+    Timer {
+        id: backToRow
+        interval: 50
+        onTriggered: list.positionViewAtIndex(root.current, ListView.Contain)
+    }
+
+    // after a window action, show the list as it is once Hyprland has reported the change
     Timer {
         id: resnap
         interval: 300
@@ -670,7 +912,7 @@ PanelWindow {
                     x: 26
                     anchors.verticalCenter: parent.verticalCenter
                     size: 20
-                    paths: Bluetooth.request ? Icons.bluetooth : Icons.search
+                    paths: Bluetooth.request ? Icons.bluetooth : root.editing ? root.editing.icon : Icons.search
                     color: Theme.subtext
                 }
 
@@ -818,9 +1060,9 @@ PanelWindow {
                     // rows behind the selection. A move that soon after the last one jumps instead.
                     property real movedAt
                     property bool quick
-                    readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing"].includes(root.rows[root.current].kind)
+                    readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ["app", "window", "device", "btlink", "btdevice", "power"].includes(root.rows[root.current].kind)
+                    readonly property bool enterShown: glideShown && ["app", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "command", "file", "notification"].includes(root.rows[root.current].kind)
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -1020,9 +1262,16 @@ PanelWindow {
                                 switch: switchView,
                                 time: timeView,
                                 calc: resultView,
+                                emoji: resultView,
+                                wplink: resultView,
+                                setting: resultView,
+                                command: resultView,
+                                file: resultView,
+                                notification: resultView,
                                 power: resultView,
                                 confirm: questionView,
-                                pairing: questionView
+                                pairing: questionView,
+                                edit: questionView
                             })[entry.modelData.kind]
                         }
 
@@ -1158,8 +1407,6 @@ PanelWindow {
 
                             // a schedule time: ←→ or − + move it by 15 minutes
                             Rectangle {
-                                readonly property bool start: entry.modelData.key === "from"
-
                                 width: loader.width
                                 height: 56
                                 radius: Theme.tileRadius
@@ -1175,8 +1422,8 @@ PanelWindow {
                                     width: parent.width - x - 12
                                     anchors.verticalCenter: parent.verticalCenter
                                     label: entry.modelData.title
-                                    minutes: parent.start ? NightLight.from : NightLight.to
-                                    onStepped: m => parent.start ? NightLight.setSchedule(NightLight.scheduled, m, NightLight.to) : NightLight.setSchedule(NightLight.scheduled, NightLight.from, m)
+                                    minutes: entry.modelData.minutes()
+                                    onStepped: m => entry.modelData.set(m)
                                 }
                             }
                         }
@@ -1239,8 +1486,9 @@ PanelWindow {
                                     Text {
                                         width: parent.width
                                         text: question.q.text
+                                        textFormat: Text.PlainText // a setting's question repeats what was typed
                                         wrapMode: Text.Wrap
-                                        color: Theme.subtext
+                                        color: question.q.error ? Theme.terracotta : Theme.subtext
                                         font.family: Theme.fontUi
                                         font.pixelSize: 12
                                         font.weight: Font.Medium
@@ -1299,7 +1547,7 @@ PanelWindow {
                                             required property string modelData
                                             required property int index
                                             // Pair waits for a code that can be sent
-                                            readonly property bool disabled: (question.q.input ?? false) && index === 1 && !root.codeValid
+                                            readonly property bool disabled: (question.q.input ?? false) && index === 1 && !root.inputValid
                                             readonly property bool chosen: root.column === index && !disabled
 
                                             width: choiceLabel.implicitWidth + 32
@@ -1371,6 +1619,7 @@ PanelWindow {
                                     : row.kind === "btlink" ? (Bluetooth.enabled ? "Pair, connect and forget devices" : "Bluetooth is off")
                                     : row.subtitle ?? ""
                                 icon: row.icon ?? ""
+                                emoji: row.emoji ?? ""
                                 glyph: row.glyph ?? (row.kind === "device" ? (row.input ? Icons.mic : Icons.volume) : row.kind.startsWith("bt") ? Icons.bluetooth : row.kind === "calc" ? Icons.calculator : Icons.window)
                                 glyphColor: row.danger ? Theme.terracotta : row.kind === "btdevice" && bt.connected ? Theme.sageBlue : Theme.subtext
                                 badge: row.badge ?? ""
@@ -1378,6 +1627,12 @@ PanelWindow {
                                 action: row.kind === "power" ? (row.action.confirm ? `${row.title}…` : row.title)
                                     : row.kind === "window" ? "Switch"
                                     : row.kind === "device" && !current ? "Use"
+                                    : row.kind === "emoji" ? "Copy"
+                                    : row.kind === "wplink" ? "Open"
+                                    : row.kind === "setting" ? "Change"
+                                    : row.kind === "command" ? "Run"
+                                    : row.kind === "file" ? "Open"
+                                    : row.kind === "notification" ? "Show"
                                     : row.kind === "btlink" ? "Devices"
                                     : row.kind === "btdevice" ? (bt.connected ? "Disconnect" : bt.paired ? "Connect" : "Pair")
                                     : ""
@@ -1463,16 +1718,25 @@ PanelWindow {
                             id: statView
 
                             // A reading (System monitor card): icon, name and details, a meter and the
-                            // load, which ease to each new reading. Lined up with the slider rows.
+                            // load, which ease to each new reading. Lined up with the slider rows. A disk
+                            // shows how full it is, in terracotta once under 10 % is free.
                             Item {
                                 id: stat
 
                                 readonly property string key: entry.modelData.key
-                                readonly property real load: key === "cpu" ? Math.max(0, SystemStats.cpu) : key === "memory" ? SystemStats.memUsed / Math.max(1, SystemStats.memTotal) : SystemStats.gpu
+                                readonly property var disk: key.startsWith("disk:") ? SystemStats.disks.find(d => d.mount === key.slice(5)) ?? null : null
+                                readonly property bool low: disk?.low ?? false
+                                readonly property real load: key === "cpu" ? Math.max(0, SystemStats.cpu) : key === "memory" ? SystemStats.memUsed / Math.max(1, SystemStats.memTotal) : disk ? 1 - disk.free / Math.max(1, disk.size) : SystemStats.gpu
                                 readonly property bool known: key !== "cpu" || SystemStats.cpu >= 0
                                 readonly property string detail: key === "cpu" ? (SystemStats.cpuTemp >= 0 ? `${Math.round(SystemStats.cpuTemp)} °C · ` : "") + SystemStats.cpuName
                                     : key === "memory" ? `${SystemStats.memUsed.toFixed(1)} of ${SystemStats.memTotal.toFixed(1)} GB`
+                                    : disk ? `${gigabytes(disk.free)} free of ${gigabytes(disk.size)}`
                                     : `${Math.round(SystemStats.gpuTemp)} °C · ${SystemStats.vramUsed.toFixed(1)} of ${SystemStats.vramTotal.toFixed(1)} GB`
+
+                                // "463 GB", "8.4 GB", "1.8 TB"
+                                function gigabytes(g: real): string {
+                                    return g >= 1000 ? `${(g / 1024).toFixed(1)} TB` : `${g >= 100 ? Math.round(g) : g.toFixed(1)} GB`;
+                                }
                                 property real shown: load
 
                                 width: loader.width
@@ -1492,7 +1756,8 @@ PanelWindow {
                                     x: 22
                                     anchors.verticalCenter: parent.verticalCenter
                                     size: 20
-                                    paths: stat.key === "cpu" ? Icons.cpu : stat.key === "memory" ? Icons.memory : Icons.gpu
+                                    paths: stat.key === "cpu" ? Icons.cpu : stat.key === "memory" ? Icons.memory : stat.disk ? Icons.hardDrive : Icons.gpu
+                                    color: stat.low ? Theme.terracotta : Theme.text
                                 }
 
                                 Column {
@@ -1515,7 +1780,7 @@ PanelWindow {
                                         width: parent.width
                                         text: stat.detail
                                         elide: Text.ElideRight
-                                        color: Theme.subtext
+                                        color: stat.low ? Theme.terracotta : Theme.subtext
                                         font.family: Theme.fontUi
                                         font.pixelSize: 11
                                         font.weight: Font.Medium
@@ -1536,7 +1801,7 @@ PanelWindow {
                                         width: parent.width * Math.min(1, stat.shown)
                                         height: parent.height
                                         radius: 3
-                                        color: Theme.sageBlue
+                                        color: stat.low ? Theme.terracotta : Theme.sageBlue
                                     }
                                 }
 

@@ -19,7 +19,7 @@ PanelWindow {
     }
 
     property bool open
-    property string popup // the card over the panel: "schedule", "bluetooth" or ""
+    property string popup // the card over the panel: "schedule", "dnd", "bluetooth" or ""
 
     signal powerRequested
     signal launcherRequested(string mode)
@@ -117,8 +117,9 @@ PanelWindow {
                     icon: Icons.bellOff
                     title: "Do not disturb"
                     checked: Notifs.dnd
-                    subtitle: Notifs.dnd ? "On" : "Off"
+                    subtitle: Notifs.dndStatus
                     onClicked: Notifs.setDnd(!Notifs.dnd)
+                    onRightClicked: root.popup = "dnd"
                 }
 
                 Tile {
@@ -306,6 +307,109 @@ PanelWindow {
                 width: parent.width
                 topPadding: 4
                 text: "Switching night light by hand holds until the next scheduled change."
+                wrapMode: Text.Wrap
+                color: Theme.subtext
+                font.family: Theme.fontUi
+                font.pixelSize: 11
+                font.weight: Font.Medium
+            }
+        }
+
+        // Do not disturb schedule (right-click the Do not disturb tile): its own times, or night light's.
+        // Not on the board; owner's request.
+        Popover {
+            open: root.popup === "dnd"
+            title: "Do not disturb schedule"
+            onDismissed: root.popup = ""
+
+            Item {
+                width: parent.width
+                height: 44
+
+                Column {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+
+                    Text {
+                        text: "Do not disturb schedule"
+                        color: Theme.textBright
+                        font.family: Theme.fontUi
+                        font.pixelSize: 14
+                        font.weight: Font.Bold
+                    }
+
+                    Text {
+                        text: Notifs.dndScheduled ? "Switches on and off by itself" : "Off"
+                        color: Theme.subtext
+                        font.family: Theme.fontUi
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                    }
+                }
+
+                Switch {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    checked: Notifs.dndScheduled
+                    Accessible.name: "Do not disturb schedule"
+                    onToggled: Notifs.setDndSchedule(!Notifs.dndScheduled)
+                }
+            }
+
+            Item {
+                width: parent.width
+                height: 44
+
+                Column {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+
+                    Text {
+                        text: "Night light's times"
+                        color: Theme.text
+                        font.family: Theme.fontUi
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                    }
+
+                    Text {
+                        text: `${NightLight.timeText(NightLight.from)}–${NightLight.timeText(NightLight.to)}`
+                        color: Theme.subtext
+                        font.family: Theme.fontUi
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                        font.features: { "tnum": 1 }
+                    }
+                }
+
+                Switch {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    checked: Notifs.dndFollowsNight
+                    Accessible.name: "Use night light's times"
+                    onToggled: Notifs.setDndFollowsNight(!Notifs.dndFollowsNight)
+                }
+            }
+
+            // its own times, while it doesn't follow night light's
+            TimeStepper {
+                visible: !Notifs.dndFollowsNight
+                label: "Turns on"
+                minutes: Notifs.dndFrom
+                onStepped: m => Notifs.setDndTimes(m, Notifs.dndTo)
+            }
+
+            TimeStepper {
+                visible: !Notifs.dndFollowsNight
+                label: "Turns off"
+                minutes: Notifs.dndTo
+                onStepped: m => Notifs.setDndTimes(Notifs.dndFrom, m)
+            }
+
+            Text {
+                width: parent.width
+                topPadding: 4
+                text: "Switching Do not disturb by hand holds until the next scheduled change."
                 wrapMode: Text.Wrap
                 color: Theme.subtext
                 font.family: Theme.fontUi

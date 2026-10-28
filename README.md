@@ -4,17 +4,22 @@ A desktop shell for Hyprland, written in QML on [Quickshell](https://quickshell.
 
 What you get:
 
-- **Bar:** a floating pill at the bottom with workspaces, the focused window, clock and notifications, and an Ethernet, Bluetooth and volume chip. It hides while a window overlaps it; point at the bottom edge of the screen to bring it back. Once you move the pointer away it waits a moment before hiding, so you can reach the tray pill.
+- **Bar:** a floating pill at the bottom with workspaces, the focused window, clock and notifications, and an Ethernet, Bluetooth and volume chip. It hides while a window overlaps it; point at the bottom edge of the screen to bring it back. Once you move the pointer away it waits a moment before hiding, so you can reach the tray pill. While a fullscreen window (a game, a video; not a maximized one) has focus, the bottom edge doesn't bring it back, so a stray pointer can't pop it up mid-game. When the shell starts, the wallpaper fades in and then the bar grows out of its handle (not on a live reload).
 - **Tray pill:** apps' tray icons in a second pill right of the bar, shown only while some app has one; it hides and returns with the bar.
-- **Status chip:** Ethernet, Bluetooth and volume. While headphones or another device that reports its battery are connected, the Bluetooth icon shows the battery level instead (terracotta at 20 % or less); a crossed-out mic appears while the microphone is muted, and a mic in orange (clay) while an app is recording from it.
+- **Media pill:** what's playing (cover, title, artist and a play/pause button) in a pill left of the bar, while a player has a track, paused too; it hides and returns with the bar. Click it for the media card above it, scroll over it to skip tracks, middle-click to play or pause.
+- **Status chip:** Ethernet, Bluetooth and volume. While headphones or another device that reports its battery are connected, the Bluetooth icon shows the battery level instead (terracotta at 20 % or less); a crossed-out mic appears while the microphone is muted, and a mic in orange (clay) while an app is recording from it; a screen in clay shows while an app shares your screen.
 - **Quick settings:** Ethernet, Bluetooth (with the connected device's battery), Do not disturb and Night light tiles; a night light schedule (right-click the Night light tile); what's playing (cover, title, previous / play-pause / next) while a media player has something; volume (click the speaker icon to mute), microphone (click its icon to mute), brightness and night light warmth sliders; uptime, a launcher button and the power menu.
-- **Notifications:** toasts above the bar and a notification centre with history, which survives restarts. Pointing at a card in the centre shows the app's actions (Open, Reply…) under it. Notifications are grouped by app, the newest group first: a group of two or more shows its newest card with the others folded behind it, and a click on its header (or Show all) opens or folds it; groups stay as you left them until the shell restarts. The header's ✕ clears just that app. A month calendar sits beside the centre (weeks from Monday, today marked); ‹ ›, the scroll wheel, ← → or h l change month, and Today or Home go back. The shell is the notification daemon. Do not disturb holds back toasts, except critical ones.
-- **Remembered settings:** Do not disturb, night light (on/off, warmth, schedule), drop shadows and notification history are kept across restarts and reboots.
-- **Launcher:** apps, windows, workspaces, system controls and Bluetooth devices, with fuzzy search. System mode has cards for audio, night light (on/off, warmth, schedule) and Bluetooth (on/off, battery, scanning), plus each app's volume, the output and input devices (an input with nothing plugged into it is greyed out: PipeWire won't switch to it), a System monitor card (CPU, memory and GPU load, temperatures, live while it's on screen) and Shell settings (drop shadows on or off, and Quiet in fullscreen: toasts wait while a fullscreen window, such as a game or a video, has focus, and go to the centre; on by default). Apps mode starts with the apps you launch most and most lately (Frequent), and they also rise among equally good matches when you search. The Audio card also has a microphone slider (Enter mutes it). Type a calculation such as `12*(3+4)` and the answer shows at the top.
+- **Notifications:** toasts above the bar and a notification centre with history, which survives restarts. Pointing at a card in the centre shows the app's actions (Open, Reply…) under it. Notifications are grouped by app, the newest group first: a group of two or more shows its newest card with the others folded behind it, and a click on its header (or Show all) opens or folds it; groups stay as you left them until the shell restarts. The header's ✕ clears just that app. A month calendar sits beside the centre (weeks from Monday, today marked); ‹ ›, the scroll wheel, ← → or h l change month, and Today or Home go back. The shell is the notification daemon. Do not disturb holds back toasts, except critical ones. A thin bar along each toast shows the time it has left, and pointing at the toast holds it. Right-click a toast or a card to silence its app for an hour or stop its toasts (they still reach the centre); launcher → System → Notification rules undoes that. Bluetooth devices that report their battery warn at 20 %, and urgently at 10 %. Notifications older than a week go by themselves; find an older one with `!` in the launcher (see Launcher).
+- **Remembered settings:** Do not disturb (on/off, schedule), night light (on/off, warmth, schedule), drop shadows and notification history (the last 200, for a week) are kept across restarts and reboots.
+- **Launcher:** apps, windows, workspaces, system controls and Bluetooth devices, with fuzzy search. System mode has cards for audio, night light (on/off, warmth, schedule) and Bluetooth (on/off, battery, scanning), plus each app's volume, the output and input devices (an input with nothing plugged into it is greyed out: PipeWire won't switch to it), a System monitor card (CPU, memory and GPU load, temperatures, and free disk space, in terracotta under 10 %; live while it's on screen) and Shell settings (drop shadows on or off, Wallpapers, the weather's location: Enter on it, type a city, Enter again, and it's looked up before it's saved, so a misspelt one isn't; and Quiet in fullscreen: toasts wait while a fullscreen window, such as a game or a video, has focus, and go to the centre; on by default). Apps mode starts with the apps you launch most and most lately (Frequent), and they also rise among equally good matches when you search. Search ignores accents: `zolty` finds "Żółty", and the other way round. In Windows mode, keys close, float or move the selected window (see the key table). The Audio card also has a microphone slider (Enter mutes it). Type a calculation such as `12*(3+4)` and the answer shows at the top; type `:` and a name (`:fire`) for emoji, which Enter copies (a bare `:` lists the ones you copied lately first); type `$` and a command (`$btop`) to run it in kitty, which stays open to show what it printed (Shift+Enter runs it in the background, and a notification says when it's finished or failed, with the last line it printed; a bare `$` lists your recent commands); type `/` and a name (`/invoice`) to find files and folders in your home folder, which Enter opens (Shift+Enter opens the folder it's in; hidden folders, `node_modules` and cache folders are left out, and a query with a `/` in it, such as `/proj/main`, matches the path); type `!` and a word to find a notification by its title, text or app, which Enter shows in the notification centre (a bare `!` lists them all under Clear all, which asks first).
 - **Bluetooth pairing:** the shell is the pairing agent, so devices that show or ask for a code pair too (phones, keyboards). The question ("Pair with …?", the code to compare or to type) opens in the launcher.
-- **OSD:** a volume and brightness indicator, which also names the new output device when the sound moves, e.g. to headphones as they connect. It names the apps that start recording from the microphone, and says when they've all stopped (a privacy cue, so it shows even in Do not disturb and fullscreen).
+- **OSD:** a volume and brightness indicator, which also names the new output device when the sound moves, e.g. to headphones as they connect. It names the apps that start recording from the microphone or sharing your screen, and says when they've all stopped (privacy cues, so they show even in Do not disturb and fullscreen).
 - **Power menu:** lock, log out, suspend, reboot and shut down, over a blurred still of the screen.
-- **Lock screen:** checks your password through PAM, over a blurred still of the desktop (kept in memory, never written to disk), with what's playing and its controls. The password shows as dots that pop in as you type; a wrong one shakes the field. An empty Enter is ignored, so it can't cost a failed-login strike.
+- **Lock screen:** checks your password through PAM, over a blurred still of the desktop (kept in memory, never written to disk), with what's playing and its controls, and how many notifications came that you haven't seen ("3 new notifications": only the count, nothing they say). The password shows as dots that pop in as you type; a wrong one shakes the field. An empty Enter is ignored, so it can't cost a failed-login strike.
+- **Weather:** above the calendar in the notification centre: now, today's high and low, and five days; the chevron opens the next hours (with the chance of rain) and the feels-like temperature, wind, humidity and sunset. From Open-Meteo for your city: set it in the launcher (System → Shell settings → Weather location) or with `weather city <name>`; the shell remembers it.
+- **Wallpaper:** the shell draws it (hyprpaper isn't needed). Launcher → Wallpapers opens a switcher with the images in `~/Pictures/Wallpapers`: the screen behind it previews the one you pick, and each image keeps its own fit (Fill, Fit, Center, Tile). New wallpapers fade in.
+- **Window switcher:** Alt+Tab shows every open window, on any workspace, with a picture of each, most recently used first; let go of Alt to switch.
+- **Screenshots:** freeze the screen and drag out an area, or pick Region, Window or Screen from a small menu. The picture goes to `~/Pictures/Screenshots/` and a notification shows it: click it to copy the picture, or Open or Delete it (to the trash). It shows even in Do not disturb.
 - **Admin password dialog:** the shell is the polkit agent, so apps that need admin rights (`pkexec`, GParted, an app managing system services) ask for your password in a dialog of its own, with details on which app asked and for what. Cancelling it never counts as a failed login.
 
 ## Requirements
@@ -26,9 +31,13 @@ Tested on Arch Linux with Hyprland 0.56.2 (Lua config) and Quickshell 0.3.2 on Q
 | Compositor | `hyprland` | everything; Hyprland only | nothing works |
 | Shell runtime | `quickshell` (pulls in Qt 6, PAM, polkit) | everything | nothing works |
 | Audio | `pipewire`, `wireplumber`, `pipewire-pulse` (its `pactl` tells which inputs have something plugged in; `setpriv` from `util-linux` keeps it from outliving the shell) | volume, per-app volume, output and input devices, microphone, OSD; `wpctl` for the volume keys | no volume controls; without `pactl`, no input is greyed out |
-| Media | any player that speaks MPRIS (browsers, Spotify, mpv with `mpv-mpris`) | the media card in quick settings | the card stays hidden |
+| Media | any player that speaks MPRIS (browsers, Spotify, mpv with `mpv-mpris`) | the media pill and its card, the media card in quick settings and on the lock screen | the pill and the cards stay hidden |
 | Bluetooth | `bluez`, `bluez-utils`, with `bluetooth.service` running | Bluetooth tile, chip, launcher Bluetooth view | Bluetooth shows as off |
+| File search | `python` (already there with `python-gobject`), `xdg-utils` | the launcher's `/` search through your home folder, opening what it finds | `/` finds nothing |
 | Pairing agent | `python-gobject` | pairing devices that show or ask for a code, and devices asking to connect | only devices that need no code pair; the log says `bluetooth agent exited` |
+| Screenshots | `libnotify` (`notify-send`), `wl-clipboard` (also copies emoji), `xdg-utils`, `glib2` (`gio`); `xdg-user-dirs` optional | the notification after a screenshot, Copy, Open and Delete; the Pictures folder in your language | no notification (the picture is still saved); `~/Pictures/Screenshots` |
+| Weather | a network connection (Open-Meteo, no account; only your city's coordinates are sent, every 30 min) | the weather panel | no weather panel |
+| Screen sharing | `xdg-desktop-portal-hyprland` | sharing your screen from Discord, browsers or OBS, and the shell's screen-sharing indicator | apps can't share the screen at all |
 | Polkit agent | `python-gobject`, `polkit` (its Python bindings come with it) | the admin password dialog | apps that need admin rights fail or hang; the log says `polkit agent` |
 | Network | `networkmanager`, with `NetworkManager.service` running | Ethernet tile and chip (Quickshell only talks to NetworkManager) | Ethernet shows as unplugged |
 | Brightness | `ddcutil`, and DDC/CI switched on in your monitor's own menu | brightness slider, brightness keys, OSD | the brightness slider is hidden |
@@ -44,7 +53,7 @@ The `ddcutil` package already loads the `i2c-dev` module and gives the logged-in
 
 Manrope isn't in the official repos, so `install.sh` downloads it: Google Fonts' variable TTF (every weight from 200 to 800 in one file) and its licence go into `~/.local/share/fonts/manrope/`. Not Fontsource's files: they name every weight "Manrope ExtraLight", so nothing matches "Manrope" and the shell falls back to another font. By hand: download `Manrope[wght].ttf` from [Google Fonts](https://fonts.google.com/specimen/Manrope) into that folder and run `fc-cache -f`.
 
-For the tests in `tests/` you also need `nodejs` and `libnotify` (`notify-send`); `pw-cat` (part of `pipewire`) plays the silent test stream, and `gdbus` (part of `glib2`) asks the pairing and polkit agents their test questions.
+For the tests in `tests/` you also need `libnotify` (`notify-send`); `tests/js.sh` runs the launcher's and calendar's unit tests with `nodejs` if it's installed, else in Quickshell's own JavaScript engine; `pw-cat` (part of `pipewire`) plays the silent test stream, `gst-plugin-pipewire` and `gst-plugins-base` stand in for a screencast (skipped without them), and `gdbus` (part of `glib2`) asks the pairing and polkit agents their test questions.
 
 ## Installation
 
@@ -137,6 +146,13 @@ qs -c pistachio ipc call <target> <function> [arguments]
 | `brightness up` / `brightness down` | changes monitor brightness by 5 % and shows the OSD |
 | `power toggle` | opens or closes the power menu |
 | `lock lock` | locks the screen |
+| `screenshot region` | freezes the screen to drag out an area to save |
+| `screenshot menu` | freezes the screen and asks: Region, Window or Screen |
+| `weather city <name>` | sets the weather's city (e.g. `weather city Kraków`) and fetches it; `weather refresh` fetches now |
+| `wallpaper toggle` | opens or closes the wallpaper switcher |
+| `wallpaper random` / `wallpaper set <path>` | sets a random image from the folder, or that image |
+| `switcher next` / `switcher prev` | opens the window switcher on the previous window (`prev`: the oldest), or steps once it's open; for Alt+Tab and Alt+Shift+Tab |
+| `switcher commit` / `switcher cancel` | switches to the chosen window, or closes the switcher; letting go of Alt does the first by itself |
 
 Volume has no IPC command and needs none: keep the volume keys on `wpctl`. The OSD follows PipeWire, so it shows any volume change, whatever made it.
 
@@ -169,6 +185,14 @@ hl.bind(mainMod .. " + SHIFT + N",   hl.dsp.exec_cmd(shell .. "notifications tog
 hl.bind(mainMod .. " + Escape",      hl.dsp.exec_cmd(shell .. "power toggle"))
 hl.bind(mainMod .. " + L",           hl.dsp.exec_cmd(shell .. "lock lock"))
 
+-- window switcher: hold Alt, tap Tab, let go
+hl.bind("ALT + Tab",                 hl.dsp.exec_cmd(shell .. "switcher next"))
+hl.bind("ALT + SHIFT + Tab",         hl.dsp.exec_cmd(shell .. "switcher prev"))
+
+-- screenshots
+hl.bind("Print",                     hl.dsp.exec_cmd(shell .. "screenshot region"))
+hl.bind("SHIFT + Print",             hl.dsp.exec_cmd(shell .. "screenshot menu"))
+
 -- brightness keys: replace the stock brightnessctl binds, which do nothing on a desktop monitor
 hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd(shell .. "brightness up"),   { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(shell .. "brightness down"), { locked = true, repeating = true })
@@ -184,6 +208,10 @@ bind = SUPER, A, exec, qs -c pistachio ipc call quicksettings toggle
 bind = SUPER, N, exec, qs -c pistachio ipc call notifications toggle
 bind = SUPER, Escape, exec, qs -c pistachio ipc call power toggle
 bind = SUPER, L, exec, qs -c pistachio ipc call lock lock
+bind = , Print, exec, qs -c pistachio ipc call screenshot region
+bind = SHIFT, Print, exec, qs -c pistachio ipc call screenshot menu
+bind = ALT, Tab, exec, qs -c pistachio ipc call switcher next
+bind = ALT SHIFT, Tab, exec, qs -c pistachio ipc call switcher prev
 bindel = , XF86MonBrightnessUp, exec, qs -c pistachio ipc call brightness up
 bindel = , XF86MonBrightnessDown, exec, qs -c pistachio ipc call brightness down
 ```
@@ -191,8 +219,12 @@ bindel = , XF86MonBrightnessDown, exec, qs -c pistachio ipc call brightness down
 Mouse and keyboard work inside each part too:
 
 - **Bar:** click the clock for the notification centre and the status chip for quick settings. A click outside a panel closes it. Rest the pointer on the clock, the status chip, a workspace dot or a tray icon for a tooltip: the full date and what's new, each connection and the sound devices, the apps on that workspace, or the app's name.
+- **Wallpaper switcher:** the arrows or h j k l preview, Enter or a click sets the wallpaper, R previews a random one, Esc leaves it as it was; Fill, Fit, Center and Tile under the images set the chosen image's fit. With no images yet, Open folder (or Enter) creates and opens the folder.
+- **Window switcher:** keep Alt down and tap Tab (Shift+Tab goes back), or use the arrows or h j k l; let go of Alt, press Enter or click a window to switch to it (and its workspace). Q closes the chosen window, Esc or a click outside cancels.
+- **Screenshots:** drag out an area (Region), or click a window (Window); the menu takes R, W or S, or ← → and Enter. Esc cancels. On the notification, a click copies the picture; Open shows it, Delete moves it to the trash. A live reload or restart leaves older screenshot notifications without their buttons.
+- **Media pill:** a click opens the media card above it (previous, play/pause, next; Esc or a click outside closes it), the scroll wheel skips to the next track (down or right) or the previous one (up or left), and a middle click or its own button plays or pauses.
 - **Tray pill:** left click opens or activates the app, right click opens its menu (in Pistachio colours; submenus open in place with a Back row, and Esc or a click outside closes it), middle click runs its secondary action, and scrolling goes to the app (e.g. a volume applet).
-- **Quick settings:** click a tile to switch it on or off. Right-click the Bluetooth tile for quick connections: Bluetooth on/off and your paired devices (click one to connect or disconnect), plus "Pair new devices…", which opens the launcher's Bluetooth view. Right-click the Night light tile to set its schedule: a switch, and the times it turns on and off (− and + or the mouse wheel, in 15-minute steps). The schedule switches only at those two times, so switching by hand holds until the next one; the tile then reads "Until 07:00" or "From 20:00". Click the speaker icon to mute. Scroll over a slider to change it: 5 % a notch, 250 K for warmth.
+- **Quick settings:** click a tile to switch it on or off. Right-click the Bluetooth tile for quick connections: Bluetooth on/off and your paired devices (click one to connect or disconnect), plus "Pair new devices…", which opens the launcher's Bluetooth view. Right-click the Night light tile to set its schedule: a switch, and the times it turns on and off (− and + or the mouse wheel, in 15-minute steps). The schedule switches only at those two times, so switching by hand holds until the next one; the tile then reads "Until 07:00" or "From 20:00". Right-click the Do not disturb tile for its schedule, which works the same way: its own times, or night light's (the "Night light's times" switch). Click the speaker icon to mute. Scroll over a slider to change it: 5 % a notch, 250 K for warmth.
 - **Launcher:** type to search; a calculation (`+ - * / ^`, brackets, `.` or `,` for decimals) in All or Apps mode shows its answer, which is only shown, not copied. Power actions come up by name or a common word for them (lock, log out / logout / sign out, suspend / sleep, reboot / restart, shut down / shutdown / power off / turn off). Lock happens at once; the others ask first ("Shut down?" with Cancel and Shut down), with Cancel chosen, so a second Enter does nothing. Scrolling over a slider changes it, as ← → do. The keys are in the table below.
 - **Bluetooth pairing:** pick a nearby device in the launcher's Bluetooth view, or let a device ask (the launcher opens for it). Depending on the device, it asks you to:
   - **compare a code:** pair only if the device shows the same 6 digits.
@@ -211,8 +243,10 @@ Launcher keys. The vim motions only work while Ctrl is held, so plain h j k l st
 | ↑ ↓, or Ctrl+K Ctrl+J | move between results and rows |
 | ← →, or Ctrl+H Ctrl+L | change a slider (volume, brightness, warmth, an app's volume) or a schedule time (15 min); move across the workspace grid or quick controls; elsewhere, move the cursor in the search |
 | Enter | open, switch to or select the row; flips a switch row (Night light, Schedule, Bluetooth) |
-| Shift+Enter | on a workspace: move the last focused window there |
-| Ctrl+W | close the selected window |
+| Shift+Enter | on a workspace: move the last focused window there; on a file: open the folder it's in; on a `$` command: run it in the background |
+| Ctrl+W or Ctrl+Q | close the selected window |
+| Ctrl+F | float the selected window, or tile it again |
+| Ctrl+1 … Ctrl+9 | move the selected window to that workspace; you stay where you are and the launcher stays open |
 | Ctrl+M | mute |
 | Ctrl+Backspace | forget the selected Bluetooth device |
 | Esc | close; on a power question, go back to the results; on a Bluetooth question, decline it |
@@ -308,6 +342,9 @@ SDDM isn't part of the shell, and the theme works on its own: it brings its own 
 - **Brightness slider missing:** the monitor didn't answer. Run `ddcutil getvcp 10` and turn on DDC/CI in the monitor's menu.
 - **Night light tile says "Not installed":** install `hyprsunset`.
 - **A device that shows a code won't pair:** `psc log` shows a `bluetooth agent` line when the pairing agent can't start or register; install `python-gobject` if it says so. While the shell runs it is BlueZ's default agent, so it also takes over from another one, such as a KDE session's.
+- **The wallpaper flickers or the old one shows:** hyprpaper (or another wallpaper program) still runs on the background layer; take it out of your autostart (`hl.exec_cmd("hyprpaper")`).
+- **PrtSc doesn't trigger the Print binds:** some keyboards send PrtSc as the Windows "snip" shortcut, Shift+Super+S, so Hyprland never sees Print (`wev` shows Shift and Super going down in the same millisecond). Bind that instead: `mainMod .. " + SHIFT + S"` for `screenshot region`, and `mainMod .. " + ALT + SHIFT + S"` for `screenshot menu` (Alt+PrtSc). Remapping the key to Print Screen in the keyboard's firmware (VIA, QMK) works too.
+- **Screen sharing fails, or the app finds nothing to share:** `xdg-desktop-portal-hyprland` is missing, or the portal service started before it was installed. Restart it with `systemctl --user restart xdg-desktop-portal` (or log in again).
 - **An app that needs admin rights fails or hangs without asking:** no polkit agent runs. `psc log` shows a `polkit agent` line when the shell's can't start or register: install `python-gobject` if it says so, and stop any other agent for this session (polkit takes one per session, e.g. `polkit-gnome` or `hyprpolkitagent` started from the Hyprland config).
 - **An app's tray icon doesn't show:** the shell shows StatusNotifierItem icons, which most current apps use; apps with only the old X11 tray don't appear. Icons an app marks as passive (idle) are left out on purpose.
 - **App icons missing in the launcher:** Qt couldn't find an icon theme. Install one, for example `papirus-icon-theme` or `breeze-icons`, and select it in `qt6ct`, which needs `hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")` in `hyprland.lua`.
@@ -319,7 +356,7 @@ SDDM isn't part of the shell, and the theme works on its own: it brings its own 
 pistachio-shell/
 ├─ bin/psc     the control command
 ├─ install.sh  links src/ and bin/psc into place
-├─ extras/     hypridle.conf (idle locking) and sddm/ (the login screen theme, see extras/sddm/README.md)
+├─ extras/     hypridle.conf (idle locking), sddm/ (the login screen theme, see extras/sddm/README.md) and make-emoji.py (rebuilds the launcher's emoji list)
 ├─ src/        the shell: shell.qml, Theme.qml, and bar/ panels/ popups/ launcher/ lock/ components/ services/
 ├─ tests/      checks against the live system (see CLAUDE.md, working rule 9)
 ├─ design/     one HTML board per screen; open design/index.html. The visual source of truth

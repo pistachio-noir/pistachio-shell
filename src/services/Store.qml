@@ -15,6 +15,10 @@ Singleton {
     // (named Store, not State: QtQuick's own State type would shadow it)
     readonly property JsonAdapter saved: JsonAdapter {
         property bool dnd
+        property bool dndSchedule
+        property bool dndFollowsNight // the schedule uses night light's times instead of its own
+        property int dndFrom: 1320 // 22:00
+        property int dndTo: 420 // 07:00
         property bool nightLight
         property int temperature: 4000 // kelvin
         property bool nightSchedule
@@ -23,6 +27,12 @@ Singleton {
         property bool shadows: true // drop shadows under panels and popups
         property bool quietFullscreen: true // toasts wait while a fullscreen window has focus
         property var launches: ({}) // app id -> its last launches (ms since epoch), at most 10, oldest first
+        property var recentEmoji: [] // copied from the launcher, newest first, at most 16
+        property var recentCommands: [] // run from the launcher after a "$", newest first, at most 20
+        property var notificationRules: ({}) // app name -> { until: ms } (silenced) or { noToasts: true }
+        property string weatherCity // for Open-Meteo's geocoding; "" until set (Weather falls back)
+        property string wallpaper // the image on the desktop
+        property var wallpaperFits: ({}) // image path -> "fill", "fit", "center" or "tile"
         property var notifications: [] // newest first, plain records
     }
 

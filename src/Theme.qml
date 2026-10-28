@@ -39,10 +39,12 @@ Singleton {
 
     readonly property string fontUi: "Manrope"
     readonly property string fontMono: "JetBrains Mono" // code-like text
+    readonly property string fontEmoji: "Noto Color Emoji" // the launcher's emoji picker
 
     // One easing curve for everything; CSS ease-out is close to OutCubic.
     readonly property int easing: Easing.OutCubic
     readonly property int hoverDuration: 120
     readonly property int motionDuration: 200
     readonly property int growDuration: 300 // the bar growing out of its handle, a touch slower (owner's request)
+    readonly property int introDuration: 600 // the wallpaper fading in as the shell starts (owner's request)
 }

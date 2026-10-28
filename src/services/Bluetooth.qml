@@ -5,7 +5,8 @@ import Quickshell.Bluetooth as Bz // namespaced: this file is itself called Blue
 import Quickshell.Io
 import QtQuick
 
-// The default adapter: power, devices, scanning and device actions, and the pairing agent.
+// The default adapter: power, devices, scanning and device actions, the pairing agent, and low battery
+// warnings.
 Singleton {
     id: root
 
@@ -27,10 +28,34 @@ Singleton {
     // the first connected device that reports its battery (e.g. headphones), or null; its level 0–100
     readonly property var batteryDevice: paired.find(d => d.connected && d.batteryAvailable) ?? null
     readonly property int battery: batteryDevice ? Math.round(batteryDevice.battery * 100) : -1
+    // Low battery warnings (owner's request, after phase 8), from the shell's own notify-send: once at
+    // 20 %, and urgent at 10 % (it stays, and shows in Do not disturb), per device; they start over once
+    // it's back above 25 %.
+    readonly property var levels: paired.filter(d => d.connected && d.batteryAvailable).map(d => ({ address: d.address, name: name(d), level: Math.round(d.battery * 100) }))
+    property var warned: ({}) // address -> the level last warned about, 20 or 10
+    onLevelsChanged: checkBatteries(levels)
     // for the quick settings tile and the launcher: "Off", "AirPods Pro · 74%", the connected device, "On"
     readonly property string summary: !enabled ? "Off"
         : batteryDevice ? `${name(batteryDevice)} · ${battery}%`
         : connectedName || "On"
+
+    function checkBatteries(list) {
+        const w = Object.assign({}, warned);
+        for (const d of list) {
+            const was = w[d.address] ?? 100;
+            if (d.level > 25)
+                delete w[d.address];
+            else if (d.level <= 10 && was > 10)
+                warnBattery(d, w[d.address] = 10);
+            else if (d.level <= 20 && was > 20)
+                warnBattery(d, w[d.address] = 20);
+        }
+        warned = w;
+    }
+
+    function warnBattery(d, at: int) {
+        Quickshell.execDetached(["notify-send", "--app-name=Bluetooth", "--icon=battery-low", `--urgency=${at === 10 ? "critical" : "normal"}`, `${d.name}: battery low`, `${d.level} % left`]);
+    }
 
     function setEnabled(on: bool) {
         if (Bz.Bluetooth.defaultAdapter)

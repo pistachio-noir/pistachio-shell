@@ -2,13 +2,31 @@
 
 // Fuzzy matching for the launcher. Tested by tests/fuzzy.test.js (node).
 
-// Match `query` against `text`, ignoring case. Returns { score, indices } (higher is better;
-// indices are the matched characters) or null. A contiguous match beats a scattered one, and an
-// earlier match, one at a word start, or one at the very start scores higher. Scattered (in-order)
+// Letters that keep no accent mark to drop (NFD leaves them whole), as their plain letter.
+const plain = { "ł": "l", "ø": "o", "đ": "d", "ħ": "h", "ı": "i", "ŧ": "t" };
+
+// `s` in lower case without accents, for matching (owner's request, after phase 8): "Żółty" reads
+// "zolty", so either finds the other. One character for one, so indices into it are indices into `s`.
+function fold(s) {
+    if (/^[\x00-\x7f]*$/.test(s))
+        return s.toLowerCase();
+    let out = "";
+    for (let i = 0; i < s.length; i++) {
+        const base = s[i].normalize("NFD")[0].toLowerCase(); // "Ż" is "Z" and a dot
+        out += plain[base] ?? (base.length === 1 ? base : s[i]);
+    }
+    return out;
+}
+
+// Match `query` against `text`, ignoring case and accents. Returns { score, indices } (higher is
+// better; indices are the matched characters) or null. A contiguous match beats a scattered one, and
+// an earlier match, one at a word start, or one at the very start scores higher. Scattered (in-order)
 // matches score by how tightly the letters cluster, and count only if they span at most three
 // characters per query letter, so a short query does not match half of every long name.
 function match(query, text) {
-    const q = query.toLowerCase(), t = text.toLowerCase();
+    if (text === undefined || text === null)
+        return null; // e.g. a device with no name yet, or for a moment as it goes (PipeWire)
+    const q = fold(query), t = fold(text);
     if (q === "")
         return { score: 0, indices: [] };
 

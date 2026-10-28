@@ -2,21 +2,20 @@ import qs
 import qs.components
 import qs.services
 import Quickshell
+import Quickshell.Io
 import QtQuick
 
 // Notification centre with the calendar beside it (calendar-notifications board): history, clear all,
 // do-not-disturb switch. Two panels 16 px apart, both as tall as the calendar, so the list scrolls in
-// what's left; ← → (or h l) change the calendar's month, Home goes back to today. The bar positions it
-// and closes it on an outside click.
+// what's left; ← → (or h l) change the calendar's month, Home goes back to today. The weather sits
+// above both, as wide (calendar-weather-notifications board), once there's a reading. The bar
+// positions it and closes it on an outside click.
 PanelWindow {
     id: root
 
     // "now", "2 min", "1 h", "3 d"; "" for notifications carried over from before a shell reload
     function age(ms: real): string {
-        if (ms <= 0)
-            return "";
-        const min = Math.floor((clock.date.getTime() - ms) / 60000);
-        return min < 1 ? "now" : min < 60 ? `${min} min` : min < 1440 ? `${Math.floor(min / 60)} h` : `${Math.floor(min / 1440)} d`;
+        return Notifs.age(ms, clock.date);
     }
 
     property bool open
@@ -43,6 +42,36 @@ PanelWindow {
         openGroups = Object.assign({}, openGroups, { [app]: !openGroups[app] });
     }
 
+    // One notification, found with the launcher's "!" (owner's request, after phase 8): its group
+    // opens if folded, and once the cards have moved the list scrolls to it and it lights up a moment.
+    property var spotlight: null
+
+    function show(n) {
+        open = true;
+        spotlight = n;
+        const members = groups.by[n.appName ?? ""] ?? [];
+        if (members.length > 1 && members[0] !== n && !openGroups[n.appName ?? ""])
+            toggleGroup(n.appName ?? "");
+        findSpot.restart();
+    }
+
+    Timer {
+        id: findSpot
+        interval: Theme.motionDuration + 50 // the group has opened
+        onTriggered: {
+            const i = root.ordered.indexOf(root.spotlight);
+            if (i >= 0)
+                list.positionViewAtIndex(i, ListView.Contain);
+            unspot.restart();
+        }
+    }
+
+    Timer {
+        id: unspot
+        interval: 1500
+        onTriggered: root.spotlight = null
+    }
+
     onGroupsChanged: {
         const kept = {};
         for (const k in openGroups) {
@@ -54,12 +83,15 @@ PanelWindow {
     }
     // room below the panels for their shadows; the bar places the window with it
     readonly property int below: panelShadow.below
+    // The weather's room above the calendar. The window keeps room for its details open, so opening
+    // them grows the panel without resizing the window; the panels sit at its bottom.
+    readonly property real weatherSpace: Weather.available ? weather.height + 16 : 0
 
     visible: reveal.shown
     focusable: true // for Escape
     exclusiveZone: 0
     implicitWidth: panelShadow.side + panels.width + panelShadow.side
-    implicitHeight: panelShadow.above + panels.height + below
+    implicitHeight: panelShadow.above + (Weather.available ? weather.fullHeight + 16 : 0) + calendar.implicitHeight + below
     color: "transparent"
     mask: Region {
         item: panels // the shadows' room lets clicks through
@@ -82,13 +114,25 @@ PanelWindow {
         precision: SystemClock.Minutes
     }
 
+    // For a keybind or the terminal: qs -c pistachio ipc call weather city <name> (or refresh)
+    IpcHandler {
+        target: "weather"
+
+        function city(name: string): void {
+            Weather.setCity(name);
+        }
+        function refresh(): void {
+            Weather.refresh();
+        }
+    }
+
     Item {
         id: panels
 
         x: panelShadow.side
-        y: panelShadow.above
+        y: root.implicitHeight - root.below - height
         width: calendar.width + 16 + panel.width
-        height: calendar.implicitHeight // owner's call: a long list stretched the calendar into empty space
+        height: root.weatherSpace + calendar.implicitHeight // owner's call: a long list stretched the calendar into empty space
         // fades and grows slightly from the bar, and back
         opacity: reveal.progress
         scale: 0.96 + 0.04 * reveal.progress
@@ -109,6 +153,19 @@ PanelWindow {
         }
 
         Shadow {
+            visible: Weather.available
+            kind: Theme.shadowPanel
+            anchors.fill: weather
+            radius: weather.radius
+        }
+
+        WeatherPanel {
+            id: weather
+            visible: Weather.available
+            width: parent.width
+        }
+
+        Shadow {
             kind: Theme.shadowPanel
             anchors.fill: calendar
             radius: calendar.radius
@@ -123,15 +180,17 @@ PanelWindow {
 
         Calendar {
             id: calendar
-            height: parent.height
+            y: root.weatherSpace
+            height: implicitHeight
         }
 
         Rectangle {
             id: panel
 
             x: calendar.width + 16
+            y: calendar.y
             width: 360
-            height: parent.height
+            height: calendar.height
             radius: Theme.panelRadius
             color: Theme.bgAlt
             border.width: 1
@@ -503,9 +562,11 @@ PanelWindow {
         readonly property bool clearing: (ListView.view?.clearing ?? false) && (ListView.view.clearingApp === null || ListView.view.clearingApp === group)
         // The app's actions (Open, Reply…), shown only while the pointer is on the card (owner's
         // request): the card grows to make room as they fade in. Records from before a restart have
-        // none, and the default action is the click on the card.
-        readonly property var buttons: n.saved ? [] : n.actions.filter(a => a.identifier !== "default")
-        readonly property bool expanded: hover.hovered && buttons.length > 0 && !leaving.running
+        // none, and the default action is the click on the card. A right click shows the app's rule
+        // choices there instead (Notifs.ruleChoices), until one is picked or the pointer leaves.
+        property bool ruling
+        readonly property var buttons: ruling ? Notifs.ruleChoices(group) : n.saved ? [] : n.actions.filter(a => a.identifier !== "default")
+        readonly property bool expanded: (ruling || hover.hovered && buttons.length > 0) && !leaving.running
         property real reveal: expanded ? 1 : 0
         readonly property int body: Math.max(36, text.implicitHeight + 1) // the icon or the text, whichever is taller
         // eased 0–1: the header, the edges of a folded group, and the card itself (0 while folded away)
@@ -525,9 +586,13 @@ PanelWindow {
         }
         property var after
 
-        // An action dismisses the notification unless it's resident: the card swipes away first.
+        // An action dismisses the notification unless it's resident: the card swipes away first. A
+        // rule choice just applies.
         function act(action) {
-            if (n.resident)
+            if (action.rule) {
+                action.invoke();
+                ruling = false;
+            } else if (n.resident)
                 action.invoke();
             else
                 leave(0, () => action.invoke());
@@ -747,22 +812,37 @@ PanelWindow {
             width: entry.width
             height: entry.body + 28 + Math.round(entry.reveal * (actions.height + 10))
             radius: Theme.tileRadius
-            color: Theme.overlay
+            // lights up a moment when the launcher's "!" shows it
+            color: root.spotlight !== null && root.spotlight === entry.modelData ? Theme.overlay2 : Theme.overlay
             transform: Translate {
                 id: swipe
             }
             Accessible.role: Accessible.ListItem
             Accessible.name: entry.n.summary + ". " + entry.n.body
 
-            HoverHandler {
-                id: hover
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.motionDuration
+                    easing.type: Theme.easing
+                }
             }
 
-            // clicking runs the notification's default action, if it has one
+            HoverHandler {
+                id: hover
+                onHoveredChanged: if (!hovered) entry.ruling = false
+            }
+
+            // clicking runs the notification's default action, if it has one; a right click, the rules
             MouseArea {
                 anchors.fill: parent
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
                 cursorShape: Qt.PointingHandCursor
-                onClicked: Notifs.invokeDefault(entry.n)
+                onClicked: mouse => {
+                    if (mouse.button === Qt.RightButton)
+                        entry.ruling = !entry.ruling;
+                    else
+                        Notifs.invokeDefault(entry.n);
+                }
             }
 
             NotificationIcon {
@@ -838,6 +918,13 @@ PanelWindow {
                     font.weight: Font.Medium
                     lineHeight: 17
                     lineHeightMode: Text.FixedHeight
+                }
+
+                // a screenshot's picture (the shell's own notification)
+                NotificationPreview {
+                    width: parent.width
+                    notification: entry.n
+                    gap: 8
                 }
             }
 

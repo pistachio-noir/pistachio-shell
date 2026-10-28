@@ -46,8 +46,34 @@ PanelWindow {
         required property var modelData
         readonly property var n: modelData
         readonly property bool critical: Notifs.isCritical(n)
-        readonly property var buttons: n.actions.filter(a => a.identifier !== "default")
+        // the app's actions, or after a right click its rule choices (Notifs.ruleChoices)
+        property bool ruling
+        readonly property var buttons: ruling ? Notifs.ruleChoices(n.appName ?? "") : n.actions.filter(a => a.identifier !== "default")
         property var after // what to do once faded out
+        // its time, and how much of it is left (expireTimeout arrives in milliseconds, though the 0.3.2
+        // docs say seconds; checked with notify-send -t; 0 or less means "server default")
+        readonly property real lifetime: n.expireTimeout > 0 ? n.expireTimeout : 5000
+        property real remaining: 1
+
+        // a rule choice applies and the toast goes (Cancel brings back its actions and countdown)
+        function choose(action) {
+            action.invoke();
+            if (!action.rule)
+                return;
+            ruling = false;
+            if (action.cancel)
+                resume();
+            else
+                leave(() => Notifs.hidePopup(n));
+        }
+
+        // the countdown again, never with less than 1.5 s left
+        function resume() {
+            if (critical)
+                return;
+            countdown.duration = Math.max(1500, remaining * lifetime);
+            countdown.start();
+        }
 
         // fade out sinking 12 px, then `then`
         function leave(then) {
@@ -79,8 +105,12 @@ PanelWindow {
             radius: parent.radius
         }
 
-        // fade in and rise 12 px
-        Component.onCompleted: arrive.start()
+        // fade in and rise 12 px, and start the countdown
+        Component.onCompleted: {
+            arrive.start();
+            if (!critical)
+                countdown.start();
+        }
 
         ParallelAnimation {
             id: arrive
@@ -121,21 +151,52 @@ PanelWindow {
             onFinished: toast.after()
         }
 
-        // Critical ones stay until dismissed. expireTimeout arrives in milliseconds (the 0.3.2 docs say
-        // seconds; checked with notify-send -t); 0 or less means "server default".
-        Timer {
-            running: !toast.critical
-            interval: toast.n.expireTimeout > 0 ? toast.n.expireTimeout : 5000
-            onTriggered: toast.leave(() => Notifs.hidePopup(toast.n))
+        // The countdown (owner's request, after phase 8): it runs down the bar along the bottom and
+        // stops while the pointer is over the toast; it then never has less than 1.5 s left, so the
+        // toast doesn't vanish as the pointer leaves. Critical ones stay until dismissed.
+        NumberAnimation {
+            id: countdown
+            target: toast
+            property: "remaining"
+            to: 0
+            duration: toast.lifetime
+            onFinished: toast.leave(() => Notifs.hidePopup(toast.n))
         }
 
-        // Clicking the toast runs its default action and hides it; it stays in the centre.
+        HoverHandler {
+            onHoveredChanged: {
+                if (hovered)
+                    countdown.stop();
+                else if (!toast.ruling)
+                    toast.resume();
+            }
+        }
+
+        Rectangle {
+            visible: !toast.critical
+            x: 20
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 6
+            width: (parent.width - 40) * toast.remaining
+            height: 3
+            radius: 1.5
+            color: Theme.overlay2
+        }
+
+        // Clicking the toast runs its default action and hides it; it stays in the centre. A right
+        // click shows the app's rule choices and holds the countdown.
         MouseArea {
             anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                Notifs.invokeDefault(toast.n);
-                Notifs.hidePopup(toast.n);
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton) {
+                    toast.ruling = true;
+                    countdown.stop();
+                } else {
+                    Notifs.invokeDefault(toast.n);
+                    Notifs.hidePopup(toast.n);
+                }
             }
         }
 
@@ -208,6 +269,12 @@ PanelWindow {
                 }
             }
 
+            // a screenshot's picture (the shell's own notification)
+            NotificationPreview {
+                width: parent.width
+                notification: toast.n
+            }
+
             // The app's actions, the first one pistachio, then Dismiss.
             Row {
                 visible: toast.buttons.length > 0
@@ -221,11 +288,12 @@ PanelWindow {
                         required property int index
                         text: modelData.text
                         primary: index === 0
-                        onClicked: modelData.invoke()
+                        onClicked: toast.choose(modelData)
                     }
                 }
 
                 ActionButton {
+                    visible: !toast.ruling // Cancel stands in for it
                     text: "Dismiss"
                     onClicked: toast.leave(() => toast.n.dismiss())
                 }

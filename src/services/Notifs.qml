@@ -12,8 +12,9 @@ Singleton {
 
     // new notifications are kept but not shown as popups, except critical ones
     readonly property bool dnd: Store.saved.dnd
-    // the same while a fullscreen window has focus, if the shell setting is on
-    readonly property bool quiet: dnd || ShellSettings.quietFullscreen && Compositor.fullscreen
+    // the same while a fullscreen window has focus or an app records from the mic (a call), if the
+    // shell settings say so
+    readonly property bool quiet: dnd || ShellSettings.quietFullscreen && Compositor.fullscreen || ShellSettings.quietCalls && Audio.recorders.length > 0 || Showoff.active
     // Do not disturb's schedule (owner's request, after phase 8): on at dndFrom, off at dndTo, with its
     // own times or night light's. Like night light's, it only acts at those two moments, so switching
     // by hand holds until the next one; when the shell starts or the times change, it is set to match.
@@ -40,6 +41,11 @@ Singleton {
     readonly property var notifications: live.concat(saved)
     // the ones showing as popups, oldest first
     property var popups: []
+    // Floods fold (owner's request, after phase 8): a third toast from one app within 5 s of its last
+    // takes the place of the ones showing, and says how many it stands for (notification id -> count;
+    // only folded ones are in it). Critical ones and the shell's own never fold.
+    property var popupCounts: ({})
+    property real chimedAt // the last sound, so a flood plays it once
     // Opening the centre marks everything seen. seenBefore is the previous mark, for the centre's
     // "new since last time" dots.
     property real seenAt: Date.now()
@@ -89,11 +95,17 @@ Singleton {
         ];
     }
 
-    // silences that ran out
+    // silences that ran out (Object.fromEntries isn't in Quickshell's JS engine: it threw each minute)
     function pruneRules() {
         const now = Date.now();
-        if (Object.values(rules).some(r => r.until && r.until <= now))
-            Store.saved.notificationRules = Object.fromEntries(Object.entries(rules).filter(([, r]) => !r.until || r.until > now));
+        if (!Object.values(rules).some(r => r.until && r.until <= now))
+            return;
+        const kept = {};
+        for (const app in rules) {
+            if (!rules[app].until || rules[app].until > now)
+                kept[app] = rules[app];
+        }
+        Store.saved.notificationRules = kept;
     }
 
     // the shell's own screenshot notification (Screenshots): it shows even while quiet
@@ -150,10 +162,42 @@ Singleton {
         seenBefore = seenAt;
         seenAt = Date.now();
         popups = [];
+        popupCounts = {};
     }
 
     function hidePopup(n) {
         popups = popups.filter(p => p !== n);
+        if (n.id in popupCounts) {
+            const counts = Object.assign({}, popupCounts);
+            delete counts[n.id];
+            popupCounts = counts;
+        }
+    }
+
+    // a new toast, folding the app's recent ones into it if this makes three or more
+    function showPopup(n) {
+        const app = n.appName ?? "";
+        const foldable = p => !isCritical(p) && !own(p);
+        const recent = foldable(n) ? popups.filter(p => p !== n && (p.appName ?? "") === app && foldable(p) && Date.now() - (receivedAt[p.id] ?? 0) < 5000) : [];
+        const count = 1 + recent.reduce((sum, p) => sum + (popupCounts[p.id] ?? 1), 0);
+        const counts = Object.assign({}, popupCounts);
+        for (const p of recent)
+            delete counts[p.id];
+        if (count >= 3)
+            counts[n.id] = count;
+        popupCounts = counts;
+        popups = popups.filter(p => p !== n && (count < 3 || !recent.includes(p))).concat([n]);
+        chime();
+    }
+
+    // The notification sound (owner's request, after phase 8): src/sounds/notification.wav (made by
+    // extras/make-sound.py; no sound theme was installed), through pw-play, at most once a second.
+    // It only plays with a toast, so Do not disturb, fullscreen and an app's rule keep it quiet too.
+    function chime() {
+        if (!ShellSettings.notificationSound || Date.now() - chimedAt < 1000)
+            return;
+        chimedAt = Date.now();
+        Quickshell.execDetached(["pw-play", Quickshell.shellPath("sounds/notification.wav")]);
     }
 
     function clearAll() {
@@ -280,11 +324,12 @@ Singleton {
             if (kept)
                 root.saved = root.saved.filter(r => r !== kept);
             root.receivedAt = Object.assign({}, root.receivedAt, { [n.id]: n.lastGeneration ? kept?.time ?? 0 : Date.now() });
-            // a toast unless something keeps it quiet: Do not disturb, fullscreen or the app's rule;
-            // critical ones and the shell's own always show
-            const shows = root.isCritical(n) || root.own(n) || !root.quiet && !root.quietFor(n.appName ?? "");
+            // a toast unless something keeps it quiet: Do not disturb, fullscreen, a call or the app's rule;
+            // critical ones and the shell's own always show, except in showoff mode, where a toast could
+            // end up in the screenshot (they reach the centre all the same)
+            const shows = !Showoff.active && (root.isCritical(n) || root.own(n) || !root.quiet && !root.quietFor(n.appName ?? ""));
             if (shows && !n.lastGeneration)
-                root.popups = root.popups.filter(p => p !== n).concat([n]);
+                root.showPopup(n);
         }
     }
 }

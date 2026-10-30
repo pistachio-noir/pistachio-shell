@@ -54,6 +54,8 @@ PanelWindow {
         // docs say seconds; checked with notify-send -t; 0 or less means "server default")
         readonly property real lifetime: n.expireTimeout > 0 ? n.expireTimeout : 5000
         property real remaining: 1
+        // how many of the app's notifications it stands for, when a flood folded them (Notifs)
+        readonly property int count: Notifs.popupCounts[n.id] ?? 1
 
         // a rule choice applies and the toast goes (Cancel brings back its actions and countdown)
         function choose(action) {
@@ -221,6 +223,22 @@ PanelWindow {
             Column {
                 width: parent.width
                 spacing: 2
+
+                // a folded flood: "VESKTOP · 5 NEW" over the newest, as the centre's group headers
+                Text {
+                    width: parent.width
+                    visible: toast.count > 1
+                    bottomPadding: 2
+                    text: `${(toast.n.appName || "Notifications").toUpperCase()} · ${toast.count} NEW`
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
+                    color: Theme.subtext
+                    font.family: Theme.fontUi
+                    font.pixelSize: 11
+                    font.weight: Font.Bold
+                    font.letterSpacing: 0.9
+                    font.features: { "tnum": 1 }
+                }
 
                 Item {
                     width: parent.width

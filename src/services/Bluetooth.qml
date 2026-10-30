@@ -34,10 +34,12 @@ Singleton {
     readonly property var levels: paired.filter(d => d.connected && d.batteryAvailable).map(d => ({ address: d.address, name: name(d), level: Math.round(d.battery * 100) }))
     property var warned: ({}) // address -> the level last warned about, 20 or 10
     onLevelsChanged: checkBatteries(levels)
-    // for the quick settings tile and the launcher: "Off", "AirPods Pro · 74%", the connected device, "On"
+    // for the quick settings tile and the launcher: "Off", "AirPods Pro · 74%", the connected device, "On";
+    // in showoff mode no device names: "Connected · 74%"
     readonly property string summary: !enabled ? "Off"
-        : batteryDevice ? `${name(batteryDevice)} · ${battery}%`
-        : connectedName || "On"
+        : batteryDevice ? `${Showoff.active ? "Connected" : name(batteryDevice)} · ${battery}%`
+        : connectedName ? (Showoff.active ? "Connected" : connectedName)
+        : "On"
 
     function checkBatteries(list) {
         const w = Object.assign({}, warned);

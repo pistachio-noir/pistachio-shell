@@ -6,8 +6,8 @@ import Quickshell.Io
 import Quickshell.Wayland // layer-shell layer for this window (a Wayland protocol, not a compositor module)
 import QtQuick
 
-// Volume, brightness, output device, microphone and screen sharing OSD (Osd board; the last three
-// aren't on it). Volume shows on any PipeWire change, whoever made it, and so does a new default output,
+// Volume, brightness, output device, microphone, screen sharing and desktop icons OSD (Osd board; the
+// last four aren't on it). Volume shows on any PipeWire change, whoever made it, and so does a new default output,
 // e.g. headphones connecting; brightness only through IPC, because the monitor reports nothing. The
 // microphone and screen sharing ones name the apps that start recording or sharing, and say when all
 // have stopped (owner's request: privacy cues, so they show even in Do not disturb, fullscreen or with
@@ -15,7 +15,7 @@ import QtQuick
 PanelWindow {
     id: root
 
-    property string kind: "volume" // or "brightness", "output", "mic" or "screen"
+    property string kind: "volume" // or "brightness", "output", "mic", "screen" or "desktop"
     property bool suppressed // set by the bar while quick settings (which has the same sliders) is open
     property int lift // the pill's distance from the screen's bottom edge; the bar sets it
     // room around the pill for its shadow; below, at most what's left down to the screen edge
@@ -25,6 +25,10 @@ PanelWindow {
     property bool settling: true // after startup and output switches, when volume "changes" on its own
     readonly property bool output: kind === "output"
     readonly property bool cue: kind === "mic" || kind === "screen" // a privacy cue
+    // Desktop icons shown or hidden (owner's request, 29 October: by IPC `desktop toggle` or in Shell
+    // settings), told with words in place of the bar, as a cue is
+    readonly property bool desktop: kind === "desktop"
+    readonly property bool notice: cue || desktop
     readonly property bool muted: (kind === "volume" || output) && Audio.muted
     readonly property real value: kind === "brightness" ? Brightness.value : Audio.volume
     // The bar and number ease to a new value; they start at it while hidden and on a switch between
@@ -67,12 +71,12 @@ PanelWindow {
 
     Reveal {
         id: reveal
-        open: hide.running && (!root.suppressed || root.cue)
+        open: hide.running && (!root.suppressed || root.notice)
     }
 
     Timer {
         id: hide
-        interval: root.output || root.cue ? 2500 : 1500 // a name takes longer to read than a bar
+        interval: root.output || root.notice ? 2500 : 1500 // a name takes longer to read than a bar
     }
 
     Timer {
@@ -117,6 +121,16 @@ PanelWindow {
         apps: ScreenShare.apps
         onStarted: names => root.showCue("screen", true, names)
         onStopped: names => root.showCue("screen", false, names)
+    }
+
+    // (not as the setting is read at startup: settling covers that)
+    Connections {
+        target: Desktop
+
+        function onEnabledChanged() {
+            if (!root.settling)
+                root.show("desktop");
+        }
     }
 
     Connections {
@@ -176,7 +190,8 @@ PanelWindow {
             anchors.fill: parent
             radius: parent.radius
         }
-        Accessible.name: root.cue ? `${root.cueTitle}, ${root.cueNames}`
+        Accessible.name: root.desktop ? `${desktopTitle.text}, ${desktopDetail.text}`
+            : root.cue ? `${root.cueTitle}, ${root.cueNames}`
             : root.output ? `Output ${root.outputName}`
             : root.muted ? "Volume muted" : `${root.kind === "volume" ? "Volume" : "Brightness"} ${label.text} percent`
 
@@ -185,13 +200,15 @@ PanelWindow {
             x: 22
             anchors.verticalCenter: parent.verticalCenter
             size: 20
-            paths: root.kind === "brightness" ? Icons.sun
+            paths: root.desktop ? (Desktop.enabled ? Icons.folder : Icons.folder.concat(Icons.slash))
+                : root.kind === "brightness" ? Icons.sun
                 : root.output ? (Audio.isHeadphones(Audio.sink) ? Icons.headphones : Icons.speaker)
                 : root.kind === "mic" ? (root.cueOn && Audio.micMuted ? Icons.micOff : Icons.mic)
                 : root.kind === "screen" ? Icons.screenShare
                 : root.muted ? Icons.volumeMuted : Icons.volume
             // as the bar shows them: clay while in use, subtext when muted or let go
-            color: root.cue ? (root.cueOn && !(root.kind === "mic" && Audio.micMuted) ? Theme.clay : Theme.subtext)
+            color: root.desktop ? (Desktop.enabled ? Theme.textBright : Theme.subtext)
+                : root.cue ? (root.cueOn && !(root.kind === "mic" && Audio.micMuted) ? Theme.clay : Theme.subtext)
                 : root.muted ? Theme.subtext : Theme.textBright
         }
 
@@ -243,8 +260,43 @@ PanelWindow {
             }
         }
 
+        // the desktop icons' news in place of the bar
+        Column {
+            visible: root.desktop
+            anchors.left: icon.right
+            anchors.leftMargin: 14
+            anchors.right: parent.right
+            anchors.rightMargin: 22
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 1
+
+            Text {
+                id: desktopTitle
+                width: parent.width
+                text: Desktop.enabled ? "Desktop icons shown" : "Desktop icons hidden"
+                elide: Text.ElideRight
+                color: Theme.textBright
+                font.family: Theme.fontUi
+                font.pixelSize: 14
+                font.weight: Font.Bold
+            }
+
+            Text {
+                id: desktopDetail
+                width: parent.width
+                text: Desktop.enabled ? `${Desktop.items.length} ${Desktop.items.length === 1 ? "item" : "items"} from ${Desktop.folder.split("/").pop()}` : "Your files stay where they are"
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: Theme.subtext
+                font.family: Theme.fontUi
+                font.pixelSize: 12
+                font.weight: Font.Medium
+                font.features: { "tnum": 1 }
+            }
+        }
+
         Rectangle {
-            visible: !root.output && !root.cue
+            visible: !root.output && !root.notice
             anchors.left: icon.right
             anchors.leftMargin: 14
             anchors.right: label.left
@@ -269,7 +321,7 @@ PanelWindow {
             anchors.verticalCenter: parent.verticalCenter
             width: root.muted ? 50 : 30
             // a new output's volume reads 0 until PipeWire has bound it
-            visible: !root.cue && (!root.output || (Audio.sink?.ready ?? false))
+            visible: !root.notice && (!root.output || (Audio.sink?.ready ?? false))
             horizontalAlignment: Text.AlignRight
             text: root.muted ? "Muted" : Math.round(root.level * 100)
             color: root.muted ? Theme.subtext : Theme.textBright

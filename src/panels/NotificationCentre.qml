@@ -97,8 +97,15 @@ PanelWindow {
         item: panels // the shadows' room lets clicks through
     }
 
+    // Showoff mode: no notifications (the empty state shows), and they stay unread. The bar places the
+    // centre left and it slides in from there (`slide`, px).
+    property real slide
+    readonly property int side: panelShadow.side
+    readonly property real panelWidth: panels.width
+    readonly property real panelHeight: panels.height
+
     onOpenChanged: {
-        if (!open)
+        if (!open || Showoff.active)
             return;
         Notifs.markSeen();
         calendar.showToday(false); // every opening starts at this month, without a slide
@@ -129,7 +136,7 @@ PanelWindow {
     Item {
         id: panels
 
-        x: panelShadow.side
+        x: panelShadow.side + root.slide * (1 - reveal.progress)
         y: root.implicitHeight - root.below - height
         width: calendar.width + 16 + panel.width
         height: root.weatherSpace + calendar.implicitHeight // owner's call: a long list stretched the calendar into empty space
@@ -139,7 +146,9 @@ PanelWindow {
         transformOrigin: Item.Bottom
         focus: true
         Keys.onPressed: event => {
-            if (event.key === Qt.Key_Escape)
+            if (event.key === Qt.Key_Escape && Showoff.active)
+                Showoff.stop(); // the panels hold the keyboard meanwhile: Esc ends showoff mode
+            else if (event.key === Qt.Key_Escape)
                 root.open = false;
             else if (event.key === Qt.Key_Left || event.key === Qt.Key_H)
                 calendar.step(-1, false);
@@ -219,7 +228,7 @@ PanelWindow {
                     height: 44
                     radius: 22
                     color: clearMouse.containsMouse ? Theme.overlay : "transparent"
-                    opacity: Notifs.notifications.length > 0 && !(list.clearing && list.clearingApp === null) ? 1 : 0
+                    opacity: Notifs.notifications.length > 0 && !Showoff.active && !(list.clearing && list.clearingApp === null) ? 1 : 0
                     visible: opacity > 0
                     Accessible.role: Accessible.Button
                     Accessible.name: "Clear all"
@@ -347,7 +356,7 @@ PanelWindow {
                 }
 
                 model: ScriptModel {
-                    values: root.ordered
+                    values: Showoff.active ? [] : root.ordered
                 }
                 delegate: Entry {}
 

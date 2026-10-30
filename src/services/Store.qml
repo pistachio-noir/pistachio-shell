@@ -26,13 +26,19 @@ Singleton {
         property int nightTo: 420 // 07:00
         property bool shadows: true // drop shadows under panels and popups
         property bool quietFullscreen: true // toasts wait while a fullscreen window has focus
+        property bool quietCalls: true // toasts wait while an app records from the microphone
+        property bool headphonesTakeOver: true // Bluetooth headphones become the output as they connect
+        property bool notificationSound: true // a soft sound with each toast
         property var launches: ({}) // app id -> its last launches (ms since epoch), at most 10, oldest first
         property var recentEmoji: [] // copied from the launcher, newest first, at most 16
         property var recentCommands: [] // run from the launcher after a "$", newest first, at most 20
+        property string terminal // picked in Shell settings; "" until then (Apps falls back)
         property var notificationRules: ({}) // app name -> { until: ms } (silenced) or { noToasts: true }
         property string weatherCity // for Open-Meteo's geocoding; "" until set (Weather falls back)
         property string wallpaper // the image on the desktop
         property var wallpaperFits: ({}) // image path -> "fill", "fit", "center" or "tile"
+        property bool desktopIcons: true // the Desktop folder's files and folders on the wallpaper
+        property var desktopPositions: ({}) // a desktop icon's name -> [column, row]
         property var notifications: [] // newest first, plain records
     }
 

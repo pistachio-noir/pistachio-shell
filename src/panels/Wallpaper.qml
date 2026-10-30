@@ -2,6 +2,7 @@ import qs
 import qs.components
 import qs.services
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland // the background layer (a Wayland protocol, not a compositor module)
 import QtQuick
 
@@ -15,6 +16,10 @@ PanelWindow {
     // load, the bar waits no more than a moment.
     property bool intro
     signal introDone
+    // from the desktop icons: shell.qml has the launcher ask for a name, or opens the switcher
+    signal renameRequested(var item)
+    signal newFolderRequested(var cell)
+    signal wallpapersRequested
 
     function startIntro() {
         intro = true;
@@ -37,8 +42,31 @@ PanelWindow {
     color: Theme.bg
     WlrLayershell.layer: WlrLayer.Background
     WlrLayershell.namespace: "pistachio-wallpaper"
+    // Ctrl+click on the desktop icons needs to know Ctrl is down, which only the surface with the
+    // keyboard is told: the desktop takes it on a click, but only on a workspace without windows. An
+    // on-demand layer may take the keyboard on hover too, and the desktop shows in the gaps between
+    // windows, so a pointer resting there could pull typing away from a window.
+    WlrLayershell.keyboardFocus: Desktop.enabled && !(Compositor.workspaces.find(w => w.active)?.occupied ?? true) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+
+    // Showoff mode: the wallpaper settles in from a little closer as it starts, and a click on it (the
+    // desktop between the panels) ends it.
+    Connections {
+        target: Showoff
+
+        function onActiveChanged() {
+            if (Showoff.active)
+                settle.restart();
+        }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        enabled: Showoff.active
+        onClicked: Showoff.stop()
+    }
 
     WallpaperView {
+        id: view
         anchors.fill: parent
         path: Wallpapers.current
         fadeDuration: root.intro ? Theme.introDuration : Theme.growDuration
@@ -46,6 +74,48 @@ PanelWindow {
             if (path)
                 root.endIntro();
         }
+    }
+
+    NumberAnimation {
+        id: settle
+        target: view
+        property: "scale"
+        from: 1.06
+        to: 1
+        duration: Theme.settleDuration
+        easing.type: Theme.easing
+    }
+
+    // the Desktop folder's files and folders (owner's request, after phase 8)
+    DesktopIcons {
+        id: desktop
+        anchors.fill: parent
+        onRenameRequested: item => root.renameRequested(item)
+        onNewFolderRequested: cell => root.newFolderRequested(cell)
+        onWallpapersRequested: root.wallpapersRequested()
+    }
+
+    // For a keybind (owner's request, 29 October): qs -c pistachio ipc call desktop toggle (or on, off;
+    // not show and hide: `qs ipc call desktop show` printed the target's functions); the OSD says which
+    IpcHandler {
+        target: "desktop"
+
+        function toggle(): void {
+            Desktop.setEnabled(!Desktop.enabled);
+        }
+        function on(): void {
+            Desktop.setEnabled(true);
+        }
+        function off(): void {
+            Desktop.setEnabled(false);
+        }
+    }
+
+    // their menu also goes with a click in a window
+    FocusGrab {
+        windows: [root]
+        active: desktop.menuOpen
+        onCleared: desktop.menu = null
     }
 
     Timer {

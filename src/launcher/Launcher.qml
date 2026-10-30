@@ -32,7 +32,8 @@ PanelWindow {
         workspaces: [["←→", "choose"], ["↵", "go"], ["Shift ↵", "move window here"], ["Esc", "close"]],
         system: [["↑↓", "navigate"], ["←→", "adjust"], ["↵", "switch / select"], ["Ctrl M", "mute"], ["Esc", "close"]],
         // Ctrl, unlike the board's plain ⌫: Backspace also edits the search, and forgetting is not undoable
-        bluetooth: [["↑↓", "navigate"], ["↵", "connect / disconnect"], ["Ctrl ⌫", "forget device"], ["Esc", "close"]]
+        bluetooth: [["↑↓", "navigate"], ["↵", "connect / disconnect"], ["Ctrl ⌫", "forget device"], ["Esc", "close"]],
+        terminals: [["↑↓", "navigate"], ["↵", "use"], ["Esc", "back"]]
     })
 
     property bool open
@@ -60,6 +61,14 @@ PanelWindow {
     property var workspaces: []
     readonly property var rows: buildRows(mode, query, windows, workspaces)
     property int current: -1 // selected row
+    // a row to stay on while rows above it come and go (back from a setting or the Terminals view:
+    // the System monitor's GPU and disk rows arrive a moment after System opens); let go of once
+    // another row is selected
+    property string heldKey
+    onCurrentChanged: if (rows[current]?.key !== heldKey) heldKey = ""
+    // App actions (owner's request, after phase 8): → on an app opens its own actions as rows under it
+    // (the key of the app's row; an app can be listed twice), ← or typing closes them.
+    property string expandedKey
     property int column: 0 // selected tile or card within a grid row
 
     function snapshot() {
@@ -68,18 +77,21 @@ PanelWindow {
     }
 
     // Bluetooth is a view inside System (LauncherBluetooth board), so it has no tab of its own;
-    // the System tab stays highlighted.
-    readonly property string tab: mode === "bluetooth" ? "system" : mode
+    // the System tab stays highlighted. So is Terminals, from Shell settings (owner's request).
+    readonly property string tab: mode === "bluetooth" || mode === "terminals" ? "system" : mode
     readonly property string placeholder: Bluetooth.request ? (Bluetooth.request.kind === "pin" ? "PIN" : Bluetooth.request.kind === "passkey" ? "6-digit code" : "Bluetooth")
         : editing ? editing.placeholder
-        : mode === "bluetooth" ? "Filter devices…" : modes.find(m => m.id === mode).placeholder
+        : mode === "bluetooth" ? "Filter devices…" : mode === "terminals" ? "Filter terminals…" : modes.find(m => m.id === mode).placeholder
     readonly property var keyHints: Bluetooth.request ? (codeWanted ? [["↵", "pair"], ["Esc", "cancel"]]
             : Bluetooth.request.id ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "decline"]]
             : [["Esc", "cancel pairing"]])
         : confirming ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "back"]]
         : editing ? [["↵", "save"], ["Esc", "back"]]
+        : rows[current]?.kind === "appaction" ? [["↑↓", "navigate"], ["↵", "open"], ["←", "back"], ["Esc", "close"]]
+        : rows[current]?.kind === "app" && rows[current].app.actions.length > 0 ? [["↑↓", "navigate"], ["↵", "open"], ["→", "more actions"], ["Tab", "switch mode"], ["Esc", "close"]]
         : filesWanted ? [["↑↓", "navigate"], ["↵", "open"], ["Shift ↵", "show in folder"], ["Esc", "close"]]
         : (mode === "all" || mode === "apps") && query.startsWith("!") ? [["↑↓", "navigate"], ["↵", "show in centre"], ["Esc", "close"]]
+        : cheatWanted ? [["↑↓", "navigate"], ["↵", "use a prefix"], ["Esc", "close"]]
         : hints[mode]
     // scan for new devices only while the Bluetooth view is on screen
     readonly property bool scanWanted: open && mode === "bluetooth" && Bluetooth.ready
@@ -87,6 +99,9 @@ PanelWindow {
     // and read the machine's load only while the System monitor card is
     readonly property bool statsWanted: open && rows.some(r => r.kind === "stat")
     onStatsWantedChanged: SystemStats.setWatching(statsWanted)
+    // and Hyprland's binds, each time the cheat sheet opens
+    readonly property bool cheatWanted: open && (mode === "all" || mode === "apps") && query.startsWith("?")
+    onCheatWantedChanged: if (cheatWanted) Compositor.loadBinds()
     // and look through the home folder only while a "/" search is
     readonly property bool filesWanted: open && (mode === "all" || mode === "apps") && query.startsWith("/")
     onFilesWantedChanged: {
@@ -107,6 +122,7 @@ PanelWindow {
         list.enter();
         confirming = null;
         editing = null;
+        expandedKey = "";
         snapshot();
         mode = m === "bluetooth" || modes.some(x => x.id === m) ? m : "all";
         field.text = "";
@@ -126,17 +142,22 @@ PanelWindow {
         apply: place => Weather.setCity(place.name)
     })
 
-    function startEditing(setting) {
+    // `initial`: what the field starts with, its first `chosen` characters selected (a file's name
+    // without its extension), so typing replaces them
+    function startEditing(setting, initial, chosen) {
         editing = setting;
         editBusy = false;
         editError = "";
-        field.text = "";
+        field.text = initial ?? "";
+        field.select(0, chosen ?? field.text.length);
         resetSelection(); // on Save: Enter saves what's typed
     }
 
-    // back to the results, at the setting's row
+    // back to the results, at the setting's row; a question from elsewhere (`close`) closes the launcher
     function stopEditing() {
         const key = editing?.key;
+        if (editing?.close)
+            open = false;
         editing = null;
         editBusy = false;
         editError = "";
@@ -144,8 +165,40 @@ PanelWindow {
         const i = rows.findIndex(r => r.key === key);
         if (i >= 0) {
             current = i;
+            heldKey = key;
             backToRow.restart();
         }
+    }
+
+    // A desktop icon's new name, and a new folder's (owner's request, after phase 8): the same question,
+    // asked over the launcher opened for it.
+    function renameDesktopItem(item) {
+        show("all");
+        const dot = item.folder ? -1 : item.name.lastIndexOf(".");
+        startEditing({
+            key: "",
+            title: `Rename “${item.name}”`,
+            icon: Icons.pencil,
+            placeholder: "Name",
+            close: true,
+            hint: () => "Type the new name, then press Enter.",
+            check: (text, then) => Desktop.check(text, item.name, then),
+            apply: name => Desktop.rename(item, name)
+        }, item.name, dot > 0 ? dot : item.name.length);
+    }
+
+    function newDesktopFolder(cell) {
+        show("all");
+        startEditing({
+            key: "",
+            title: "New folder on the desktop",
+            icon: Icons.folderPlus,
+            placeholder: "Name",
+            close: true,
+            hint: () => "Type its name, then press Enter.",
+            check: (text, then) => Desktop.check(text, "", then),
+            apply: name => Desktop.newFolder(name, cell)
+        }, "New folder");
     }
 
     function saveEditing() {
@@ -195,6 +248,49 @@ PanelWindow {
             icon: Apps.icon(h.item.icon),
             app: h.item
         };
+    }
+
+    // The cheat sheet after a "?" (owner's request, after phase 8): the search prefixes, the launcher's
+    // keys and Hyprland's binds, found by any word or key; Enter on a prefix puts it in the search.
+    function cheatRows(q: string): var {
+        const row = (kind, i, keys, title, extra) => Object.assign({ kind: "cheat", key: `${kind}:${i}`, keys: keys, title: title }, extra);
+        const prefixes = [
+            ["/", "Files and folders in your home folder"],
+            ["!", "Notifications, newest first; Enter shows one in the centre"],
+            ["$", `Run a command in ${Apps.terminal} (Shift+Enter: in the background)`],
+            ["@", "Search the web with DuckDuckGo"],
+            [":", "Emoji; Enter copies one"],
+            ["?", "This cheat sheet"],
+            ["12*3", "A calculation: the answer shows at the top"]
+        ].map(([k, t], i) => row("prefix", i, [k], t, { prefix: k === "12*3" ? "" : k }));
+        const keys = [
+            [["Tab"], "Next mode; Shift+Tab goes back"],
+            [["↑", "↓"], "Move between results (or Ctrl+K, Ctrl+J)"],
+            [["←", "→"], "Change a slider or a time, move across a grid (or Ctrl+H, Ctrl+L)"],
+            [["→"], "An app's own actions; ← closes them"],
+            [["Enter"], "Open, switch, select, or flip a switch"],
+            [["Shift", "Enter"], "Workspace: move the last window there · file: open its folder · command: in the background"],
+            [["Ctrl", "W"], "Close the window (or Ctrl+Q)"],
+            [["Ctrl", "F"], "Float the window, or tile it"],
+            [["Ctrl", "1–9"], "Send the window to that workspace"],
+            [["Ctrl", "M"], "Mute"],
+            [["Ctrl", "⌫"], "Forget the Bluetooth device"],
+            [["Esc"], "Close, or back from a question"]
+        ].map(([k, t], i) => row("launcherkey", i, k, t, {}));
+        const binds = Compositor.binds.map((b, i) => row("bind", i, b.keys, b.what || "No description", { dim: !b.what }));
+        const folded = Fuzzy.fold(q);
+        const keep = r => !q || Fuzzy.match(q, r.title) || Fuzzy.fold(r.keys.join(" ")).includes(folded);
+        const p = prefixes.filter(keep), k = keys.filter(keep), b = binds.filter(keep);
+        const hint = binds.length && !binds.some(r => !r.dim) ? [{ kind: "empty", key: "binds-hint", title: "Give a bind a description in hyprland.lua to see here what it does" }] : [];
+        return (p.length ? [section("Search prefixes")].concat(p) : [])
+            .concat(k.length ? [section("Launcher keys")].concat(k) : [])
+            .concat(b.length ? [section(`Hyprland binds · ${b.length}`)].concat(hint, b) : []);
+    }
+
+    // an app's own actions, under its row
+    function actionRows(appRow): var {
+        const app = appRow.app;
+        return app.actions.map(a => ({ kind: "appaction", key: `${appRow.key}:${a.id}`, title: a.name, subtitle: app.name, icon: Apps.icon(a.icon) || appRow.icon, compact: true, indent: 24, app: app, action: a }));
     }
 
     // the apps launched most and most lately (Apps.frecency), for the top of Apps mode
@@ -306,6 +402,8 @@ PanelWindow {
         // an input with nothing plugged in is greyed out, and the keys pass it by
         const inputs = Audio.sources.map(n => ({ kind: "device", key: "input:" + n.id, title: Audio.deviceName(n), node: n, input: true, off: Audio.isUnplugged(n) }));
         const keep = r => !q || Fuzzy.match(q, r.title);
+        // mounted USB drives (owner's request, 30 October 2026): Enter ejects one
+        const drives = Drives.mounted.map(m => ({ kind: "drive", key: "drive:" + m.path, title: m.name, subtitle: `${m.mountpoint} · ${m.size}`, glyph: Icons.hardDrive, drive: m })).filter(keep);
         const a = streams.filter(keep), d = devices.filter(keep), i = inputs.filter(keep);
         // the machine's load (owner's request; not on a board): readings, not controls, so the keys
         // pass them by; the GPU once nvidia-smi has answered
@@ -321,10 +419,16 @@ PanelWindow {
         const shell = card("Shell settings", q, [
             { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) },
             { kind: "wplink", key: "wplink", title: "Wallpapers", subtitle: Wallpapers.current.split("/").pop() || "None", glyph: Icons.image },
+            { kind: "showoff", key: "showoff", title: "Showoff mode", subtitle: "Everything open for a screenshot, private things hidden", glyph: Icons.sparkles },
+            { kind: "termlink", key: "terminal", title: "Terminal", subtitle: Apps.terminalName(Apps.terminal), glyph: Icons.terminal },
             { kind: "setting", key: "weatherCity", title: "Weather location", subtitle: Weather.placeName, glyph: Icons.mapPin, setting: weatherSetting },
-            { kind: "switch", key: "quietFullscreen", title: "Quiet in fullscreen", icon: Icons.bellOff, on: () => ShellSettings.quietFullscreen, status: () => ShellSettings.quietFullscreen ? "Toasts wait while a fullscreen window has focus" : "Off", toggle: () => ShellSettings.setQuietFullscreen(!ShellSettings.quietFullscreen) }
+            { kind: "switch", key: "desktopIcons", title: "Desktop icons", icon: Icons.folder, on: () => Desktop.enabled, status: () => Desktop.enabled ? "The Desktop folder, on the wallpaper" : "Off", toggle: () => Desktop.setEnabled(!Desktop.enabled) },
+            { kind: "switch", key: "notificationSound", title: "Notification sound", icon: Icons.volume, on: () => ShellSettings.notificationSound, status: () => ShellSettings.notificationSound ? "A soft sound with each toast" : "Off", toggle: () => ShellSettings.setNotificationSound(!ShellSettings.notificationSound) },
+            { kind: "switch", key: "quietFullscreen", title: "Quiet in fullscreen", icon: Icons.bellOff, on: () => ShellSettings.quietFullscreen, status: () => ShellSettings.quietFullscreen ? "Toasts wait while a fullscreen window has focus" : "Off", toggle: () => ShellSettings.setQuietFullscreen(!ShellSettings.quietFullscreen) },
+            { kind: "switch", key: "headphonesTakeOver", title: "Headphones take over", icon: Icons.headphones, on: () => ShellSettings.headphonesTakeOver, status: () => ShellSettings.headphonesTakeOver ? "Bluetooth headphones get the sound as they connect" : "Off: the output stays as you chose", toggle: () => ShellSettings.setHeadphonesTakeOver(!ShellSettings.headphonesTakeOver) },
+            { kind: "switch", key: "quietCalls", title: "Quiet during calls", icon: Icons.mic, on: () => ShellSettings.quietCalls, status: () => ShellSettings.quietCalls ? "Toasts wait while an app uses the microphone" : "Off", toggle: () => ShellSettings.setQuietCalls(!ShellSettings.quietCalls) }
         ]);
-        return cards.concat(a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(i.length ? [section("Input device")].concat(i) : []).concat(monitor.length ? [section("System monitor")].concat(monitor) : []).concat(shell.length ? [section("Shell settings")].concat(shell) : []);
+        return cards.concat(drives.length ? [section("Drives")].concat(drives) : [], a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(i.length ? [section("Input device")].concat(i) : []).concat(monitor.length ? [section("System monitor")].concat(monitor) : []).concat(shell.length ? [section("Shell settings")].concat(shell) : []);
     }
 
     function bluetoothRows(q: string): var {
@@ -338,6 +442,27 @@ PanelWindow {
             .concat(paired.length ? [section("Paired devices")].concat(paired) : [])
             .concat([{ kind: "section", key: "section:scan", title: "Scanning for new devices", spinner: true }])
             .concat(nearby.length ? nearby : [{ kind: "empty", key: "nearby", title: Bluetooth.scanning ? "Looking…" : "No new devices found" }]);
+    }
+
+    // The terminals to choose from (owner's request, 30 October 2026), opened from Shell settings as
+    // Bluetooth's devices are from its card; Enter uses one and goes back
+    function terminalRows(q: string): var {
+        const rows = Apps.terminalChoices.filter(t => !q || Fuzzy.match(q, Apps.terminalName(t)) || Fuzzy.match(q, t)).map(t => ({
+            kind: "terminal", key: "term:" + t, title: Apps.terminalName(t), subtitle: t === Apps.terminal ? "current" : "", icon: Apps.terminalIcon(t), glyph: Icons.terminal, name: t
+        }));
+        return [section(`Terminals installed · for $ commands, terminal apps and showoff`)].concat(rows);
+    }
+
+    // back from Terminals to System, at its Terminal row
+    function leaveTerminals() {
+        field.text = "";
+        mode = "system";
+        const i = rows.findIndex(r => r.key === "terminal");
+        if (i >= 0) {
+            current = i;
+            heldKey = "terminal";
+            backToRow.restart();
+        }
     }
 
     // Power actions, found by name or a common word for them. All but Lock ask first.
@@ -376,13 +501,19 @@ PanelWindow {
     }
 
     // A command after a "$" (owner's request, after phase 8): the typed one first, then the recent
-    // ones that match; Enter runs it in kitty, Shift+Enter in the background.
+    // ones that match; Enter runs it in the terminal, Shift+Enter in the background.
     function commandRows(q: string): var {
-        const row = (c, prefix) => ({ kind: "command", key: prefix + c, title: c, command: c, subtitle: "In kitty · Shift+Enter: in the background", glyph: Icons.terminal });
+        const row = (c, prefix) => ({ kind: "command", key: prefix + c, title: c, command: c, subtitle: `In ${Apps.terminal} · Shift+Enter: in the background`, glyph: Icons.terminal });
         const recent = ranked(Apps.recentCommands.filter(c => c !== q), q, c => c, 20).map(h => Object.assign(row(h.item, "recent:"), { indices: h.indices }));
         const typed = q ? [section("Run"), row(q, "run:")] : [];
         const rows = typed.concat(recent.length ? [section("Recent commands")].concat(recent) : []);
-        return rows.length ? rows : [{ kind: "empty", key: "empty", title: "Type a command to run it in kitty" }];
+        return rows.length ? rows : [{ kind: "empty", key: "empty", title: `Type a command to run it in ${Apps.terminal}` }];
+    }
+
+    // A web search after an "@" (owner's request, 30 October 2026)
+    function webRows(q: string): var {
+        return q ? [section("Web"), { kind: "web", key: "web", title: q, subtitle: "Search DuckDuckGo", glyph: Icons.search }]
+            : [{ kind: "empty", key: "empty", title: "Type to search the web with DuckDuckGo" }];
     }
 
     // Files and folders in the home folder after a "/" (owner's request, after phase 8), found by
@@ -488,6 +619,10 @@ PanelWindow {
             rows = fileRows(q.slice(1).trim());
         } else if (q.startsWith("!") && (mode === "all" || mode === "apps")) {
             rows = notificationRows(q.slice(1).trim());
+        } else if (q.startsWith("@") && (mode === "all" || mode === "apps")) {
+            rows = webRows(q.slice(1).trim());
+        } else if (q.startsWith("?") && (mode === "all" || mode === "apps")) {
+            rows = cheatRows(q.slice(1).trim());
         } else if (mode === "apps") {
             const frequent = q ? [] : frequentRows(5);
             rows = calcRows(q).concat(frequent.length ? [section("Frequent")].concat(frequent) : [], [section("Applications")], appRows(q, 200));
@@ -501,6 +636,8 @@ PanelWindow {
             rows = systemRows(q).concat(powerRows(q));
         } else if (mode === "bluetooth") {
             rows = bluetoothRows(q);
+        } else if (mode === "terminals") {
+            rows = terminalRows(q);
         } else if (!q) {
             const w = windowRows("", 5).map(r => Object.assign(r, { compact: true }));
             rows = [section("Quick controls"), { kind: "controls", key: "controls" }].concat(w.length ? [section("Open windows")].concat(w) : []);
@@ -508,6 +645,8 @@ PanelWindow {
             const a = appRows(q, 5), w = windowRows(q, 3);
             rows = calcRows(q).concat(a.length ? [section("Applications")].concat(a) : []).concat(w.length ? [section("Windows")].concat(w) : []).concat(powerRows(q), systemRows(q));
         }
+        if (expandedKey)
+            rows = rows.reduce((all, r) => all.concat([r], r.key === expandedKey && r.kind === "app" ? actionRows(r) : []), []); // flatMap isn't there
         return rows.some(r => r.kind !== "section") ? rows : rows.concat([{ kind: "empty", key: "empty", title: "No matches" }]);
     }
 
@@ -564,6 +703,12 @@ PanelWindow {
         if (row.kind === "app") {
             Apps.launch(row.app);
             open = false;
+        } else if (row.kind === "cheat") {
+            if (row.prefix)
+                field.text = row.prefix;
+        } else if (row.kind === "appaction") {
+            Apps.launchAction(row.app, row.action);
+            open = false;
         } else if (row.kind === "window") {
             Compositor.focus(row.address);
             open = false;
@@ -598,6 +743,11 @@ PanelWindow {
         } else if (row.kind === "command") {
             Apps.run(row.command, !shift);
             open = false;
+        } else if (row.kind === "drive") {
+            Drives.eject(row.drive);
+        } else if (row.kind === "web") {
+            Apps.searchWeb(row.title);
+            open = false;
         } else if (row.kind === "notification") {
             open = false;
             notificationRequested(row.notification);
@@ -612,6 +762,15 @@ PanelWindow {
             wallpapersRequested();
         } else if (row.kind === "setting") {
             startEditing(row.setting);
+        } else if (row.kind === "termlink") {
+            field.text = "";
+            mode = "terminals";
+        } else if (row.kind === "terminal") {
+            Apps.setTerminal(row.name);
+            leaveTerminals();
+        } else if (row.kind === "showoff") {
+            open = false;
+            Showoff.toggle();
         } else if (row.kind === "edit") {
             if (col === 0)
                 stopEditing();
@@ -666,6 +825,8 @@ PanelWindow {
                 confirming = null; // back to the results
             else if (editing)
                 stopEditing();
+            else if (mode === "terminals")
+                leaveTerminals();
             else
                 open = false;
             break;
@@ -688,7 +849,16 @@ PanelWindow {
                 adjust(row, dir);
             else if (row && gridLength(row) > 0)
                 column = Math.max(0, Math.min(gridLength(row) - 1, column + dir));
-            else if (vim)
+            // an app's actions: → opens them once the search's cursor is at its end (so → still moves
+            // it while typing), ← closes them and goes back to the app
+            else if (dir > 0 && row?.kind === "app" && row.app.actions.length > 0 && expandedKey !== row.key && field.cursorPosition === field.text.length) {
+                expandedKey = row.key;
+                current = step(current, 1);
+            } else if (dir < 0 && expandedKey && (row?.kind === "appaction" || row?.key === expandedKey)) {
+                const key = expandedKey;
+                expandedKey = "";
+                current = rows.findIndex(r => r.key === key);
+            } else if (vim)
                 field.cursorPosition = Math.max(0, Math.min(field.text.length, field.cursorPosition + dir));
             else
                 return; // the search field moves its cursor
@@ -745,6 +915,7 @@ PanelWindow {
     }
 
     onModeChanged: {
+        expandedKey = "";
         list.enter(); // the new rows rise into place
         resetSelection();
     }
@@ -752,12 +923,21 @@ PanelWindow {
     onEditingChanged: list.enter()
     onQueryChanged: {
         confirming = null; // typing goes back to searching
+        expandedKey = "";
         if (filesWanted)
             Files.search(query.slice(1).trim());
         resetSelection();
     }
     // rows also change under the launcher (windows open and close); keep the selection valid
-    onRowsChanged: if (!selectable(current)) resetSelection()
+    onRowsChanged: {
+        const held = heldKey ? rows.findIndex(r => r.key === heldKey) : -1;
+        if (held >= 0 && held !== current) {
+            current = held;
+            backToRow.restart();
+        } else if (!selectable(current)) {
+            resetSelection();
+        }
+    }
 
     onOpenChanged: {
         grab.active = open;
@@ -1062,7 +1242,7 @@ PanelWindow {
                     property bool quick
                     readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ["app", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "command", "file", "notification"].includes(root.rows[root.current].kind)
+                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "command", "file", "notification", "web", "drive"].includes(root.rows[root.current].kind))
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -1251,6 +1431,7 @@ PanelWindow {
                                 section: sectionView,
                                 empty: emptyView,
                                 app: resultView,
+                                appaction: resultView,
                                 window: resultView,
                                 device: resultView,
                                 slider: sliderView,
@@ -1265,9 +1446,15 @@ PanelWindow {
                                 emoji: resultView,
                                 wplink: resultView,
                                 setting: resultView,
+                                termlink: resultView,
+                                terminal: resultView,
+                                showoff: resultView,
                                 command: resultView,
                                 file: resultView,
                                 notification: resultView,
+                                web: resultView,
+                                drive: resultView,
+                                cheat: cheatView,
                                 power: resultView,
                                 confirm: questionView,
                                 pairing: questionView,
@@ -1308,6 +1495,75 @@ PanelWindow {
                                     font.pixelSize: 11
                                     font.weight: Font.Bold
                                     font.letterSpacing: 0.9
+                                }
+                            }
+                        }
+
+                        Component {
+                            id: cheatView
+
+                            // A cheat sheet row: the keys or the prefix, drawn as the key hints are, and
+                            // what it does. Rows for reading; Enter on a prefix puts it in the search.
+                            Rectangle {
+                                width: loader.width
+                                height: 42
+                                radius: Theme.tileRadius
+                                color: "transparent" // selected: the list's chip shows through
+                                Accessible.role: Accessible.ListItem
+                                Accessible.name: `${entry.modelData.keys.join(" ")}: ${entry.modelData.title}`
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: entry.modelData.prefix ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    onClicked: {
+                                        root.current = entry.index;
+                                        root.activate(entry.modelData, 0, false);
+                                    }
+                                }
+
+                                Row {
+                                    x: 18
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 190
+                                    clip: true
+                                    spacing: 4
+
+                                    Repeater {
+                                        model: entry.modelData.keys
+
+                                        Rectangle {
+                                            required property string modelData
+
+                                            width: Math.max(24, cheatKey.implicitWidth + 14)
+                                            height: 24
+                                            radius: 7
+                                            color: Theme.overlay
+
+                                            Text {
+                                                id: cheatKey
+                                                anchors.centerIn: parent
+                                                text: parent.modelData
+                                                textFormat: Text.PlainText
+                                                color: Theme.text
+                                                font.family: Theme.fontUi
+                                                font.pixelSize: 12
+                                                font.weight: Font.ExtraBold
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    x: 18 + 190 + 14
+                                    width: parent.width - x - 50
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: entry.modelData.title
+                                    textFormat: Text.PlainText
+                                    elide: Text.ElideRight
+                                    color: entry.modelData.dim ? Theme.subtext : Theme.text
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
                                 }
                             }
                         }
@@ -1610,6 +1866,7 @@ PanelWindow {
                                 width: loader.width
                                 enabled: !row.off
                                 compact: row.compact ?? false
+                                indent: row.indent ?? 0
                                 selected: entry.selected
                                 title: row.title
                                 indices: row.indices ?? []
@@ -1625,14 +1882,20 @@ PanelWindow {
                                 badge: row.badge ?? ""
                                 badgeActive: row.badgeActive ?? false
                                 action: row.kind === "power" ? (row.action.confirm ? `${row.title}…` : row.title)
+                                    : row.kind === "appaction" ? "Open"
                                     : row.kind === "window" ? "Switch"
                                     : row.kind === "device" && !current ? "Use"
                                     : row.kind === "emoji" ? "Copy"
                                     : row.kind === "wplink" ? "Open"
                                     : row.kind === "setting" ? "Change"
+                                    : row.kind === "termlink" ? "Choose"
+                                    : row.kind === "terminal" && row.name !== Apps.terminal ? "Use"
+                                    : row.kind === "showoff" ? (Showoff.active ? "Stop" : "Start")
                                     : row.kind === "command" ? "Run"
                                     : row.kind === "file" ? "Open"
                                     : row.kind === "notification" ? "Show"
+                                    : row.kind === "web" ? "Search"
+                                    : row.kind === "drive" ? "Eject"
                                     : row.kind === "btlink" ? "Devices"
                                     : row.kind === "btdevice" ? (bt.connected ? "Disconnect" : bt.paired ? "Connect" : "Pair")
                                     : ""

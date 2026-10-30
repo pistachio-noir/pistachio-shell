@@ -27,6 +27,10 @@ PanelWindow {
     // room around the panel for its shadow; the bar places the window with these
     readonly property int side: shadow.side
     readonly property int below: shadow.below
+    // showoff mode: the bar places it right, and it slides in from there (px)
+    property real slide
+    readonly property real panelWidth: panel.width
+    readonly property real panelHeight: panel.height
 
     visible: reveal.shown
     focusable: true // for Escape
@@ -63,7 +67,7 @@ PanelWindow {
     Rectangle {
         id: panel
 
-        x: shadow.side
+        x: shadow.side + root.slide * (1 - reveal.progress)
         y: shadow.above
         width: 380
         height: content.implicitHeight + 40
@@ -79,6 +83,8 @@ PanelWindow {
         Keys.onEscapePressed: {
             if (root.popup)
                 root.popup = "";
+            else if (Showoff.active)
+                Showoff.stop(); // the panels hold the keyboard meanwhile: Esc ends showoff mode
             else
                 root.open = false;
         }

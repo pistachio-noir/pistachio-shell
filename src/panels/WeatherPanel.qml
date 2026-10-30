@@ -104,7 +104,8 @@ Rectangle {
                 }
 
                 Text {
-                    text: Weather.today ? `${Weather.place?.name ?? Weather.city} · H ${Weather.today.max}° · L ${Weather.today.min}°` : ""
+                    // (no city in showoff mode: it says where the owner lives)
+                    text: !Weather.today ? "" : Showoff.active ? `H ${Weather.today.max}° · L ${Weather.today.min}°` : `${Weather.place?.name ?? Weather.city} · H ${Weather.today.max}° · L ${Weather.today.min}°`
                     color: Theme.subtext
                     font.family: Theme.fontUi
                     font.pixelSize: 12

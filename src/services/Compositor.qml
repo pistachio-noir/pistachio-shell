@@ -2,6 +2,7 @@ pragma Singleton
 
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 
@@ -49,6 +50,45 @@ Singleton {
         .filter(t => t.workspace?.active && t.lastIpcObject.size && !t.lastIpcObject.hidden)
         .map(t => Qt.rect(t.lastIpcObject.at[0], t.lastIpcObject.at[1], t.lastIpcObject.size[0], t.lastIpcObject.size[1]))
 
+    // Hyprland's key binds, for the launcher's cheat sheet (owner's request, after phase 8), read by
+    // loadBinds() from hyprctl: { keys: ["Super", "Shift", "S"], what } each. A bind made in Lua says
+    // what it does only through its description (hl.bind(keys, action, { description = "…" })).
+    property var binds: []
+
+    function loadBinds() {
+        bindsReader.running = true;
+    }
+
+    function readBinds(text: string): var {
+        let list;
+        try {
+            list = JSON.parse(text);
+        } catch (e) {
+            return [];
+        }
+        const mods = [[64, "Super"], [4, "Ctrl"], [8, "Alt"], [1, "Shift"]];
+        const names = {
+            Return: "Enter", space: "Space", SPACE: "Space", Escape: "Esc", Print: "PrtSc", grave: "`",
+            left: "←", right: "→", up: "↑", down: "↓",
+            "mouse:272": "Left button", "mouse:273": "Right button", "mouse:274": "Middle button", mouse_down: "Wheel down", mouse_up: "Wheel up",
+            XF86AudioRaiseVolume: "Volume up", XF86AudioLowerVolume: "Volume down", XF86AudioMute: "Mute", XF86AudioMicMute: "Mic mute",
+            XF86MonBrightnessUp: "Brightness up", XF86MonBrightnessDown: "Brightness down",
+            XF86AudioNext: "Next track", XF86AudioPrev: "Previous track", XF86AudioPlay: "Play", XF86AudioPause: "Pause"
+        };
+        return list.filter(b => !b.submap).map(b => ({
+            keys: mods.filter(([bit]) => b.modmask & bit).map(([, name]) => name).concat([names[b.key] ?? (b.key.length === 1 ? b.key.toUpperCase() : b.key.replace(/^XF86/, "") || "?")]),
+            what: b.has_description ? b.description : b.dispatcher === "__lua" ? "" : `${b.dispatcher} ${b.arg}`.trim()
+        }));
+    }
+
+    Process {
+        id: bindsReader
+        command: ["hyprctl", "binds", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: root.binds = root.readBinds(text)
+        }
+    }
+
     function goto(id: int) {
         dispatch(`hl.dsp.focus({ workspace = ${id} })`, `workspace ${id}`);
     }
@@ -72,6 +112,15 @@ Singleton {
 
     function close(address: string) {
         dispatch(`hl.dsp.window.close({ window = "address:0x${address}" })`, `closewindow address:0x${address}`);
+    }
+
+    // Runs a command with rules for the window it opens (Hyprland's exec with rules, which follows the
+    // process it starts): { float: true, size: [w, h], move: [x, y], workspace: "3" }; showoff's terminal.
+    function exec(command: string, rules) {
+        const entries = Object.entries(rules);
+        const lua = entries.map(([k, v]) => `${k} = ${v === true ? "true" : Array.isArray(v) ? `{ ${v.join(", ")} }` : JSON.stringify(v)}`).join(", ");
+        const legacy = entries.map(([k, v]) => v === true ? k : Array.isArray(v) ? `${k} ${v.join(" ")}` : `${k} ${v}`).join("; ");
+        dispatch(`hl.dsp.exec_cmd(${JSON.stringify(command)}, { ${lua} })`, `exec [${legacy}] ${command}`);
     }
 
     // ends the session (log out)

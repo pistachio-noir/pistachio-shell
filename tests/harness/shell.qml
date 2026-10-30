@@ -69,6 +69,9 @@ Scope {
         function setMicVolume(v: real): void { Audio.setMicVolume(v); }
         function toggleMicMute(): void { Audio.toggleMicMute(); }
         function setStatsWatching(on: bool): void { SystemStats.setWatching(on); }
+        // a made-up reading (a line of services/stats.sh), and a heat that started `ms` ago, for the warnings
+        function parseStats(line: string): void { SystemStats.parse(line); }
+        function backdateHeat(key: string, ms: int): void { SystemStats.hotSince = Object.assign({}, SystemStats.hotSince, { [key]: Date.now() - ms }); }
         function setBluetooth(on: bool): void { Bluetooth.setEnabled(on); }
         function setBrightness(v: real): void { Brightness.set(v); }
         function setNightLight(on: bool): void { NightLight.setEnabled(on); }
@@ -111,6 +114,7 @@ Scope {
             return JSON.stringify({
                 summaries: Notifs.notifications.map(n => n.summary),
                 popups: Notifs.popups.map(n => n.summary),
+                counts: Notifs.popups.map(n => Notifs.popupCounts[n.id] ?? 1), // how many each toast stands for
                 unread: Notifs.unread,
                 dnd: Notifs.dnd
             });

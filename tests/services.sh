@@ -2,8 +2,10 @@
 # Self-check that the quick settings services change real system state: volume, per-app volume and the
 # microphone (PipeWire), with the apps recording, the System monitor's readings,
 # Bluetooth power and the pairing agent (BlueZ; power is left alone while a device is connected), monitor
-# brightness (DDC/CI), Do not disturb's schedule and night light (hyprsunset, if installed).
-# Everything is put back on exit. Ethernet is only read: toggling it would cut the network.
+# brightness (DDC/CI), Do not disturb's schedule and night light (hyprsunset, if installed), and the
+# System monitor's warnings. Everything is put back on exit. Ethernet is only read: toggling it would
+# cut the network. The test shell's notify-send is a stand-in that writes to a file, so it never sends
+# a real notification.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)/harness"
 
@@ -49,7 +51,15 @@ restore() {
     if [ -n "$BRIGHTNESS" ]; then ddcutil setvcp 10 "$BRIGHTNESS" --noverify; fi
     if [ -n "${STREAM_PID:-}" ]; then kill "$STREAM_PID" 2>/dev/null || true; fi
     kill "$SHELL_PID" 2>/dev/null || true
+    rm -rf "$STUBS"
 }
+
+# the stand-in notify-send: one line per notification, in $STUBS/notified
+STUBS=$(mktemp -d)
+printf '#!/bin/sh\necho "$*" >> "%s/notified"\n' "$STUBS" > "$STUBS/notify-send"
+chmod +x "$STUBS/notify-send"
+touch "$STUBS/notified"
+export PATH="$STUBS:$PATH"
 
 qs -p "$ROOT" > /dev/null 2>&1 &
 SHELL_PID=$!
@@ -210,6 +220,21 @@ check "s['gpuFound'] == $GPU" "GPU read exactly when nvidia-smi is there"
 DISKS=$(df -P / /home | awk 'NR > 1 { print $1 }' | sort -u | wc -l)
 check "len(s['disks']) == $DISKS and s['disks'][0]['mount'] == '/' and all(0 < d['free'] <= d['size'] for d in s['disks'])" "free disk space read for / and /home"
 ipc setStatsWatching false
+
+# Its warnings, from made-up readings: a disk under 10 % free warns once, and a CPU at 85 °C or more
+# once it has been for a minute (the heat's start is moved back a minute rather than waited for).
+notified() { grep -c "$1" "$STUBS/notified" || true; }
+ipc parseStats "disk /dev/test 1048576 52428 /"; sleep 0.5
+[ "$(notified 'almost full')" = 1 ] || { echo "FAIL: low disk warns"; exit 1; }
+ipc parseStats "disk /dev/test 1048576 52428 /"; sleep 0.5
+[ "$(notified 'almost full')" = 1 ] || { echo "FAIL: low disk warns only once"; exit 1; }
+echo "ok: a disk under 10 % free warns, once"
+ipc parseStats "temp 90000"; sleep 0.3
+[ "$(notified 'running hot')" = 0 ] || { echo "FAIL: CPU heat waits a minute"; exit 1; }
+ipc backdateHeat cpu 61000; ipc parseStats "temp 90000"; sleep 0.5
+[ "$(notified 'CPU running hot')" = 1 ] || { echo "FAIL: CPU hot for a minute warns"; exit 1; }
+echo "ok: a CPU hot for a minute warns"
+ipc parseStats "temp 50000"
 
 # Settings survive a restart (the test shell keeps its own state file, not the real shell's).
 ipc setDnd true; sleep 0.8 # saved 300 ms after a change

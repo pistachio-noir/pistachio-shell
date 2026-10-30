@@ -23,6 +23,7 @@ Rectangle {
     property bool actionAlways // also show the action (in subtext) when not selected
     property bool selected
     property bool compact
+    property int indent // px, for rows under another (an app's actions)
 
     signal clicked
 
@@ -42,7 +43,7 @@ Rectangle {
     Rectangle {
         id: disc
 
-        x: 14
+        x: 14 + root.indent
         anchors.verticalCenter: parent.verticalCenter
         width: root.compact ? 34 : 38
         height: width

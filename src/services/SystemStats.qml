@@ -6,7 +6,8 @@ import QtQuick
 
 // CPU, memory, GPU and disk readings for the launcher's System monitor card. services/stats.sh takes
 // a reading (/proc for the CPU and memory, the CPU's hwmon sensor, nvidia-smi for an NVIDIA card, df
-// for / and /home); it runs every 1.5 s, and only while something shows the readings (setWatching).
+// for / and /home); it runs every 1.5 s while something shows the readings (setWatching), and every
+// 30 s in the background for the warnings.
 Singleton {
     id: root
 
@@ -28,6 +29,11 @@ Singleton {
     // their mount points, which change far less often: the launcher's rows are built from these
     property var diskMounts: []
     property var last: null // the previous CPU counters: [busy, total]
+    // Warnings (owner's request, after phase 8), as notifications: a disk under 10 % free (again only
+    // once it has been back over 12 %), and the CPU or GPU at 85 °C or more for a minute (again only
+    // once it has cooled under 75 °C). Checked with every reading.
+    property var warned: ({}) // "disk:/", "cpu", "gpu" -> true while warned about
+    property var hotSince: ({}) // "cpu", "gpu" -> when it reached 85 °C (ms since epoch)
 
     function setWatching(on: bool) {
         watching = on;
@@ -46,7 +52,7 @@ Singleton {
                 const busy = total - c[3] - c[4];
                 if (last && total > last[1])
                     cpu = (busy - last[0]) / (total - last[1]);
-                else if (!last)
+                else if (!last && watching)
                     again.restart(); // the first reading only sets the baseline
                 last = [busy, total];
             } else if (f[0] === "mem") {
@@ -72,6 +78,58 @@ Singleton {
         disks = found;
         if (found.map(d => d.mount).join(" ") !== diskMounts.join(" "))
             diskMounts = found.map(d => d.mount);
+        check();
+    }
+
+    function check() {
+        const w = Object.assign({}, warned);
+        for (const d of disks) {
+            const key = "disk:" + d.mount;
+            if (d.low && !w[key]) {
+                w[key] = true;
+                const which = d.mount === "/" ? (disks.length === 1 ? "The disk" : "The system disk") : "Home";
+                warn(`${which} is almost full`, `${gigabytes(d.free)} left of ${gigabytes(d.size)} (${Math.round(100 * d.free / d.size)} %)`, "drive-harddisk");
+            } else if (w[key] && d.free >= 0.12 * d.size) {
+                delete w[key];
+            }
+        }
+        heat(w, "cpu", "CPU", cpuTemp);
+        if (gpuFound)
+            heat(w, "gpu", "GPU", gpuTemp);
+        warned = w;
+    }
+
+    function heat(w, key: string, label: string, temp: real) {
+        const since = Object.assign({}, hotSince);
+        if (temp >= 85) {
+            since[key] = since[key] ?? Date.now();
+            if (!w[key] && Date.now() - since[key] >= 60000) {
+                w[key] = true;
+                warn(`${label} running hot`, `${Math.round(temp)} °C for over a minute`, "dialog-warning");
+            }
+        } else {
+            delete since[key];
+            if (temp < 75)
+                delete w[key];
+        }
+        hotSince = since;
+    }
+
+    function warn(title: string, body: string, icon: string) {
+        Quickshell.execDetached(["notify-send", "--app-name=System", `--icon=${icon}`, title, body]);
+    }
+
+    // "463 GB", "8.4 GB", "1.8 TB"
+    function gigabytes(g: real): string {
+        return g >= 1000 ? `${(g / 1024).toFixed(1)} TB` : `${g >= 100 ? Math.round(g) : g.toFixed(1)} GB`;
+    }
+
+    // the background reading, for the warnings; while watched, the readings below do
+    Timer {
+        running: !root.watching
+        interval: 30000
+        repeat: true
+        onTriggered: reader.running = true
     }
 
     Timer {

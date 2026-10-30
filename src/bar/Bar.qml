@@ -25,7 +25,7 @@ PanelWindow {
     readonly property bool fullscreen: Compositor.fullscreen
     // Stays up while pointed (even if a window moves under it), for a moment after, long enough to
     // cross the gap to the tray pill, and while a panel or a tray menu is open.
-    readonly property bool shown: !held && (!fullscreen && (!overlapped || pointed || linger.running) || tray.menuOpen || media.cardOpen || quickSettings.open || centre.open)
+    readonly property bool shown: !held && (!fullscreen && (!overlapped || pointed || linger.running) || tray.menuOpen || media.cardOpen || quickSettings.open || centre.open || Showoff.active)
 
     // The startup animation (owner's request, after phase 8; shell.qml): as the shell starts, the bar
     // and its pills wait as the handle while the wallpaper fades in, then grow out of it. Not on a
@@ -48,7 +48,7 @@ PanelWindow {
     // Tooltips (owner's request; not on a board): what the pointer rests on, as lines and the x to
     // centre on, or null. It shows after half a second; moving on to the next item swaps it at once,
     // across the gaps between them too, and the bar hiding, a panel or a tray menu drops it.
-    readonly property var tipTarget: !shown || quickSettings.open || centre.open || tray.menuOpen || media.cardOpen ? null
+    readonly property var tipTarget: !shown || quickSettings.open || centre.open || tray.menuOpen || media.cardOpen || Showoff.active ? null
         : clock.hovered ? { lines: clock.tooltip, x: centreOf(clock) }
         : status.hovered ? { lines: status.tooltip, x: centreOf(status) }
         : workspaces.hoveredSlot ? { lines: workspaces.tooltip, x: centreOf(workspaces.hoveredSlot) }
@@ -101,6 +101,66 @@ PanelWindow {
     function showNotification(n) {
         quickSettings.open = false;
         centre.show(n);
+    }
+
+    // Showoff mode (Showoff): the notification centre, with the calendar and the weather, 48 px from the
+    // left edge, quick settings 48 px from the right, both sliding in from their side, one after the
+    // other, then the terminal in the room between them. `staged` keeps them there until they've faded
+    // out. A click outside doesn't close them meanwhile.
+    readonly property int stageMargin: 48
+    property bool staged
+
+    Connections {
+        target: Showoff
+
+        function onActiveChanged() {
+            grab.active = false;
+            quickSettings.open = false;
+            centre.open = false;
+            stageSteps.stop();
+            if (Showoff.active) {
+                unstage.stop();
+                root.staged = true;
+                stageSteps.start();
+            } else {
+                unstage.restart();
+            }
+        }
+    }
+
+    SequentialAnimation {
+        id: stageSteps
+
+        PauseAnimation {
+            duration: 150
+        }
+        ScriptAction {
+            script: centre.open = true
+        }
+        PauseAnimation {
+            duration: 150
+        }
+        ScriptAction {
+            script: quickSettings.open = true
+        }
+        PauseAnimation {
+            duration: 150
+        }
+        ScriptAction {
+            script: {
+                const bottom = root.screen.height - root.height - 16;
+                const left = root.stageMargin + centre.panelWidth + 40;
+                const right = root.screen.width - root.stageMargin - quickSettings.panelWidth - 40;
+                const top = bottom - Math.max(centre.panelHeight, quickSettings.panelHeight);
+                Showoff.openTerminal(Qt.rect(left, top, right - left, bottom - top));
+            }
+        }
+    }
+
+    Timer {
+        id: unstage
+        interval: Theme.motionDuration + 50 // the panels have faded out
+        onTriggered: root.staged = false
     }
 
     // One panel at a time.
@@ -241,9 +301,10 @@ PanelWindow {
         id: quickSettings
         anchors.bottom: true
         anchors.left: true
-        margins.left: (screen.width + root.width) / 2 - width + quickSettings.side
+        margins.left: root.staged ? screen.width - root.stageMargin - quickSettings.panelWidth - quickSettings.side : (screen.width + root.width) / 2 - width + quickSettings.side
         margins.bottom: root.height + 12 - quickSettings.below
-        onOpenChanged: grab.active = open || centre.open
+        slide: root.staged ? 36 : 0
+        onOpenChanged: grab.active = (open || centre.open) && !Showoff.active
         onPowerRequested: {
             open = false;
             powerMenu.open = true;
@@ -261,8 +322,11 @@ PanelWindow {
     NotificationCentre {
         id: centre
         anchors.bottom: true
+        anchors.left: true // centred over the bar, as the compositor would
+        margins.left: root.staged ? root.stageMargin - centre.side : (screen.width - centre.implicitWidth) / 2
         margins.bottom: root.height + 16 - centre.below
-        onOpenChanged: grab.active = open || quickSettings.open
+        slide: root.staged ? -36 : 0
+        onOpenChanged: grab.active = (open || quickSettings.open) && !Showoff.active
     }
 
     // only the bottom edge is anchored, so the compositor centres it, like the bar
@@ -296,6 +360,15 @@ PanelWindow {
 
         function toggle(): void {
             root.toggle(quickSettings);
+        }
+    }
+
+    // For a keybind: qs -c pistachio ipc call showoff toggle
+    IpcHandler {
+        target: "showoff"
+
+        function toggle(): void {
+            Showoff.toggle();
         }
     }
 

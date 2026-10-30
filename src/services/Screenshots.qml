@@ -9,6 +9,9 @@ import QtQuick
 // notification comes from the shell's own notify-send, which waits for its actions: a click copies
 // the image (Clipboard), Open shows it (xdg-open), Delete moves it to the trash (gio). Its hint marks it
 // as the shell's, so it shows even in Do not disturb (Notifs.own) with a preview of the picture.
+// Text from the screen (owner's pick, 30 October 2026): the picker's Text choice saves the area to the
+// runtime folder (memory, gone at logout), tesseract reads it (Polish and English), the text is copied,
+// and a notification shows the area and the start of the text; a click copies it again.
 Singleton {
     id: root
 
@@ -29,6 +32,14 @@ Singleton {
         notifier.createObject(root, { path: path });
     }
 
+    function nextTextPath(): string {
+        return `${Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"}/pistachio-text-${Date.now()}.png`;
+    }
+
+    function readText(path: string) {
+        reader.createObject(root, { path: path });
+    }
+
     Process {
         running: true
         command: ["xdg-user-dir", "PICTURES"]
@@ -38,6 +49,51 @@ Singleton {
                 if (pictures && pictures !== Quickshell.env("HOME"))
                     root.folder = `${pictures}/Screenshots`;
             }
+        }
+    }
+
+    // tesseract on the area; no more than two blank lines in a row, and a missing tesseract says so
+    Component {
+        id: reader
+
+        Process {
+            required property string path
+
+            running: true
+            command: ["sh", "-c", 'command -v tesseract >/dev/null || exit 127; tesseract "$1" - -l pol+eng 2>/dev/null', "sh", path]
+            stdout: StdioCollector {
+                id: read
+            }
+            onExited: code => {
+                const text = read.text.replace(/\f/g, "").replace(/[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n").trim();
+                if (text)
+                    Clipboard.copyText(text);
+                textNotifier.createObject(root, { path: path, text: text, problem: code === 127 ? "tesseract isn't installed" : code !== 0 ? `tesseract failed (exit ${code})` : "" });
+                destroy();
+            }
+        }
+    }
+
+    Component {
+        id: textNotifier
+
+        Process {
+            required property string path
+            required property string text
+            required property string problem
+
+            running: true
+            command: ["setpriv", "--pdeathsig", "TERM", "notify-send", "--app-name=Screenshot",
+                `--hint=string:x-pistachio-screenshot:${path}`].concat(text ? ["--action=default=Copy"] : [],
+                [problem ? "Couldn't read the text" : text ? "Text copied" : "No text found",
+                problem || (text ? (text.length > 140 ? `${text.slice(0, 140)}…` : text) : "Try a larger area, or text with more contrast")])
+            stdout: SplitParser {
+                onRead: data => {
+                    if (data === "default")
+                        Clipboard.copyText(text);
+                }
+            }
+            onExited: destroy()
         }
     }
 

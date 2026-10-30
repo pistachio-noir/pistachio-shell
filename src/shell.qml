@@ -3,12 +3,19 @@ import qs.launcher
 import qs.lock
 import qs.panels
 import qs.popups
+import qs.services
 import Quickshell
 
 ShellRoot {
+    // services that work in the background from the start: a singleton only starts once it's used
+    readonly property var background: [Drives]
+
     Wallpaper { // first: the desktop under everything
         id: wallpaper
         onIntroDone: bar.endIntro()
+        onRenameRequested: item => launcher.renameDesktopItem(item)
+        onNewFolderRequested: cell => launcher.newDesktopFolder(cell)
+        onWallpapersRequested: wallpaperSwitcher.show()
     }
     Bar {
         id: bar

@@ -47,4 +47,5 @@ Singleton {
     readonly property int motionDuration: 200
     readonly property int growDuration: 300 // the bar growing out of its handle, a touch slower (owner's request)
     readonly property int introDuration: 600 // the wallpaper fading in as the shell starts (owner's request)
+    readonly property int settleDuration: 1200 // the wallpaper settling as showoff mode starts
 }

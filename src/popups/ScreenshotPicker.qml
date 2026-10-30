@@ -7,14 +7,14 @@ import Quickshell.Wayland // layer-shell keyboard focus and screen capture (Wayl
 import QtQuick
 
 // Screenshots (owner's request, after phase 8; not on a board). Hyprland's keybinds call `screenshot
-// region` (straight to dragging out an area) or `screenshot menu` (Region, Window or Screen, laid out
-// like the power menu). Either first takes a still of the screen and shows it, so the picture is the
+// region` (straight to dragging out an area) or `screenshot menu` (Region, Window, Screen or Text, laid
+// out like the power menu), or `screenshot text`: an area whose text is read and copied (Screenshots). Either first takes a still of the screen and shows it, so the picture is the
 // screen as it was, without the picker on it; the part chosen is cut from that still in memory and
 // saved, and Screenshots sends the notification.
 PanelWindow {
     id: root
 
-    // "" (closed), "taking" while the still comes, then "menu", "region" or "window"
+    // "" (closed), "taking" while the still comes, then "menu", "region", "window" or "text"
     property string mode
     property string wanted // what "taking" turns into
     property rect selection // the area being dragged out, in screen coordinates
@@ -25,11 +25,14 @@ PanelWindow {
     readonly property var choices: [
         { name: "Region", key: Qt.Key_R, icon: Icons.region },
         { name: "Window", key: Qt.Key_W, icon: Icons.window },
-        { name: "Screen", key: Qt.Key_S, icon: Icons.monitor }
+        { name: "Screen", key: Qt.Key_S, icon: Icons.monitor },
+        { name: "Text", key: Qt.Key_T, icon: Icons.fileText }
     ]
-    readonly property bool picking: mode === "menu" || mode === "region" || mode === "window"
+    // dragging out an area: for a picture, or for its text
+    readonly property bool dragging: mode === "region" || mode === "text"
+    readonly property bool picking: mode === "menu" || mode === "window" || dragging
     // what stays bright: the area dragged out or the window under the pointer
-    readonly property rect hole: mode === "region" ? selection : mode === "window" && hovered ? hovered.bounds : Qt.rect(0, 0, 0, 0)
+    readonly property rect hole: dragging ? selection : mode === "window" && hovered ? hovered.bounds : Qt.rect(0, 0, 0, 0)
 
     function start(next: string) {
         if (mode !== "")
@@ -66,21 +69,25 @@ PanelWindow {
             .find(w => x >= w.bounds.x && x < w.bounds.x + w.bounds.width && y >= w.bounds.y && y < w.bounds.y + w.bounds.height) ?? null;
     }
 
-    // cut `r` (whole pixels, kept on the screen) out of the still and save it
+    // cut `r` (whole pixels, kept on the screen) out of the still and save it; for its text, at twice
+    // the size, which tesseract reads better
     function save(r: rect) {
         const x = Math.max(0, Math.round(r.x)), y = Math.max(0, Math.round(r.y));
         const w = Math.min(width, Math.round(r.x + r.width)) - x, h = Math.min(height, Math.round(r.y + r.height)) - y;
         if (w < 2 || h < 2)
             return;
         cut = Qt.rect(x, y, w, h);
-        const path = Screenshots.nextPath();
+        const forText = mode === "text";
+        const path = forText ? Screenshots.nextTextPath() : Screenshots.nextPath();
         const grabbing = crop.grabToImage(result => {
-            if (result.saveToFile(path))
-                Screenshots.saved(path);
-            else
+            if (!result.saveToFile(path))
                 console.warn("screenshot: can't save", path);
+            else if (forText)
+                Screenshots.readText(path);
+            else
+                Screenshots.saved(path);
             root.close();
-        }, Qt.size(w, h));
+        }, forText ? Qt.size(w * 2, h * 2) : Qt.size(w, h));
         if (!grabbing)
             close();
     }
@@ -121,6 +128,9 @@ PanelWindow {
         }
         function menu(): void {
             root.start("menu");
+        }
+        function text(): void {
+            root.start("text");
         }
     }
 
@@ -233,7 +243,7 @@ PanelWindow {
 
         // what to do, at the top
         Rectangle {
-            visible: root.mode === "region" || root.mode === "window"
+            visible: root.dragging || root.mode === "window"
             anchors.horizontalCenter: parent.horizontalCenter
             y: 24
             width: hint.implicitWidth + 32
@@ -246,7 +256,7 @@ PanelWindow {
             Text {
                 id: hint
                 anchors.centerIn: parent
-                text: root.mode === "region" ? "Drag out an area · Esc cancel" : "Click a window · Esc cancel"
+                text: root.mode === "region" ? "Drag out an area · Esc cancel" : root.mode === "text" ? "Drag over some text to copy it · Esc cancel" : "Click a window · Esc cancel"
                 color: Theme.subtext
                 font.family: Theme.fontUi
                 font.pixelSize: 12
@@ -258,11 +268,11 @@ PanelWindow {
     // region and window: drag out an area, or click a window
     MouseArea {
         anchors.fill: parent
-        enabled: root.mode === "region" || root.mode === "window"
+        enabled: root.dragging || root.mode === "window"
         hoverEnabled: true
-        cursorShape: root.mode === "region" ? Qt.CrossCursor : Qt.PointingHandCursor
+        cursorShape: root.dragging ? Qt.CrossCursor : Qt.PointingHandCursor
         onPressed: mouse => {
-            if (root.mode !== "region")
+            if (!root.dragging)
                 return;
             root.anchor = Qt.point(mouse.x, mouse.y);
             root.selection = Qt.rect(mouse.x, mouse.y, 0, 0);
@@ -274,7 +284,7 @@ PanelWindow {
                 root.selection = Qt.rect(Math.min(root.anchor.x, mouse.x), Math.min(root.anchor.y, mouse.y), Math.abs(mouse.x - root.anchor.x), Math.abs(mouse.y - root.anchor.y));
         }
         onReleased: {
-            if (root.mode === "region")
+            if (root.dragging)
                 root.save(root.selection);
         }
         onClicked: {

@@ -7,6 +7,12 @@ import QtQuick
 
 // Default output and input, the output and input devices (and which inputs have nothing plugged in),
 // the apps playing sound (per-app volume) and the apps recording.
+// Headphones take over (owner's request, 31 October 2026): Bluetooth headphones that connect become
+// the output, even when another one was chosen (WirePlumber keeps the last one chosen, and the
+// AudioBox outranks the AirPods by priority), if ShellSettings.headphonesTakeOver. Not ones already
+// there as the shell starts, nor ones back within 2 s: a profile switch for a call drops the output
+// and makes a new one at once, while out of the case and back takes longer. Known by the output's name (bluez_output.<address>.<n>) and BlueZ's
+// icon for the device, so the outputs need no tracking.
 Singleton {
     id: root
 
@@ -33,6 +39,44 @@ Singleton {
     // apps playing sound right now: Quickshell flags playback streams (media.class Stream/Output/Audio)
     // as sinks, despite what its docs suggest (checked with pw-cat after phase 8)
     readonly property var streams: Pipewire.nodes.values.filter(n => n.isStream && n.isSink && n.audio)
+
+    // the Bluetooth address in an output's name, or ""
+    function bluetoothAddress(node): string {
+        const m = /^bluez_output\.([0-9A-Fa-f]{2}(?:_[0-9A-Fa-f]{2}){5})/.exec(node?.name ?? "");
+        return m ? m[1].replace(/_/g, ":").toUpperCase() : "";
+    }
+
+    property bool settled // a moment after startup: outputs there before then don't take over
+    property var bluetoothThere: [] // the addresses with an output, at the last change
+    property var bluetoothGone: ({}) // address -> when its output went
+
+    onSinksChanged: {
+        const now = Date.now();
+        const there = [];
+        for (const node of sinks) {
+            const address = bluetoothAddress(node);
+            if (!address || there.includes(address))
+                continue;
+            there.push(address);
+            const back = now - (bluetoothGone[address] ?? 0) < 2000;
+            const icon = Bluetooth.devices.find(d => d.address.toUpperCase() === address)?.icon ?? "";
+            if (settled && ShellSettings.headphonesTakeOver && !bluetoothThere.includes(address) && !back && /headphone|headset/.test(icon))
+                setSink(node);
+        }
+        const gone = Object.assign({}, bluetoothGone);
+        for (const address of bluetoothThere) {
+            if (!there.includes(address))
+                gone[address] = now;
+        }
+        bluetoothGone = gone;
+        bluetoothThere = there;
+    }
+
+    Timer {
+        running: true
+        interval: 3000
+        onTriggered: root.settled = true
+    }
 
     function deviceName(node): string {
         return node.nickname || node.description || node.name;

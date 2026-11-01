@@ -2,6 +2,7 @@ import qs
 import qs.components
 import qs.services
 import Quickshell
+import Quickshell.Wayland // the layer's name, which a Hyprland blur rule matches (a Wayland protocol, not a compositor module)
 import Quickshell.Widgets // ClippingRectangle, for the round cover
 import QtQuick
 
@@ -27,6 +28,7 @@ PanelWindow {
     implicitWidth: pill.width
     implicitHeight: Theme.barHeight + Theme.barMargin // like the bar, so it slides off the same way
     color: "transparent"
+    WlrLayershell.namespace: "pistachio-bar" // frosted panels: Hyprland blurs the shell's layers by name
 
     // takes no clicks while hidden; the bar's edge strip brings both back
     mask: Region {
@@ -68,7 +70,7 @@ PanelWindow {
         scale: 0.8 + 0.2 * shownPart
         transformOrigin: Item.Right // the edge nearest the bar
         radius: Theme.barRadius
-        color: Theme.bgAlt
+        color: Theme.surface
         border.width: 1
         border.color: Theme.overlay2
         Accessible.role: Accessible.Button
@@ -193,6 +195,7 @@ PanelWindow {
         implicitWidth: shadow.side + media.width + shadow.side
         implicitHeight: shadow.above + media.height + shadow.below
         color: "transparent"
+        WlrLayershell.namespace: "pistachio-panel"
         mask: Region {
             item: media // the shadow's room lets clicks through
         }
@@ -206,6 +209,8 @@ PanelWindow {
 
         Shadow {
             id: shadow
+
+            frostable: true
             kind: Theme.shadowSmall
             anchors.fill: media
             radius: media.radius
@@ -220,7 +225,7 @@ PanelWindow {
             x: shadow.side
             y: shadow.above
             width: 360
-            color: Theme.bgAlt
+            color: Theme.surface
             border.width: 1
             border.color: Theme.overlay2
             opacity: reveal.progress

@@ -187,7 +187,8 @@ Singleton {
             counts[n.id] = count;
         popupCounts = counts;
         popups = popups.filter(p => p !== n && (count < 3 || !recent.includes(p))).concat([n]);
-        chime();
+        if (!own(n)) // a screenshot's: the shutter was its sound
+            chime();
     }
 
     // The notification sound (owner's request, after phase 8): src/sounds/notification.wav (made by

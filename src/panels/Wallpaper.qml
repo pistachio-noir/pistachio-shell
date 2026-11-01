@@ -76,6 +76,21 @@ PanelWindow {
         }
     }
 
+    // The wallpaper dims a little while night light is on (owner's pick, 31 October 2026), so the
+    // desktop isn't the brightest thing on screen late at night; the icons stay as they are
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.bg
+        opacity: NightLight.enabled ? 0.5 : 0 // 0.3 was too little (owner, 1 November)
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.dimDuration
+                easing.type: Theme.easing
+            }
+        }
+    }
+
     NumberAnimation {
         id: settle
         target: view

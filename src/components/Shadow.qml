@@ -14,8 +14,12 @@ RectangularShadow {
     readonly property int above: Math.max(0, kind.blur - kind.y)
     readonly property int below: kind.blur + kind.y
 
+    // under a panel that turns see-through with frosted panels, where it would show through and get
+    // blurred; it goes while they're on
+    property bool frostable
+
     // off in the launcher (System, Shell settings); the windows keep the room, which costs nothing
-    visible: ShellSettings.shadows
+    visible: ShellSettings.shadows && !(frostable && ShellSettings.frosted)
     offset.y: kind.y
     blur: kind.blur
     color: Qt.rgba(Theme.shadow.r, Theme.shadow.g, Theme.shadow.b, kind.alpha)

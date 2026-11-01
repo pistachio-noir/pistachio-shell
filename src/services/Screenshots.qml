@@ -28,6 +28,13 @@ Singleton {
         Quickshell.execDetached(["mkdir", "-p", folder]);
     }
 
+    // A soft camera click as a picture is taken (owner's pick, 31 October 2026), with the notification
+    // sound's switch; the notification after it then plays no chime of its own (Notifs.showPopup)
+    function shutter() {
+        if (ShellSettings.notificationSound)
+            Quickshell.execDetached(["pw-play", Quickshell.shellPath("sounds/shutter.wav")]);
+    }
+
     function saved(path: string) {
         notifier.createObject(root, { path: path });
     }

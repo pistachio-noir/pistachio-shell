@@ -38,7 +38,7 @@ Item {
         width: parent.width - 40
         height: body.implicitHeight + 32
         radius: Theme.tileRadius
-        color: Theme.bgAlt
+        color: Theme.surface
         border.width: 1
         border.color: Theme.overlay2
         opacity: reveal.progress

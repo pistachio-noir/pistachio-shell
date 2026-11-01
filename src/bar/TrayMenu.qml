@@ -1,6 +1,7 @@
 import qs
 import qs.components
 import Quickshell
+import Quickshell.Wayland // the layer's name, which a Hyprland blur rule matches (a Wayland protocol, not a compositor module)
 import QtQuick
 
 // An app's tray menu in Pistachio colours: the app's own entries (QsMenuOpener), drawn by the shell
@@ -25,6 +26,7 @@ PanelWindow {
     implicitWidth: 260
     implicitHeight: panel.height
     color: "transparent"
+    WlrLayershell.namespace: "pistachio-panel" // frosted panels: Hyprland blurs the shell's layers by name
 
     Reveal {
         id: reveal
@@ -57,7 +59,7 @@ PanelWindow {
         width: parent.width
         height: entries.implicitHeight + 12
         radius: Theme.tileRadius
-        color: Theme.bgAlt
+        color: Theme.surface
         border.width: 1
         border.color: Theme.overlay2
         // fades and grows slightly from the tray, and back

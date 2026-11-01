@@ -47,7 +47,7 @@ Rectangle {
     implicitWidth: 300
     implicitHeight: 20 + header.height + 14 + weekdays.height + 8 + grid.height + 14 + footer.height + 20
     radius: Theme.panelRadius
-    color: Theme.bgAlt
+    color: Theme.surface
     border.width: 1
     border.color: Theme.overlay2
     Accessible.role: Accessible.Grouping

@@ -1,3 +1,4 @@
+import qs
 import qs.bar
 import qs.launcher
 import qs.lock
@@ -5,10 +6,18 @@ import qs.panels
 import qs.popups
 import qs.services
 import Quickshell
+import QtQuick
 
 ShellRoot {
     // services that work in the background from the start: a singleton only starts once it's used
     readonly property var background: [Drives]
+
+    // frosted panels: how opaque the bar and panels are
+    Binding {
+        target: Theme
+        property: "frost"
+        value: ShellSettings.frost
+    }
 
     Wallpaper { // first: the desktop under everything
         id: wallpaper
@@ -26,10 +35,14 @@ ShellRoot {
         id: launcher
         onWallpapersRequested: wallpaperSwitcher.show()
         onNotificationRequested: n => bar.showNotification(n)
+        onRainRequested: rain.start()
     }
     Lock {}
     PolkitDialog {} // and the polkit agent behind it, which starts with the shell
     ScreenshotPicker {}
+    PistachioRain {
+        id: rain
+    }
     WindowSwitcher {}
     WallpaperSwitcher {
         id: wallpaperSwitcher

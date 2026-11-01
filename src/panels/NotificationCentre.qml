@@ -3,6 +3,7 @@ import qs.components
 import qs.services
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland // the layer's name, which a Hyprland blur rule matches (a Wayland protocol, not a compositor module)
 import QtQuick
 
 // Notification centre with the calendar beside it (calendar-notifications board): history, clear all,
@@ -93,6 +94,7 @@ PanelWindow {
     implicitWidth: panelShadow.side + panels.width + panelShadow.side
     implicitHeight: panelShadow.above + (Weather.available ? weather.fullHeight + 16 : 0) + calendar.implicitHeight + below
     color: "transparent"
+    WlrLayershell.namespace: "pistachio-panel" // frosted panels: Hyprland blurs the shell's layers by name
     mask: Region {
         item: panels // the shadows' room lets clicks through
     }
@@ -162,6 +164,8 @@ PanelWindow {
         }
 
         Shadow {
+
+            frostable: true
             visible: Weather.available
             kind: Theme.shadowPanel
             anchors.fill: weather
@@ -175,6 +179,8 @@ PanelWindow {
         }
 
         Shadow {
+
+            frostable: true
             kind: Theme.shadowPanel
             anchors.fill: calendar
             radius: calendar.radius
@@ -182,6 +188,8 @@ PanelWindow {
 
         Shadow {
             id: panelShadow
+
+            frostable: true
             kind: Theme.shadowPanel
             anchors.fill: panel
             radius: panel.radius
@@ -201,7 +209,7 @@ PanelWindow {
             width: 360
             height: calendar.height
             radius: Theme.panelRadius
-            color: Theme.bgAlt
+            color: Theme.surface
             border.width: 1
             border.color: Theme.overlay2
 
@@ -439,11 +447,11 @@ PanelWindow {
                 gradient: Gradient {
                     GradientStop {
                         position: 0
-                        color: Qt.rgba(Theme.bgAlt.r, Theme.bgAlt.g, Theme.bgAlt.b, 0)
+                        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0)
                     }
                     GradientStop {
                         position: 1
-                        color: Theme.bgAlt
+                        color: Theme.surface
                     }
                 }
 

@@ -29,6 +29,7 @@ PanelWindow {
     implicitWidth: side + card.width + side
     implicitHeight: above + card.height + below
     color: "transparent"
+    WlrLayershell.namespace: "pistachio-panel" // frosted panels: Hyprland blurs the shell's layers by name
     mask: Region {} // clicks go through
     WlrLayershell.layer: WlrLayer.Overlay
 
@@ -46,13 +47,14 @@ PanelWindow {
         width: rows.implicitWidth + 28
         height: rows.implicitHeight + 20
         radius: Math.min(height / 2, Theme.tileRadius)
-        color: Theme.bgAlt
+        color: Theme.surface
         border.width: 1
         border.color: Theme.overlay2
         opacity: reveal.progress
 
         // beneath the card (z -1), so it fades and rises with it
         Shadow {
+            frostable: true
             z: -1
             kind: Theme.shadowSmall
             anchors.fill: parent

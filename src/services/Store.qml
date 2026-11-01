@@ -28,6 +28,9 @@ Singleton {
         property bool quietFullscreen: true // toasts wait while a fullscreen window has focus
         property bool quietCalls: true // toasts wait while an app records from the microphone
         property bool headphonesTakeOver: true // Bluetooth headphones become the output as they connect
+        property bool frosted // see-through bar and panels, blurred by Hyprland (needs the owner's layer rule)
+        property bool volumeTick: true // a short click as the volume changes
+        property string frostStyle: "subtle" // or "glassy"
         property bool notificationSound: true // a soft sound with each toast
         property var launches: ({}) // app id -> its last launches (ms since epoch), at most 10, oldest first
         property var recentEmoji: [] // copied from the launcher, newest first, at most 16

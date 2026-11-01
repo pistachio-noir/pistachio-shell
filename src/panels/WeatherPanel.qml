@@ -38,7 +38,7 @@ Rectangle {
 
     height: 20 + head.height + 20 + (14 + details.height) * opened
     radius: Theme.panelRadius
-    color: Theme.bgAlt
+    color: Theme.surface
     border.width: 1
     border.color: Theme.overlay2
     clip: true

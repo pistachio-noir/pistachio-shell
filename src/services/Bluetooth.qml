@@ -41,6 +41,49 @@ Singleton {
         : connectedName ? (Showoff.active ? "Connected" : connectedName)
         : "On"
 
+    // Headphones connected (owner's pick, 31 October 2026): a toast as an audio device connects, with
+    // its battery, which BlueZ reports a moment later, so it waits 3 s. Not for the ones connected as
+    // the shell starts.
+    readonly property var connectedAudio: paired.filter(d => d.connected && /^audio-/.test(d.icon)).map(d => d.address)
+    property var connectedBefore: []
+    property var arriving: [] // addresses waiting for their toast
+    property bool settled
+    onConnectedAudioChanged: {
+        if (settled) {
+            arriving = arriving.concat(connectedAudio.filter(a => !connectedBefore.includes(a) && !arriving.includes(a)));
+            if (arriving.length)
+                announce.restart();
+        }
+        connectedBefore = connectedAudio;
+    }
+
+    function announceConnected(d) {
+        const level = d.batteryAvailable ? ` · ${Math.round(d.battery * 100)} %` : "";
+        Quickshell.execDetached(["notify-send", "--app-name=Bluetooth", `--icon=${d.icon || "bluetooth"}`, `${name(d)} connected${level}`]);
+    }
+
+    Timer {
+        id: announce
+        interval: 3000
+        onTriggered: {
+            for (const a of root.arriving) {
+                const d = root.paired.find(x => x.address === a && x.connected);
+                if (d)
+                    root.announceConnected(d);
+            }
+            root.arriving = [];
+        }
+    }
+
+    Timer {
+        running: true
+        interval: 4000
+        onTriggered: {
+            root.connectedBefore = root.connectedAudio;
+            root.settled = true;
+        }
+    }
+
     function checkBatteries(list) {
         const w = Object.assign({}, warned);
         for (const d of list) {

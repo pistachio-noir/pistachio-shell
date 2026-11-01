@@ -66,6 +66,7 @@ PanelWindow {
     implicitWidth: side + 320 + side
     implicitHeight: above + 56 + below
     color: "transparent"
+    WlrLayershell.namespace: "pistachio-panel" // frosted panels: Hyprland blurs the shell's layers by name
     mask: Region {} // clicks go through
     WlrLayershell.layer: WlrLayer.Overlay // above fullscreen windows
 
@@ -175,7 +176,7 @@ PanelWindow {
         width: 320
         height: 56
         radius: height / 2
-        color: Theme.bgAlt
+        color: Theme.surface
         border.width: 1
         border.color: Theme.overlay2
         // fades in rising 12 px, and back
@@ -185,6 +186,7 @@ PanelWindow {
 
         // beneath the pill (z -1), so it fades and rises with it
         Shadow {
+            frostable: true
             z: -1
             kind: Theme.shadowSmall
             anchors.fill: parent

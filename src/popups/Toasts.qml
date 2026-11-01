@@ -2,6 +2,7 @@ import qs
 import qs.components
 import qs.services
 import Quickshell
+import Quickshell.Wayland // the layer's name, which a Hyprland blur rule matches (a Wayland protocol, not a compositor module)
 import QtQuick
 
 // Notification popups (Toasts board), stacked upward with the newest nearest the bar. The bar positions it.
@@ -18,6 +19,7 @@ PanelWindow {
     implicitWidth: side + 400 + side
     implicitHeight: above + Math.max(1, stack.implicitHeight) + below
     color: "transparent"
+    WlrLayershell.namespace: "pistachio-panel" // frosted panels: Hyprland blurs the shell's layers by name
     mask: Region {
         item: stack // the shadows' room lets clicks through
     }
@@ -88,7 +90,7 @@ PanelWindow {
         width: parent.width
         height: Math.max(icon.height, content.implicitHeight) + 32
         radius: 24
-        color: Theme.bgAlt
+        color: Theme.surface
         border.width: 1
         border.color: Theme.overlay2
         opacity: 0
@@ -101,6 +103,7 @@ PanelWindow {
 
         // beneath the card (z -1), so it fades and rises with it
         Shadow {
+            frostable: true
             z: -1
             kind: Theme.shadowSmall
             anchors.fill: parent

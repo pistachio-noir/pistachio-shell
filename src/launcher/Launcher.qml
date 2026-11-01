@@ -40,6 +40,11 @@ PanelWindow {
     property string mode: "all"
     signal wallpapersRequested // the Wallpapers row: shell.qml opens the switcher
     signal notificationRequested(var n) // a "!" result: shell.qml has the bar show it in the centre
+    signal rainRequested // the Konami code: shell.qml has pistachios rain
+
+    // the easter egg (owner's pick, 31 October 2026): the last ten keys, against ↑↑↓↓←→←→ B A
+    property var konami: []
+    readonly property var konamiCode: [Qt.Key_Up, Qt.Key_Up, Qt.Key_Down, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right, Qt.Key_Left, Qt.Key_Right, Qt.Key_B, Qt.Key_A]
     property var confirming: null // a power action waiting for a yes: the results make way for the question
     // A text setting being changed (owner's request, after phase 8: the weather's city): the results
     // make way for a question, as for a power action, and the value is typed into the search field.
@@ -417,12 +422,15 @@ PanelWindow {
         const monitor = card("System monitor", q, stats);
         // the shell's own look, at the end (owner's request; not on the board)
         const shell = card("Shell settings", q, [
+            { kind: "switch", key: "frosted", title: "Frosted panels", icon: Icons.layers, on: () => ShellSettings.frosted, status: () => ShellSettings.frosted ? "See-through bar and panels, blurred behind" : "Off: needs a line in Hyprland's config (README)", toggle: () => ShellSettings.setFrosted(!ShellSettings.frosted) },
+            ...(ShellSettings.frosted ? [{ kind: "switch", key: "glassy", title: "Glassy", icon: Icons.sparkles, on: () => ShellSettings.glassy, status: () => ShellSettings.glassy ? "More see-through, less contrast" : "Subtle: easier to read", toggle: () => ShellSettings.setGlassy(!ShellSettings.glassy) }] : []),
             { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) },
             { kind: "wplink", key: "wplink", title: "Wallpapers", subtitle: Wallpapers.current.split("/").pop() || "None", glyph: Icons.image },
             { kind: "showoff", key: "showoff", title: "Showoff mode", subtitle: "Everything open for a screenshot, private things hidden", glyph: Icons.sparkles },
             { kind: "termlink", key: "terminal", title: "Terminal", subtitle: Apps.terminalName(Apps.terminal), glyph: Icons.terminal },
             { kind: "setting", key: "weatherCity", title: "Weather location", subtitle: Weather.placeName, glyph: Icons.mapPin, setting: weatherSetting },
             { kind: "switch", key: "desktopIcons", title: "Desktop icons", icon: Icons.folder, on: () => Desktop.enabled, status: () => Desktop.enabled ? "The Desktop folder, on the wallpaper" : "Off", toggle: () => Desktop.setEnabled(!Desktop.enabled) },
+            { kind: "switch", key: "volumeTick", title: "Volume tick", icon: Icons.volume, on: () => ShellSettings.volumeTick, status: () => ShellSettings.volumeTick ? "A short click as the volume changes" : "Off", toggle: () => ShellSettings.setVolumeTick(!ShellSettings.volumeTick) },
             { kind: "switch", key: "notificationSound", title: "Notification sound", icon: Icons.volume, on: () => ShellSettings.notificationSound, status: () => ShellSettings.notificationSound ? "A soft sound with each toast" : "Off", toggle: () => ShellSettings.setNotificationSound(!ShellSettings.notificationSound) },
             { kind: "switch", key: "quietFullscreen", title: "Quiet in fullscreen", icon: Icons.bellOff, on: () => ShellSettings.quietFullscreen, status: () => ShellSettings.quietFullscreen ? "Toasts wait while a fullscreen window has focus" : "Off", toggle: () => ShellSettings.setQuietFullscreen(!ShellSettings.quietFullscreen) },
             { kind: "switch", key: "headphonesTakeOver", title: "Headphones take over", icon: Icons.headphones, on: () => ShellSettings.headphonesTakeOver, status: () => ShellSettings.headphonesTakeOver ? "Bluetooth headphones get the sound as they connect" : "Off: the output stays as you chose", toggle: () => ShellSettings.setHeadphonesTakeOver(!ShellSettings.headphonesTakeOver) },
@@ -816,6 +824,14 @@ PanelWindow {
         const vim = ctrl ? ({ [Qt.Key_H]: Qt.Key_Left, [Qt.Key_J]: Qt.Key_Down, [Qt.Key_K]: Qt.Key_Up, [Qt.Key_L]: Qt.Key_Right })[event.key] : undefined;
         const pressed = vim ?? event.key;
         const dir = pressed === Qt.Key_Right ? 1 : -1;
+        konami = konami.concat([event.key]).slice(-konamiCode.length);
+        if (konami.join() === konamiCode.join()) {
+            konami = [];
+            event.accepted = true;
+            open = false;
+            rainRequested();
+            return;
+        }
         event.accepted = false; // unhandled keys go on to the search field
         switch (pressed) {
         case Qt.Key_Escape:
@@ -941,6 +957,7 @@ PanelWindow {
 
     onOpenChanged: {
         grab.active = open;
+        hadKeyboard = false;
         if (!open) {
             editing = null; // closing leaves a setting as it was
             Bluetooth.answer(false, ""); // closing declines a question still waiting
@@ -977,16 +994,17 @@ PanelWindow {
 
     // ---- window ---------------------------------------------------------------------------------
 
+    // The whole screen, clear around the panel, so a click anywhere beside it closes it (owner's request,
+    // 1 November 2026): with the keyboard held exclusively, Hyprland's focus grab didn't clear on a
+    // click in a window, and the launcher stayed up. That click only closes it, as with the power menu.
     visible: reveal.shown
-    anchors.top: true // only the top edge is anchored, so the compositor centres it horizontally
-    margins.top: Math.round(screen.height * 0.12) - shadow.above // the panel's top at 12 % of the screen
-    exclusiveZone: 0
-    implicitWidth: shadow.side + panel.width + shadow.side
-    implicitHeight: shadow.above + panel.height + shadow.below
+    anchors.top: true
+    anchors.bottom: true
+    anchors.left: true
+    anchors.right: true
+    exclusionMode: ExclusionMode.Ignore
     color: "transparent"
-    mask: Region {
-        item: panel // the shadow's room lets clicks through (and a click there closes, as outside)
-    }
+    WlrLayershell.namespace: "pistachio-panel" // frosted panels: Hyprland blurs the shell's layers by name
     WlrLayershell.layer: WlrLayer.Overlay // above fullscreen windows
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive // typing goes here while it is open
 
@@ -999,6 +1017,20 @@ PanelWindow {
         id: grab
         windows: [root]
         onCleared: root.open = false
+    }
+
+    // It also closes when the keyboard goes elsewhere (owner's request, 1 November 2026): another layer
+    // that takes it (the Alt+Tab switcher, a screenshot) or Hyprland focusing a window. Only once it has
+    // had the keyboard, which comes a moment after it opens.
+    property bool hadKeyboard
+
+    Item {
+        Window.onActiveChanged: {
+            if (Window.active)
+                root.hadKeyboard = true;
+            else if (root.open && root.hadKeyboard)
+                root.open = false;
+        }
     }
 
     // A setting saved or left: its row, once the list has laid its rows out again (it scrolls to the
@@ -1055,8 +1087,19 @@ PanelWindow {
     }
 
     // beside the panel, not in it: the panel clips its children
+    // a click beside the panel closes it
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        onClicked: mouse => {
+            if (!panel.contains(mapToItem(panel, mouse.x, mouse.y)))
+                root.open = false;
+        }
+    }
+
     Shadow {
         id: shadow
+        frostable: true
         kind: Theme.shadowModal
         anchors.fill: panel
         radius: panel.radius
@@ -1066,17 +1109,17 @@ PanelWindow {
     Rectangle {
         id: panel
 
-        x: shadow.side
+        x: Math.round((root.width - width) / 2)
         width: 640
         height: body.implicitHeight
         radius: Theme.panelRadius
-        color: Theme.bgAlt
+        color: Theme.surface
         border.width: 1
         border.color: Theme.overlay2
         clip: true
         // fades in rising 12 px, and back
         opacity: reveal.progress
-        y: shadow.above + 12 * (1 - reveal.progress)
+        y: Math.round(root.height * 0.12) + 12 * (1 - reveal.progress) // its top at 12 % of the screen
 
         Column {
             id: body

@@ -2,6 +2,7 @@ import qs
 import qs.components
 import qs.services
 import Quickshell
+import Quickshell.Wayland // the layer's name, which a Hyprland blur rule matches (a Wayland protocol, not a compositor module)
 import QtQuick
 
 // Quick settings (QuickSettings board): tiles, sliders, uptime and power. The bar positions it and
@@ -38,6 +39,7 @@ PanelWindow {
     implicitWidth: side + panel.width + side
     implicitHeight: shadow.above + panel.height + below
     color: "transparent"
+    WlrLayershell.namespace: "pistachio-panel" // frosted panels: Hyprland blurs the shell's layers by name
     mask: Region {
         item: panel // the shadow's room lets clicks through
     }
@@ -56,6 +58,8 @@ PanelWindow {
 
     Shadow {
         id: shadow
+
+        frostable: true
         kind: Theme.shadowPanel
         anchors.fill: panel
         radius: panel.radius
@@ -72,7 +76,7 @@ PanelWindow {
         width: 380
         height: content.implicitHeight + 40
         radius: Theme.panelRadius
-        color: Theme.bgAlt
+        color: Theme.surface
         border.width: 1
         border.color: Theme.overlay2
         // fades and grows slightly from the status chip, and back

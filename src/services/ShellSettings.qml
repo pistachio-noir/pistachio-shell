@@ -14,6 +14,19 @@ Singleton {
     // the same while an app records from the microphone, as in a call (owner's pick, 30 October 2026)
     readonly property bool quietCalls: Store.saved.quietCalls
 
+    // Frosted panels (owner's request, 31 October 2026): the bar, its pills and the panels turn
+    // see-through and Hyprland blurs what's behind them, if its config has the layer rule (README).
+    // Off by default, since without that rule they're see-through but not blurred. Subtle (88 %
+    // opaque) or glassy (72 %; still above the rule's ignore_alpha of 0.66, which keeps the drop
+    // shadows of solid panels unblurred). Drop shadows go while frosted (components/Shadow.qml).
+    readonly property bool frosted: Store.saved.frosted
+    readonly property bool glassy: Store.saved.frostStyle === "glassy"
+    readonly property real frost: !frosted ? 1 : glassy ? 0.72 : 0.88
+
+    // a short click as the output's volume changes, at the new level (owner's pick, 31 October 2026;
+    // Audio plays it)
+    readonly property bool volumeTick: Store.saved.volumeTick
+
     // Bluetooth headphones get the sound as they connect, whatever output was chosen (owner's request,
     // 31 October 2026; Audio does it)
     readonly property bool headphonesTakeOver: Store.saved.headphonesTakeOver
@@ -27,6 +40,18 @@ Singleton {
 
     function setQuietFullscreen(on: bool) {
         Store.saved.quietFullscreen = on;
+    }
+
+    function setVolumeTick(on: bool) {
+        Store.saved.volumeTick = on;
+    }
+
+    function setFrosted(on: bool) {
+        Store.saved.frosted = on;
+    }
+
+    function setGlassy(on: bool) {
+        Store.saved.frostStyle = on ? "glassy" : "subtle";
     }
 
     function setHeadphonesTakeOver(on: bool) {

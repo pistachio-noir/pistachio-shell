@@ -4,6 +4,7 @@ import qs.popups
 import qs.services
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland // the layer's name, which a Hyprland blur rule matches (a Wayland protocol, not a compositor module)
 import QtQuick
 
 // The floating bar. Only the bottom edge is anchored, so the compositor centres it horizontally.
@@ -176,6 +177,7 @@ PanelWindow {
     implicitWidth: Theme.barWidth
     implicitHeight: Theme.barHeight + Theme.barMargin // reaches the screen edge, where the reveal strip is
     color: "transparent"
+    WlrLayershell.namespace: "pistachio-bar" // frosted panels: Hyprland blurs the shell's layers by name
 
     // Hidden, only a 4 px strip at the screen edge takes the pointer (none over a fullscreen window);
     // clicks elsewhere reach the windows below.
@@ -210,7 +212,7 @@ PanelWindow {
         x: (parent.width - width) / 2
         y: (root.height - 2 - 4) * (1 - root.grown)
         radius: height / 2 // 2 for the handle, Theme.barRadius for the bar
-        color: Qt.tint(Theme.bgAlt, Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, Math.max(0, 1 - 3 * root.grown)))
+        color: Theme.glass(Qt.tint(Theme.bgAlt, Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, Math.max(0, 1 - 3 * root.grown))))
         border.width: 1
         border.color: Qt.rgba(Theme.overlay2.r, Theme.overlay2.g, Theme.overlay2.b, root.grown)
         // no handle over a fullscreen window, as there's no strip to point at

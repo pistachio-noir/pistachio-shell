@@ -78,6 +78,25 @@ Singleton {
         onTriggered: root.settled = true
     }
 
+    // The volume tick (owner's pick, 31 October 2026): sounds/tick.wav as the output's volume changes,
+    // played at the new level so the volume keys can be heard, if ShellSettings.volumeTick. Not while
+    // one of the shell's own sliders moves it (setVolume), not for the jump to another output's
+    // level, and at most one every 80 ms. An output that has been quiet for a while has gone to sleep
+    // (WirePlumber suspends it after 5 s) and mutes for a moment as it wakes, which swallowed the bare
+    // click (the owner's AudioBox, 1 November), so then it's tick-wake.wav: the click after 150 ms.
+    property real setAt // the last setVolume
+    property real sinkAt // the last change of output
+    property real tickedAt
+    onSinkChanged: sinkAt = Date.now()
+    onVolumeChanged: {
+        const now = Date.now();
+        if (!settled || !ShellSettings.volumeTick || muted || now - setAt < 500 || now - sinkAt < 1000 || now - tickedAt < 80)
+            return;
+        const awake = streams.length > 0 || now - tickedAt < 4000;
+        tickedAt = now;
+        Quickshell.execDetached(["pw-play", Quickshell.shellPath(awake ? "sounds/tick.wav" : "sounds/tick-wake.wav")]);
+    }
+
     function deviceName(node): string {
         return node.nickname || node.description || node.name;
     }
@@ -149,6 +168,7 @@ Singleton {
         if (!audio)
             return;
         audio.muted = false; // changing the volume unmutes, as on most desktops
+        setAt = Date.now();
         audio.volume = Math.max(0, Math.min(1, v));
     }
 

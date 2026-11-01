@@ -77,6 +77,7 @@ PanelWindow {
         if (w < 2 || h < 2)
             return;
         cut = Qt.rect(x, y, w, h);
+        Screenshots.shutter();
         const forText = mode === "text";
         const path = forText ? Screenshots.nextTextPath() : Screenshots.nextPath();
         const grabbing = crop.grabToImage(result => {

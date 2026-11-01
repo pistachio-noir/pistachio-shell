@@ -69,6 +69,16 @@ Singleton {
     }
 
 
+    // Claude Desktop, if it's installed (its desktop entry), for the launcher's "claude …" (owner's
+    // request, 1 November 2026)
+    readonly property var claudeApp: list.find(a => a.id === "com.anthropic.Claude") ?? null
+
+    // A question for Claude: a new chat in Claude Desktop with it, through the app's own claude:// link,
+    // which it turns into claude.ai/new?q=… (read in its app.asar, version 3.6556)
+    function askClaude(prompt: string) {
+        Quickshell.execDetached(["xdg-open", `claude://claude.ai/new?surface=chat&q=${encodeURIComponent(prompt)}`]);
+    }
+
     // A web search after an "@" in the launcher (owner's request, 30 October 2026): DuckDuckGo (owner's
     // call), in the default browser
     function searchWeb(query: string) {

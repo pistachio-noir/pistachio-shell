@@ -93,6 +93,7 @@ PanelWindow {
         : confirming ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "back"]]
         : editing ? [["↵", "save"], ["Esc", "back"]]
         : rows[current]?.kind === "appaction" ? [["↑↓", "navigate"], ["↵", "open"], ["←", "back"], ["Esc", "close"]]
+        : rows[current]?.kind === "claude" ? [["↑↓", "navigate"], ["↵", "ask Claude"], ["Esc", "close"]]
         : rows[current]?.kind === "app" && rows[current].app.actions.length > 0 ? [["↑↓", "navigate"], ["↵", "open"], ["→", "more actions"], ["Tab", "switch mode"], ["Esc", "close"]]
         : filesWanted ? [["↑↓", "navigate"], ["↵", "open"], ["Shift ↵", "show in folder"], ["Esc", "close"]]
         : (mode === "all" || mode === "apps") && query.startsWith("!") ? [["↑↓", "navigate"], ["↵", "show in centre"], ["Esc", "close"]]
@@ -267,7 +268,8 @@ PanelWindow {
             [":", "Emoji; Enter copies one"],
             ["?", "This cheat sheet"],
             ["12*3", "A calculation: the answer shows at the top"]
-        ].map(([k, t], i) => row("prefix", i, [k], t, { prefix: k === "12*3" ? "" : k }));
+        ].concat(Apps.claudeApp ? [["claude", "Ask Claude: a new chat in Claude Desktop"]] : [])
+            .map(([k, t], i) => row("prefix", i, [k], t, { prefix: k === "12*3" ? "" : k === "claude" ? "claude " : k }));
         const keys = [
             [["Tab"], "Next mode; Shift+Tab goes back"],
             [["↑", "↓"], "Move between results (or Ctrl+K, Ctrl+J)"],
@@ -655,6 +657,11 @@ PanelWindow {
         }
         if (expandedKey)
             rows = rows.reduce((all, r) => all.concat([r], r.key === expandedKey && r.kind === "app" ? actionRows(r) : []), []); // flatMap isn't there
+        // "claude" and a question (owner's request, 1 November 2026): an Ask Claude row on top, while
+        // Claude Desktop is installed; the usual results stay under it ("claude code" still finds apps)
+        const asked = (mode === "all" || mode === "apps") && Apps.claudeApp ? /^claude\s+(\S.*)$/i.exec(q) : null;
+        if (asked)
+            rows = [section("Claude"), { kind: "claude", key: "claude", title: asked[1].trim(), subtitle: "Ask Claude: a new chat in Claude Desktop", icon: Apps.icon(Apps.claudeApp.icon), prompt: asked[1].trim() }].concat(rows);
         return rows.some(r => r.kind !== "section") ? rows : rows.concat([{ kind: "empty", key: "empty", title: "No matches" }]);
     }
 
@@ -753,6 +760,9 @@ PanelWindow {
             open = false;
         } else if (row.kind === "drive") {
             Drives.eject(row.drive);
+        } else if (row.kind === "claude") {
+            Apps.askClaude(row.prompt);
+            open = false;
         } else if (row.kind === "web") {
             Apps.searchWeb(row.title);
             open = false;
@@ -1285,7 +1295,7 @@ PanelWindow {
                     property bool quick
                     readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "command", "file", "notification", "web", "drive"].includes(root.rows[root.current].kind))
+                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -1496,6 +1506,7 @@ PanelWindow {
                                 file: resultView,
                                 notification: resultView,
                                 web: resultView,
+                                claude: resultView,
                                 drive: resultView,
                                 cheat: cheatView,
                                 power: resultView,
@@ -1938,6 +1949,7 @@ PanelWindow {
                                     : row.kind === "file" ? "Open"
                                     : row.kind === "notification" ? "Show"
                                     : row.kind === "web" ? "Search"
+                                    : row.kind === "claude" ? "Ask"
                                     : row.kind === "drive" ? "Eject"
                                     : row.kind === "btlink" ? "Devices"
                                     : row.kind === "btdevice" ? (bt.connected ? "Disconnect" : bt.paired ? "Connect" : "Pair")

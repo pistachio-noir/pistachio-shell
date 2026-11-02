@@ -274,6 +274,31 @@ Scope {
                             font.pixelSize: 20
                             font.weight: Font.DemiBold
                         }
+
+                        // today's weather under the date (owner's pick, 3 November 2026)
+                        Row {
+                            visible: Weather.available
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            topPadding: 6
+                            spacing: 8
+
+                            Icon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                size: 20
+                                paths: Weather.now ? WeatherLook.iconOf(Weather.now.code, Weather.now.day) : []
+                                color: Weather.now ? WeatherLook.colourOf(Weather.now.code, Weather.now.day) : Theme.subtext
+                            }
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: Weather.now ? `${Math.round(Weather.now.temp)}° · ${Weather.describe(Weather.now.code).text}` : ""
+                                color: Theme.subtext
+                                font.family: Theme.fontUi
+                                font.pixelSize: 16
+                                font.weight: Font.DemiBold
+                                font.features: { "tnum": 1 }
+                            }
+                        }
                     }
 
                     Column {

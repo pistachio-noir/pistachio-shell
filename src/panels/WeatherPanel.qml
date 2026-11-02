@@ -15,25 +15,11 @@ Rectangle {
     readonly property real fullHeight: 20 + head.height + 14 + details.height + 20
 
     function iconOf(code: int, day: bool): list<string> {
-        const kind = Weather.describe(code).kind;
-        return kind === "clear" ? (day ? Icons.sun : Icons.moon)
-            : kind === "partly" ? (day ? Icons.cloudSun : Icons.cloudMoon)
-            : kind === "cloud" ? Icons.cloud
-            : kind === "fog" ? Icons.cloudFog
-            : kind === "drizzle" ? Icons.cloudDrizzle
-            : kind === "rain" ? Icons.cloudRain
-            : kind === "snow" ? Icons.cloudSnow
-            : Icons.cloudLightning;
+        return WeatherLook.iconOf(code, day);
     }
 
-    // as on the boards: the sun gold, rain sage blue, clouds and the night quiet
     function colourOf(code: int, day: bool): color {
-        const kind = Weather.describe(code).kind;
-        return (kind === "clear" || kind === "partly") && day ? Theme.gold
-            : kind === "drizzle" || kind === "rain" ? Theme.sageBlue
-            : kind === "snow" ? Theme.text
-            : kind === "storm" ? Theme.lavender
-            : Theme.subtext;
+        return WeatherLook.colourOf(code, day);
     }
 
     height: 20 + head.height + 20 + (14 + details.height) * opened

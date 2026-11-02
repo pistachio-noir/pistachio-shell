@@ -28,7 +28,10 @@ PanelWindow {
     // Desktop icons shown or hidden (owner's request, 29 October: by IPC `desktop toggle` or in Shell
     // settings), told with words in place of the bar, as a cue is
     readonly property bool desktop: kind === "desktop"
-    readonly property bool notice: cue || desktop
+    // the workspace you switched to, with its name and the bar's dots (owner's request, 3 November
+    // 2026, in place of peeking at the hidden bar; a Shell setting)
+    readonly property bool workspace: kind === "workspace"
+    readonly property bool notice: cue || desktop || workspace
     readonly property bool muted: (kind === "volume" || output) && Audio.muted
     readonly property real value: kind === "brightness" ? Brightness.value : Audio.volume
     // The bar and number ease to a new value; they start at it while hidden and on a switch between
@@ -77,7 +80,7 @@ PanelWindow {
 
     Timer {
         id: hide
-        interval: root.output || root.notice ? 2500 : 1500 // a name takes longer to read than a bar
+        interval: root.workspace ? 1200 : root.output || root.notice ? 2500 : 1500 // a name takes longer to read than a bar
     }
 
     Timer {
@@ -125,6 +128,15 @@ PanelWindow {
     }
 
     // (not as the setting is read at startup: settling covers that)
+    Connections {
+        target: Compositor
+
+        function onActiveWorkspaceChanged() {
+            if (!root.settling && ShellSettings.workspaceOsd && Compositor.activeWorkspace > 0 && !Compositor.fullscreen)
+                root.show("workspace");
+        }
+    }
+
     Connections {
         target: Desktop
 
@@ -192,7 +204,8 @@ PanelWindow {
             anchors.fill: parent
             radius: parent.radius
         }
-        Accessible.name: root.desktop ? `${desktopTitle.text}, ${desktopDetail.text}`
+        Accessible.name: root.workspace ? workspaceTitle.text
+            : root.desktop ? `${desktopTitle.text}, ${desktopDetail.text}`
             : root.cue ? `${root.cueTitle}, ${root.cueNames}`
             : root.output ? `Output ${root.outputName}`
             : root.muted ? "Volume muted" : `${root.kind === "volume" ? "Volume" : "Brightness"} ${label.text} percent`
@@ -202,14 +215,16 @@ PanelWindow {
             x: 22
             anchors.verticalCenter: parent.verticalCenter
             size: 20
-            paths: root.desktop ? (Desktop.enabled ? Icons.folder : Icons.folder.concat(Icons.slash))
+            paths: root.workspace ? Icons.layers
+                : root.desktop ? (Desktop.enabled ? Icons.folder : Icons.folder.concat(Icons.slash))
                 : root.kind === "brightness" ? Icons.sun
                 : root.output ? (Audio.isHeadphones(Audio.sink) ? Icons.headphones : Icons.speaker)
                 : root.kind === "mic" ? (root.cueOn && Audio.micMuted ? Icons.micOff : Icons.mic)
                 : root.kind === "screen" ? Icons.screenShare
                 : root.muted ? Icons.volumeMuted : Icons.volume
             // as the bar shows them: clay while in use, subtext when muted or let go
-            color: root.desktop ? (Desktop.enabled ? Theme.textBright : Theme.subtext)
+            color: root.workspace ? Theme.textBright
+                : root.desktop ? (Desktop.enabled ? Theme.textBright : Theme.subtext)
                 : root.cue ? (root.cueOn && !(root.kind === "mic" && Audio.micMuted) ? Theme.clay : Theme.subtext)
                 : root.muted ? Theme.subtext : Theme.textBright
         }
@@ -259,6 +274,79 @@ PanelWindow {
                 font.family: Theme.fontUi
                 font.pixelSize: 12
                 font.weight: Font.Medium
+            }
+        }
+
+        // the workspace: its name (or number) and what's on it, then the bar's dots
+        Column {
+            visible: root.workspace
+            anchors.left: icon.right
+            anchors.leftMargin: 14
+            anchors.right: dots.left
+            anchors.rightMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 1
+
+            Text {
+                id: workspaceTitle
+                width: parent.width
+                text: Compositor.nameOf(Compositor.activeWorkspace) || `Workspace ${Compositor.activeWorkspace}`
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: Theme.textBright
+                font.family: Theme.fontUi
+                font.pixelSize: 14
+                font.weight: Font.Bold
+            }
+
+            Text {
+                width: parent.width
+                text: {
+                    const id = Compositor.activeWorkspace;
+                    const apps = [...new Set(Compositor.windows.filter(w => w.workspace === id).map(w => Apps.nameFor(w.appId)))];
+                    const what = apps.length ? apps.join(", ") : "Empty";
+                    return Compositor.nameOf(id) ? `Workspace ${id} · ${what}` : what;
+                }
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: Theme.subtext
+                font.family: Theme.fontUi
+                font.pixelSize: 12
+                font.weight: Font.Medium
+            }
+        }
+
+        Row {
+            id: dots
+            visible: root.workspace
+            anchors.right: parent.right
+            anchors.rightMargin: 22
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 6
+
+            Repeater {
+                model: Math.max(5, ...Compositor.workspaces.map(w => w.id))
+
+                Rectangle {
+                    required property int index
+                    readonly property var ws: Compositor.workspaces.find(w => w.id === index + 1)
+                    readonly property bool current: index + 1 === Compositor.activeWorkspace
+
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: current ? 20 : 6
+                    height: 6
+                    radius: 3
+                    color: current ? Theme.pistachio : ws?.occupied ? Theme.subtext : "transparent"
+                    border.width: current || ws?.occupied ? 0 : 1.5
+                    border.color: Theme.muted
+
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: Theme.motionDuration
+                            easing.type: Theme.easing
+                        }
+                    }
+                }
             }
         }
 

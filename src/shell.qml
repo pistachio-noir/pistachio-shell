@@ -10,7 +10,7 @@ import QtQuick
 
 ShellRoot {
     // services that work in the background from the start: a singleton only starts once it's used
-    readonly property var background: [Drives]
+    readonly property var background: [Drives, LocalSend]
 
     // frosted panels: how opaque the bar and panels are
     Binding {

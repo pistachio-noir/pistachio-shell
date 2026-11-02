@@ -14,7 +14,23 @@ Row {
         if (!hoveredSlot)
             return [];
         const apps = [...new Set(Compositor.windows.filter(w => w.workspace === hoveredSlot.wsId).map(w => Apps.nameFor(w.appId)))];
-        return [[`Workspace ${hoveredSlot.wsId}`, apps.length ? apps.join(", ") : "empty"]];
+        const name = Compositor.nameOf(hoveredSlot.wsId);
+        return [[`Workspace ${hoveredSlot.wsId}${name ? ` · ${name}` : ""}`, apps.length ? apps.join(", ") : "empty"]];
+    }
+
+    // scroll over the dots for the next or previous workspace (owner's pick, 3 November 2026); a
+    // touchpad's small steps add up to a notch
+    property real scrolled
+    WheelHandler {
+        onWheel: event => {
+            root.scrolled += event.angleDelta.y;
+            if (Math.abs(root.scrolled) < 120)
+                return;
+            const next = Compositor.activeWorkspace + (root.scrolled < 0 ? 1 : -1);
+            root.scrolled = 0;
+            if (next >= 1 && next <= root.count)
+                Compositor.goto(next);
+        }
     }
 
     leftPadding: 10

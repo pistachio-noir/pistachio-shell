@@ -26,6 +26,7 @@ Singleton {
     // a short click as the output's volume changes, at the new level (owner's pick, 31 October 2026;
     // Audio plays it)
     readonly property bool volumeTick: Store.saved.volumeTick
+    readonly property bool workspaceOsd: Store.saved.workspaceOsd
 
     // Bluetooth headphones get the sound as they connect, whatever output was chosen (owner's request,
     // 31 October 2026; Audio does it)
@@ -40,6 +41,10 @@ Singleton {
 
     function setQuietFullscreen(on: bool) {
         Store.saved.quietFullscreen = on;
+    }
+
+    function setWorkspaceOsd(on: bool) {
+        Store.saved.workspaceOsd = on;
     }
 
     function setVolumeTick(on: bool) {

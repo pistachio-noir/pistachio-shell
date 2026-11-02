@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LocalSend, incoming request</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font:inherit}
+</style>
+</helmet>
+<div style="position:relative;width:960px;height:540px;overflow:hidden;background:#0D0F09;font-family:'Manrope',system-ui,sans-serif;color:#E5E9D8">
+
+  <!-- Desktop behind the popup -->
+  <div style="position:absolute;left:24px;top:24px;width:520px;height:430px;box-sizing:border-box;border-radius:16px;background:#15170F;border:1px solid #2A2F1F"></div>
+  <div style="position:absolute;left:560px;top:24px;width:376px;height:430px;box-sizing:border-box;border-radius:16px;background:#15170F;border:1px solid #2A2F1F"></div>
+
+  <div style="position:absolute;right:40px;top:40px;width:400px;display:flex;flex-direction:column;gap:12px">
+    <div role="alertdialog" aria-label="Incoming files from iPhone" style="display:flex;gap:14px;align-items:flex-start;padding:16px;border-radius:24px;background:#1D2016;border:1px solid #39412A;box-shadow:0 14px 36px rgba(0,0,0,.55)">
+      <span style="width:40px;height:40px;border-radius:20px;background:#2A2F1F;color:#7DA3B3;display:flex;align-items:center;justify-content:center;flex:none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg></span>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span style="font-size:14px;font-weight:700;color:#F6F8EF">iPhone wants to send files</span>
+            <span style="margin-left:auto;font-size:11px;font-weight:600;color:#A3B08F">now</span>
+          </div>
+          <span style="font-size:12px;font-weight:500;line-height:17px;color:#A3B08F">3 files · 219 MB</span>
+        </div>
+        <div style="display:flex;gap:8px;min-width:0">
+          <span style="display:flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 8px;border-radius:14px;background:#39412A;color:#7FC9A8;min-width:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg><span style="font-size:12px;font-weight:600;color:#E5E9D8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">demo.mp4</span></span><span style="display:flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 8px;border-radius:14px;background:#39412A;color:#E0B15E;min-width:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span style="font-size:12px;font-weight:600;color:#E5E9D8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">report-q3.pdf</span></span><span style="display:flex;align-items:center;flex:none;height:28px;padding:0 12px;border-radius:14px;background:#39412A;font-size:12px;font-weight:700;color:#E5E9D8">+1</span>
+        </div>
+        <span style="font-size:12px;font-weight:500;color:#A3B08F">Save to <span style="font-family:'JetBrains Mono',ui-monospace,monospace;color:#E5E9D8">~/Downloads</span></span>
+        <div style="display:flex;gap:8px">
+          <button type="button" style="height:40px;padding:0 18px;border:0;border-radius:20px;background:#9FD88A;color:#15170F;font-size:12px;font-weight:800;cursor:pointer">Accept</button>
+          <button type="button" style="height:40px;padding:0 16px;border:0;border-radius:20px;background:#2A2F1F;color:#E5E9D8;font-size:12px;font-weight:700;cursor:pointer">Decline</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bar, status chip pressed -->
+  <div style="position:absolute;left:160px;bottom:16px;width:640px;height:56px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:8px;border-radius:28px;background:#1D2016;border:1px solid #39412A;box-shadow:0 14px 36px rgba(0,0,0,.6)">
+    <div style="display:flex;align-items:center;height:40px;padding:0 6px 0 10px">
+      <button type="button" aria-label="Workspace 1" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;background:#A3B08F"></span></button>
+      <button type="button" aria-label="Workspace 2, active" aria-current="true" style="width:34px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:26px;height:8px;border-radius:4px;background:#9FD88A"></span></button>
+      <button type="button" aria-label="Workspace 3" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;background:#A3B08F"></span></button>
+      <button type="button" aria-label="Workspace 4, empty" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;box-sizing:border-box;border:1.5px solid #626F51"></span></button>
+      <button type="button" aria-label="Workspace 5, empty" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;box-sizing:border-box;border:1.5px solid #626F51"></span></button>
+    </div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:0 4px">
+      <span style="font-size:13px;font-weight:700;line-height:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#F6F8EF">src/main.rs</span>
+      <span style="font-size:11px;font-weight:600;line-height:14px;color:#A3B08F">nvim</span>
+    </div>
+    <button type="button" aria-label="Notifications. 16:31, Monday 2 November" style="display:flex;align-items:center;gap:10px;height:40px;padding:0 16px 0 14px;border:0;border-radius:20px;background:#2A2F1F;color:#E5E9D8;cursor:pointer;text-align:left">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span style="display:flex;flex-direction:column">
+        <span style="font-size:14px;font-weight:800;line-height:17px;font-variant-numeric:tabular-nums;color:#F6F8EF">16:31</span>
+        <span style="font-size:11px;font-weight:600;line-height:14px;color:#A3B08F">Mon 2 Nov</span>
+      </span>
+    </button>
+    <button type="button" aria-expanded="true" aria-label="Quick settings, open" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 16px;border:0;border-radius:20px;background:#39412A;color:#F6F8EF;cursor:pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 20 3-3h2a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2l3 3z"/><path d="M6 8v1"/><path d="M10 8v1"/><path d="M14 8v1"/><path d="M18 8v1"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+    </button>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -83,10 +83,10 @@ PanelWindow {
 
     // Bluetooth is a view inside System (LauncherBluetooth board), so it has no tab of its own;
     // the System tab stays highlighted. So is Terminals, from Shell settings (owner's request).
-    readonly property string tab: mode === "bluetooth" || mode === "terminals" ? "system" : mode
+    readonly property string tab: mode === "bluetooth" || mode === "terminals" || mode === "about" ? "system" : mode
     readonly property string placeholder: Bluetooth.request ? (Bluetooth.request.kind === "pin" ? "PIN" : Bluetooth.request.kind === "passkey" ? "6-digit code" : "Bluetooth")
         : editing ? editing.placeholder
-        : mode === "bluetooth" ? "Filter devices…" : mode === "terminals" ? "Filter terminals…" : modes.find(m => m.id === mode).placeholder
+        : mode === "bluetooth" ? "Filter devices…" : mode === "terminals" ? "Filter terminals…" : mode === "about" ? "About the shell" : modes.find(m => m.id === mode).placeholder
     readonly property var keyHints: Bluetooth.request ? (codeWanted ? [["↵", "pair"], ["Esc", "cancel"]]
             : Bluetooth.request.id ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "decline"]]
             : [["Esc", "cancel pairing"]])
@@ -94,6 +94,7 @@ PanelWindow {
         : editing ? [["↵", "save"], ["Esc", "back"]]
         : rows[current]?.kind === "appaction" ? [["↑↓", "navigate"], ["↵", "open"], ["←", "back"], ["Esc", "close"]]
         : rows[current]?.kind === "claude" ? [["↑↓", "navigate"], ["↵", "ask Claude"], ["Esc", "close"]]
+        : rows[current]?.kind === "preset" ? [["↑↓", "navigate"], ["↵", "load"], ["→", "delete"], ["Esc", "close"]]
         : rows[current]?.kind === "app" && rows[current].app.actions.length > 0 ? [["↑↓", "navigate"], ["↵", "open"], ["→", "more actions"], ["Tab", "switch mode"], ["Esc", "close"]]
         : filesWanted ? [["↑↓", "navigate"], ["↵", "open"], ["Shift ↵", "show in folder"], ["Esc", "close"]]
         : (mode === "all" || mode === "apps") && query.startsWith("!") ? [["↑↓", "navigate"], ["↵", "show in centre"], ["Esc", "close"]]
@@ -130,7 +131,9 @@ PanelWindow {
         editing = null;
         expandedKey = "";
         snapshot();
-        mode = m === "bluetooth" || modes.some(x => x.id === m) ? m : "all";
+        mode = m === "bluetooth" || m === "about" || modes.some(x => x.id === m) ? m : "all";
+        if (m === "about")
+            About.load();
         field.text = "";
         resetSelection();
         open = true;
@@ -191,6 +194,19 @@ PanelWindow {
             check: (text, then) => Desktop.check(text, item.name, then),
             apply: name => Desktop.rename(item, name)
         }, item.name, dot > 0 ? dot : item.name.length);
+    }
+
+    // A workspace's name (owner's request, 3 November 2026): F2 on its card; empty clears it
+    function renameWorkspace(id: int) {
+        startEditing({
+            key: "workspaces",
+            title: `Name workspace ${id}`,
+            icon: Icons.pencil,
+            placeholder: `Workspace ${id}`,
+            hint: () => "Type a name, then press Enter. Empty clears it; it lasts until you log out.",
+            check: (text, then) => then({ name: text.slice(0, 24) }, ""),
+            apply: v => Compositor.setName(id, v.name)
+        }, Compositor.nameOf(id));
     }
 
     function newDesktopFolder(cell) {
@@ -429,9 +445,11 @@ PanelWindow {
             { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) },
             { kind: "wplink", key: "wplink", title: "Wallpapers", subtitle: Wallpapers.current.split("/").pop() || "None", glyph: Icons.image },
             { kind: "showoff", key: "showoff", title: "Showoff mode", subtitle: "Everything open for a screenshot, private things hidden", glyph: Icons.sparkles },
+            { kind: "aboutlink", key: "about", title: "About", subtitle: "Pistachio Noir Shell: version, commit, Quickshell and Hyprland", glyph: Icons.info },
             { kind: "termlink", key: "terminal", title: "Terminal", subtitle: Apps.terminalName(Apps.terminal), glyph: Icons.terminal },
             { kind: "setting", key: "weatherCity", title: "Weather location", subtitle: Weather.placeName, glyph: Icons.mapPin, setting: weatherSetting },
             { kind: "switch", key: "desktopIcons", title: "Desktop icons", icon: Icons.folder, on: () => Desktop.enabled, status: () => Desktop.enabled ? "The Desktop folder, on the wallpaper" : "Off", toggle: () => Desktop.setEnabled(!Desktop.enabled) },
+            { kind: "switch", key: "workspaceOsd", title: "Workspace OSD", icon: Icons.layers, on: () => ShellSettings.workspaceOsd, status: () => ShellSettings.workspaceOsd ? "Shows which workspace you switched to" : "Off", toggle: () => ShellSettings.setWorkspaceOsd(!ShellSettings.workspaceOsd) },
             { kind: "switch", key: "volumeTick", title: "Volume tick", icon: Icons.volume, on: () => ShellSettings.volumeTick, status: () => ShellSettings.volumeTick ? "A short click as the volume changes" : "Off", toggle: () => ShellSettings.setVolumeTick(!ShellSettings.volumeTick) },
             { kind: "switch", key: "notificationSound", title: "Notification sound", icon: Icons.volume, on: () => ShellSettings.notificationSound, status: () => ShellSettings.notificationSound ? "A soft sound with each toast" : "Off", toggle: () => ShellSettings.setNotificationSound(!ShellSettings.notificationSound) },
             { kind: "switch", key: "quietFullscreen", title: "Quiet in fullscreen", icon: Icons.bellOff, on: () => ShellSettings.quietFullscreen, status: () => ShellSettings.quietFullscreen ? "Toasts wait while a fullscreen window has focus" : "Off", toggle: () => ShellSettings.setQuietFullscreen(!ShellSettings.quietFullscreen) },
@@ -465,14 +483,67 @@ PanelWindow {
 
     // back from Terminals to System, at its Terminal row
     function leaveTerminals() {
+        const key = mode === "about" ? "about" : "terminal";
         field.text = "";
         mode = "system";
-        const i = rows.findIndex(r => r.key === "terminal");
+        const i = rows.findIndex(r => r.key === key);
         if (i >= 0) {
             current = i;
-            heldKey = "terminal";
+            heldKey = key;
             backToRow.restart();
         }
+    }
+
+    // Named workspaces matching the search, and presets (owner's request, 3 November 2026): Enter goes
+    // to the workspace, or loads the preset
+    function namedRows(q: string): var {
+        return Object.entries(Compositor.names).filter(([id, name]) => !q || Fuzzy.match(q, name)).map(([id, name]) => {
+            const apps = [...new Set(windows.filter(w => String(w.workspace) === id).map(w => Apps.nameFor(w.appId)))];
+            return { kind: "wsname", key: "wsname:" + id, title: name, subtitle: `Workspace ${id} · ${apps.length ? apps.join(", ") : "empty"}`, glyph: Icons.layers, id: parseInt(id) };
+        });
+    }
+
+    function presetRows(q: string): var {
+        return Compositor.presets.filter(p => !q || Fuzzy.match(q, p.name)).map(p => {
+            const names = Object.entries(p.names).sort((a, b) => a[0] - b[0]).map(([id, n]) => `${id} ${n}`).join(", ");
+            const apps = Object.values(p.apps ?? {}).reduce((sum, list) => sum + list.length, 0);
+            return { kind: "preset", key: "preset:" + p.name, title: p.name, subtitle: names + (apps ? ` · opens ${apps} app${apps === 1 ? "" : "s"}` : ""), glyph: Icons.sparkles, preset: p };
+        });
+    }
+
+    // every workspace: its name, and with the second its apps too
+    function presetSaveRows(): var {
+        const count = Object.keys(Compositor.names).length;
+        return [
+            { kind: "presetsave", key: "presetsave", title: "Save workspaces as preset…", subtitle: count ? `Their names: ${count} named` : "Name a workspace first: F2 on its card", glyph: Icons.plus, withApps: false, off: !count },
+            { kind: "presetsave", key: "presetsave:apps", title: "Save workspaces and apps as preset…", subtitle: "Every workspace's name and apps; loading opens the apps again there", glyph: Icons.plus, withApps: true }
+        ];
+    }
+
+    // → on a preset: its Delete row, under it (as an app's actions)
+    function presetDeleteRow(presetRow): var {
+        return { kind: "presetdelete", key: presetRow.key + ":delete", title: `Delete “${presetRow.preset.name}”`, subtitle: "Asks first", glyph: Icons.trash, compact: true, indent: 24, preset: presetRow.preset };
+    }
+
+    function askDeletePreset(name: string) {
+        confirming = { id: "preset:" + name, title: "Delete", icon: Icons.trash, danger: true, question: `Delete the preset “${name}”?`, confirm: "Only the preset goes: your workspaces and their names stay as they are.", run: () => Compositor.deletePreset(name) };
+        current = 0;
+        column = 0; // Cancel first
+    }
+
+    // About the shell (owner's request, 3 November 2026), opened from Shell settings like Terminals:
+    // read-only lines, and Enter on the repository's opens it
+    function aboutRows(): var {
+        const line = (key, title, subtitle, glyph, url) => ({ kind: url ? "abouturl" : "aboutline", key: "about:" + key, title: title, subtitle: subtitle, glyph: glyph, url: url ?? "" });
+        const version = About.commit ? `${About.commits} commits · ${About.commit}, ${Qt.formatDate(new Date(About.date + "T12:00"), "d MMMM yyyy")}` : "Reading…";
+        return [section("Pistachio Noir Shell")].concat([
+            line("version", "Version", version + (About.changed ? ` · ${About.changed} files changed since` : ""), Icons.sparkles),
+            line("commit", "Last change", About.subject || "…", Icons.pencil),
+            line("quickshell", "Quickshell", About.quickshell || "…", Icons.layers),
+            line("hyprland", "Hyprland", About.hyprland || "…", Icons.monitor),
+            line("qt", "Qt", About.qt || "…", Icons.cpu),
+            line("repo", "Source", About.repo || "…", Icons.folderOpen, About.repo)
+        ]);
     }
 
     // Power actions, found by name or a common word for them. All but Lock ask first.
@@ -640,23 +711,29 @@ PanelWindow {
             const w = windowRows(q, 50);
             rows = [section(`${w.length} window${w.length === 1 ? "" : "s"} · most recent first`)].concat(w);
         } else if (mode === "workspaces") {
-            const cards = workspaceCards(q);
-            rows = [section(`${cards.length} workspaces`)].concat(cards.length ? [{ kind: "workspaces", key: "workspaces", cards: cards }] : []);
+            const cards = workspaceCards(q), named = q ? namedRows(q) : [], presets = presetRows(q);
+            rows = [section(`${cards.length} workspaces`)].concat(cards.length ? [{ kind: "workspaces", key: "workspaces", cards: cards }] : [])
+                .concat(named.length ? [section("Named")].concat(named) : [])
+                .concat([section("Presets")], presets, q ? [] : presetSaveRows());
         } else if (mode === "system") {
             rows = systemRows(q).concat(powerRows(q));
         } else if (mode === "bluetooth") {
             rows = bluetoothRows(q);
         } else if (mode === "terminals") {
             rows = terminalRows(q);
+        } else if (mode === "about") {
+            rows = aboutRows();
         } else if (!q) {
             const w = windowRows("", 5).map(r => Object.assign(r, { compact: true }));
             rows = [section("Quick controls"), { kind: "controls", key: "controls" }].concat(w.length ? [section("Open windows")].concat(w) : []);
         } else {
-            const a = appRows(q, 5), w = windowRows(q, 3);
-            rows = calcRows(q).concat(a.length ? [section("Applications")].concat(a) : []).concat(w.length ? [section("Windows")].concat(w) : []).concat(powerRows(q), systemRows(q));
+            const a = appRows(q, 5), w = windowRows(q, 3), named = namedRows(q), presets = presetRows(q);
+            rows = calcRows(q).concat(a.length ? [section("Applications")].concat(a) : []).concat(w.length ? [section("Windows")].concat(w) : [])
+                .concat(named.length ? [section("Workspaces")].concat(named) : [], presets.length ? [section("Presets")].concat(presets) : [])
+                .concat(powerRows(q), systemRows(q));
         }
         if (expandedKey)
-            rows = rows.reduce((all, r) => all.concat([r], r.key === expandedKey && r.kind === "app" ? actionRows(r) : []), []); // flatMap isn't there
+            rows = rows.reduce((all, r) => all.concat([r], r.key !== expandedKey ? [] : r.kind === "app" ? actionRows(r) : r.kind === "preset" ? [presetDeleteRow(r)] : []), []); // flatMap isn't there
         // "claude" and a question (owner's request, 1 November 2026): an Ask Claude row on top, while
         // Claude Desktop is installed; the usual results stay under it ("claude code" still finds apps)
         const asked = (mode === "all" || mode === "apps") && Apps.claudeApp ? /^claude\s+(\S.*)$/i.exec(q) : null;
@@ -780,6 +857,32 @@ PanelWindow {
             wallpapersRequested();
         } else if (row.kind === "setting") {
             startEditing(row.setting);
+        } else if (row.kind === "wsname") {
+            Compositor.goto(row.id);
+            open = false;
+        } else if (row.kind === "preset") {
+            Compositor.loadPreset(row.preset);
+            open = false;
+        } else if (row.kind === "presetdelete") {
+            askDeletePreset(row.preset.name);
+        } else if (row.kind === "presetsave") {
+            const withApps = row.withApps;
+            startEditing({
+                key: row.key,
+                title: withApps ? "Save workspaces and apps as preset" : "Save workspaces as preset",
+                icon: Icons.sparkles,
+                placeholder: "Preset name",
+                hint: () => "Type its name, then press Enter. The same name replaces the old preset.",
+                check: (text, then) => text.trim() ? then(text.trim().slice(0, 32), "") : then(null, "Type a name first."),
+                apply: name => Compositor.savePreset(name, withApps)
+            }, "");
+        } else if (row.kind === "aboutlink") {
+            field.text = "";
+            About.load();
+            mode = "about";
+        } else if (row.kind === "abouturl") {
+            Quickshell.execDetached(["xdg-open", row.url]);
+            open = false;
         } else if (row.kind === "termlink") {
             field.text = "";
             mode = "terminals";
@@ -851,10 +954,16 @@ PanelWindow {
                 confirming = null; // back to the results
             else if (editing)
                 stopEditing();
-            else if (mode === "terminals")
+            else if (mode === "terminals" || mode === "about")
                 leaveTerminals();
             else
                 open = false;
+            break;
+        case Qt.Key_F2:
+            if (row?.kind === "workspaces" && row.cards[column] && !editing) {
+                event.accepted = true;
+                renameWorkspace(row.cards[column].id);
+            }
             break;
         case Qt.Key_Tab:
         case Qt.Key_Backtab: {
@@ -877,10 +986,10 @@ PanelWindow {
                 column = Math.max(0, Math.min(gridLength(row) - 1, column + dir));
             // an app's actions: → opens them once the search's cursor is at its end (so → still moves
             // it while typing), ← closes them and goes back to the app
-            else if (dir > 0 && row?.kind === "app" && row.app.actions.length > 0 && expandedKey !== row.key && field.cursorPosition === field.text.length) {
+            else if (dir > 0 && (row?.kind === "app" && row.app.actions.length > 0 || row?.kind === "preset") && expandedKey !== row.key && field.cursorPosition === field.text.length) {
                 expandedKey = row.key;
                 current = step(current, 1);
-            } else if (dir < 0 && expandedKey && (row?.kind === "appaction" || row?.key === expandedKey)) {
+            } else if (dir < 0 && expandedKey && (row?.kind === "appaction" || row?.kind === "presetdelete" || row?.key === expandedKey)) {
                 const key = expandedKey;
                 expandedKey = "";
                 current = rows.findIndex(r => r.key === key);
@@ -930,6 +1039,10 @@ PanelWindow {
             Audio.toggleMute();
             break;
         case Qt.Key_Backspace:
+            if (ctrl && row?.kind === "preset") { // asks first, Cancel chosen
+                askDeletePreset(row.preset.name);
+                break;
+            }
             if (!ctrl || row?.kind !== "btdevice" || !row.device.paired)
                 return;
             Bluetooth.forget(row.device);
@@ -1295,7 +1408,7 @@ PanelWindow {
                     property bool quick
                     readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
+                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -1500,6 +1613,13 @@ PanelWindow {
                                 wplink: resultView,
                                 setting: resultView,
                                 termlink: resultView,
+                                aboutlink: resultView,
+                                wsname: resultView,
+                                preset: resultView,
+                                presetsave: resultView,
+                                presetdelete: resultView,
+                                aboutline: resultView,
+                                abouturl: resultView,
                                 terminal: resultView,
                                 showoff: resultView,
                                 command: resultView,
@@ -1943,6 +2063,12 @@ PanelWindow {
                                     : row.kind === "wplink" ? "Open"
                                     : row.kind === "setting" ? "Change"
                                     : row.kind === "termlink" ? "Choose"
+                                    : row.kind === "aboutlink" ? "Show"
+                                    : row.kind === "wsname" ? "Go"
+                                    : row.kind === "preset" ? "Load"
+                                    : row.kind === "presetsave" ? "Save"
+                                    : row.kind === "presetdelete" ? "Delete"
+                                    : row.kind === "abouturl" ? "Open"
                                     : row.kind === "terminal" && row.name !== Apps.terminal ? "Use"
                                     : row.kind === "showoff" ? (Showoff.active ? "Stop" : "Start")
                                     : row.kind === "command" ? "Run"

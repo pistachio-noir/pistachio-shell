@@ -14,7 +14,8 @@ Chip {
     // the full date, and what's waiting in the centre
     tooltip: {
         const fresh = Notifs.notifications.filter(n => Notifs.received(n) > Notifs.seenAt).length;
-        return [[Qt.formatDate(clock.date, "dddd d MMMM yyyy")], Notifs.dnd ? ["Do not disturb", Notifs.inDndSchedule ? `until ${NightLight.timeText(Notifs.dndTo)}` : "on"] : ["Notifications", fresh ? `${fresh} new` : "nothing new"]];
+        const weather = Weather.now ? [[`${Math.round(Weather.now.temp)}° · ${Weather.describe(Weather.now.code).text}`, Weather.place?.name ?? Weather.city]] : [];
+        return [[Qt.formatDate(clock.date, "dddd d MMMM yyyy")]].concat(weather, [Notifs.dnd ? ["Do not disturb", Notifs.inDndSchedule ? `until ${NightLight.timeText(Notifs.dndTo)}` : "on"] : ["Notifications", fresh ? `${fresh} new` : "nothing new"]]);
     }
 
     SystemClock {

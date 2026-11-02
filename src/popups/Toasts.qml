@@ -40,6 +40,9 @@ PanelWindow {
 
             Toast {}
         }
+
+        // LocalSend's request, transfer or message, nearest the bar (not a notification: it waits for an answer)
+        LocalSendToast {}
     }
 
     component Toast: Rectangle {

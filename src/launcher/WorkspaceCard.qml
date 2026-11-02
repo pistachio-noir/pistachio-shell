@@ -1,4 +1,5 @@
 import qs
+import qs.services
 import QtQuick
 import QtQuick.Shapes
 
@@ -55,7 +56,7 @@ Rectangle {
             spacing: 6
 
             Text {
-                text: root.card.id
+                text: Compositor.nameOf(root.card.id) ? `${root.card.id} · ${Compositor.nameOf(root.card.id)}` : root.card.id
                 color: root.card.active ? Theme.pistachio : Theme.text
                 font.family: Theme.fontUi
                 font.pixelSize: 14

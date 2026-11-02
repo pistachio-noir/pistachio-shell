@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LocalSend, sending</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font:inherit}
+</style>
+</helmet>
+<div style="position:relative;width:720px;height:640px;overflow:hidden;background:#0D0F09;font-family:'Manrope',system-ui,sans-serif;color:#E5E9D8">
+
+  <section aria-label="LocalSend, sending" style="position:absolute;left:300px;bottom:84px;width:380px;box-sizing:border-box;padding:20px;display:flex;flex-direction:column;gap:16px;border-radius:28px;background:#1D2016;border:1px solid #39412A;box-shadow:0 18px 44px rgba(0,0,0,.6)">
+    <div style="display:flex;align-items:center;gap:8px;height:44px;margin:-4px 0 -4px -8px">
+      <button type="button" aria-label="Back to quick settings" style="width:44px;height:44px;border:0;border-radius:22px;background:none;color:#E5E9D8;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="m15 18-6-6 6-6"/></svg></button>
+      <h2 style="margin:0;flex:1;font-size:17px;font-weight:800;color:#F6F8EF">Sending</h2>
+      
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;padding:14px;border-radius:20px;background:#2A2F1F">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="width:36px;height:36px;border-radius:18px;background:#39412A;color:#7DA3B3;display:flex;align-items:center;justify-content:center;flex:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg></span>
+        <span style="flex:1;display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;font-weight:800;color:#F6F8EF">To iPhone</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:500;color:#A3B08F">192.168.1.24</span></span>
+        <span style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;color:#F6F8EF">62%</span>
+      </div>
+      <div role="progressbar" aria-label="Sending to iPhone" aria-valuemin="0" aria-valuemax="100" aria-valuenow="62" style="display:flex;flex-direction:column;gap:8px">
+        <span style="display:block;position:relative;height:10px;border-radius:5px;background:#15170F"><span style="position:absolute;left:0;top:0;bottom:0;width:62%;border-radius:5px;background:#9FD88A"></span></span>
+        <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#A3B08F;font-variant-numeric:tabular-nums"><span>136 of 219 MB</span><span>24 MB/s · 3 s left</span></div>
+      </div>
+    </div>
+    <ul aria-label="Files" style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px">
+        <li style="display:flex;align-items:center;gap:12px;height:44px">
+          <span style="width:36px;height:36px;border-radius:18px;background:#39412A;color:#E0B15E;display:flex;align-items:center;justify-content:center;flex:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+          <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;font-weight:700;line-height:17px;color:#F6F8EF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">report-q3.pdf</span><span style="font-size:11px;font-weight:600;color:#A3B08F">4.2 MB · sent</span></span>
+          <span style="width:28px;height:28px;border-radius:14px;background:#39412A;color:#7FC9A8;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>
+        </li>
+        <li style="display:flex;align-items:center;gap:12px;height:44px">
+          <span style="width:36px;height:36px;border-radius:18px;background:#39412A;color:#7FC9A8;display:flex;align-items:center;justify-content:center;flex:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg></span>
+          <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;font-weight:700;line-height:17px;color:#F6F8EF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">demo.mp4</span><span style="font-size:11px;font-weight:600;color:#A3B08F">212 MB · sending</span></span>
+          <span style="width:28px;height:28px;font-size:11px;font-weight:800;color:#F6F8EF;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">62%</span>
+        </li>
+        <li style="display:flex;align-items:center;gap:12px;height:44px">
+          <span style="width:36px;height:36px;border-radius:18px;background:#39412A;color:#7DA3B3;display:flex;align-items:center;justify-content:center;flex:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>
+          <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;font-weight:700;line-height:17px;color:#F6F8EF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">IMG_2041.jpg</span><span style="font-size:11px;font-weight:600;color:#A3B08F">3.1 MB · waiting</span></span>
+          <span style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#A3B08F"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+        </li>
+    </ul>
+    <button type="button" style="height:44px;border:0;border-radius:22px;background:#2A2F1F;color:#DB8267;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M18 6 6 18M6 6l12 12"/></svg>Cancel transfer</button>
+  </section>
+
+  <!-- Bar, status chip pressed -->
+  <div style="position:absolute;left:40px;bottom:16px;width:640px;height:56px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:8px;border-radius:28px;background:#1D2016;border:1px solid #39412A;box-shadow:0 14px 36px rgba(0,0,0,.6)">
+    <div style="display:flex;align-items:center;height:40px;padding:0 6px 0 10px">
+      <button type="button" aria-label="Workspace 1" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;background:#A3B08F"></span></button>
+      <button type="button" aria-label="Workspace 2, active" aria-current="true" style="width:34px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:26px;height:8px;border-radius:4px;background:#9FD88A"></span></button>
+      <button type="button" aria-label="Workspace 3" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;background:#A3B08F"></span></button>
+      <button type="button" aria-label="Workspace 4, empty" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;box-sizing:border-box;border:1.5px solid #626F51"></span></button>
+      <button type="button" aria-label="Workspace 5, empty" style="width:20px;height:40px;border:0;padding:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;box-sizing:border-box;border:1.5px solid #626F51"></span></button>
+    </div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:0 4px">
+      <span style="font-size:13px;font-weight:700;line-height:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#F6F8EF">src/main.rs</span>
+      <span style="font-size:11px;font-weight:600;line-height:14px;color:#A3B08F">nvim</span>
+    </div>
+    <button type="button" aria-label="Notifications. 16:31, Monday 2 November" style="display:flex;align-items:center;gap:10px;height:40px;padding:0 16px 0 14px;border:0;border-radius:20px;background:#2A2F1F;color:#E5E9D8;cursor:pointer;text-align:left">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span style="display:flex;flex-direction:column">
+        <span style="font-size:14px;font-weight:800;line-height:17px;font-variant-numeric:tabular-nums;color:#F6F8EF">16:31</span>
+        <span style="font-size:11px;font-weight:600;line-height:14px;color:#A3B08F">Mon 2 Nov</span>
+      </span>
+    </button>
+    <button type="button" aria-expanded="true" aria-label="Quick settings, open" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 16px;border:0;border-radius:20px;background:#39412A;color:#F6F8EF;cursor:pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 20 3-3h2a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2l3 3z"/><path d="M6 8v1"/><path d="M10 8v1"/><path d="M14 8v1"/><path d="M18 8v1"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+    </button>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

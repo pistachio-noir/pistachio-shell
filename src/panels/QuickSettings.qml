@@ -20,7 +20,8 @@ PanelWindow {
     }
 
     property bool open
-    property string popup // the card over the panel: "schedule", "dnd", "bluetooth" or ""
+    property string popup // the card over the panel: "schedule", "dnd", "bluetooth", "localsend" or ""
+    property string page // in place of the usual content: "localsend" or ""
 
     signal powerRequested
     signal launcherRequested(string mode)
@@ -45,10 +46,14 @@ PanelWindow {
     }
 
     onOpenChanged: {
-        if (open)
+        if (open) {
             Brightness.refresh();
-        else
+            if (LocalSend.sendRunning)
+                page = "localsend"; // back where the transfer shows
+        } else {
             popup = "";
+            page = "";
+        }
     }
 
     Reveal {
@@ -74,7 +79,7 @@ PanelWindow {
         x: shadow.side + root.slide * (1 - reveal.progress)
         y: shadow.above
         width: 380
-        height: content.implicitHeight + 40
+        height: (root.page === "localsend" ? localSendPage.implicitHeight : content.implicitHeight) + 40
         radius: Theme.panelRadius
         color: Theme.surface
         border.width: 1
@@ -87,15 +92,30 @@ PanelWindow {
         Keys.onEscapePressed: {
             if (root.popup)
                 root.popup = "";
+            else if (root.page)
+                root.page = "";
             else if (Showoff.active)
                 Showoff.stop(); // the panels hold the keyboard meanwhile: Esc ends showoff mode
             else
                 root.open = false;
         }
 
+        LocalSendPage {
+            id: localSendPage
+
+            visible: root.page === "localsend"
+            x: 20
+            y: 20
+            width: parent.width - 40
+            onBack: root.page = ""
+            onSettingsRequested: root.popup = "localsend"
+            onVisibleChanged: if (visible && !LocalSend.sendRunning) LocalSend.scan()
+        }
+
         Column {
             id: content
 
+            visible: root.page === ""
             x: 20
             y: 20
             width: parent.width - 40
@@ -139,6 +159,97 @@ PanelWindow {
                     subtitle: NightLight.status
                     onClicked: NightLight.setEnabled(!NightLight.enabled)
                     onRightClicked: root.popup = "schedule"
+                }
+            }
+
+            // LocalSend, while its app is installed (board quick-settings-localsend): opens its page
+            Rectangle {
+                visible: LocalSend.available
+                width: parent.width
+                height: 64
+                radius: Theme.tileRadius
+                color: Theme.overlay
+                Accessible.role: Accessible.Button
+                Accessible.name: `LocalSend, ${LocalSend.summary}. Open`
+
+                Rectangle {
+                    id: localSendDisc
+                    x: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 36
+                    height: 36
+                    radius: 18
+                    color: LocalSend.receiving ? Theme.pistachio : Theme.overlay2
+
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: Theme.hoverDuration
+                            easing.type: Theme.easing
+                        }
+                    }
+
+                    Icon {
+                        anchors.centerIn: parent
+                        paths: Icons.share
+                        color: LocalSend.receiving ? Theme.bg : Theme.subtext
+                    }
+                }
+
+                Column {
+                    anchors.left: localSendDisc.right
+                    anchors.leftMargin: 12
+                    anchors.right: localSendChevron.left
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Text {
+                        text: "LocalSend"
+                        color: Theme.textBright
+                        font.family: Theme.fontUi
+                        font.pixelSize: 13
+                        font.weight: Font.Bold
+                        lineHeight: 17
+                        lineHeightMode: Text.FixedHeight
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: LocalSend.summary
+                        textFormat: Text.PlainText
+                        elide: Text.ElideRight
+                        color: Theme.subtext
+                        font.family: Theme.fontUi
+                        font.pixelSize: 11
+                        font.weight: Font.DemiBold
+                        lineHeight: 14
+                        lineHeightMode: Text.FixedHeight
+                    }
+                }
+
+                Icon {
+                    id: localSendChevron
+                    anchors.right: parent.right
+                    anchors.rightMargin: 21
+                    anchors.verticalCenter: parent.verticalCenter
+                    paths: Icons.chevronRight
+                    color: Theme.subtext
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.page = "localsend"
+                }
+
+                // the disc itself switches receiving, like the page's Receive files (owner's request)
+                MouseArea {
+                    anchors.centerIn: localSendDisc
+                    width: 44
+                    height: 44
+                    cursorShape: Qt.PointingHandCursor
+                    Accessible.role: Accessible.CheckBox
+                    Accessible.name: "Receive files"
+                    Accessible.checked: LocalSend.receiving
+                    onClicked: LocalSend.setReceive(!LocalSend.receiving)
                 }
             }
 
@@ -601,6 +712,150 @@ PanelWindow {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.launcherRequested("bluetooth")
                 }
+            }
+        }
+
+        // LocalSend's settings (the sliders on its page): the name others see, where files go, and
+        // accepting known devices without a question. Laid out like the Bluetooth card (owner's call).
+        Popover {
+            open: root.popup === "localsend"
+            title: "LocalSend settings"
+            onDismissed: root.popup = ""
+
+            Text {
+                width: parent.width
+                height: 36
+                verticalAlignment: Text.AlignVCenter
+                text: "LocalSend settings"
+                color: Theme.textBright
+                font.family: Theme.fontUi
+                font.pixelSize: 14
+                font.weight: Font.Bold
+            }
+
+            Text {
+                text: "Device name"
+                leftPadding: 4
+                color: Theme.subtext
+                font.family: Theme.fontUi
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+            }
+
+            Rectangle {
+                width: parent.width
+                height: 44
+                radius: 22
+                color: Theme.bg
+
+                TextInput {
+                    id: nameField
+                    anchors.fill: parent
+                    leftPadding: 16
+                    rightPadding: 16
+                    verticalAlignment: TextInput.AlignVCenter
+                    text: LocalSend.name
+                    maximumLength: 40
+                    clip: true
+                    color: Theme.text
+                    selectionColor: Theme.overlay2
+                    selectedTextColor: Theme.textBright
+                    font.family: Theme.fontUi
+                    font.pixelSize: 13
+                    font.weight: Font.DemiBold
+                    Accessible.name: "Device name"
+                    onEditingFinished: LocalSend.setName(text || LocalSend.hostName)
+                }
+            }
+
+            Item {
+                width: parent.width
+                height: 52
+
+                Column {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 4
+                    anchors.right: changeFolder.left
+                    anchors.rightMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+
+                    Text {
+                        text: "Save to"
+                        color: Theme.textBright
+                        font.family: Theme.fontUi
+                        font.pixelSize: 13
+                        font.weight: Font.Bold
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: LocalSend.folderShown
+                        textFormat: Text.PlainText
+                        elide: Text.ElideMiddle
+                        color: Theme.subtext
+                        font.family: Theme.fontMono
+                        font.pixelSize: 11
+                        font.weight: Font.Medium
+                    }
+                }
+
+                ActionButton {
+                    id: changeFolder
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Change"
+                    base: Theme.overlay2
+                    onClicked: LocalSend.pickFolder()
+                }
+            }
+
+            Item {
+                width: parent.width
+                height: 52
+
+                Column {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 4
+                    anchors.right: knownSwitch.left
+                    anchors.rightMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+
+                    Text {
+                        text: "Accept known devices"
+                        color: Theme.textBright
+                        font.family: Theme.fontUi
+                        font.pixelSize: 13
+                        font.weight: Font.Bold
+                    }
+
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: "No question from devices you've accepted before"
+                        color: Theme.subtext
+                        font.family: Theme.fontUi
+                        font.pixelSize: 11
+                        font.weight: Font.DemiBold
+                    }
+                }
+
+                Switch {
+                    id: knownSwitch
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    checked: LocalSend.acceptKnown
+                    Accessible.name: "Accept known devices"
+                    onToggled: LocalSend.setAcceptKnown(!LocalSend.acceptKnown)
+                }
+            }
+
+            ActionButton {
+                visible: LocalSend.known.length > 0
+                text: `Forget ${LocalSend.known.length} known ${LocalSend.known.length === 1 ? "device" : "devices"}`
+                base: Theme.overlay2
+                onClicked: LocalSend.forgetKnown()
             }
         }
     }

@@ -24,6 +24,91 @@ Singleton {
         active: w.active
     }))
 
+    // the workspace on screen, for the workspace OSD and the bar's scroll
+    readonly property int activeWorkspace: Hyprland.focusedWorkspace?.id ?? 1
+
+    // Workspace names (owner's request, 3 November 2026): the shell keeps them, not Hyprland, which
+    // drops an empty workspace and its name as you leave it. They live in the runtime folder, so a
+    // reload keeps them and logging out or a reboot clears them, as the owner wanted.
+    readonly property var names: namesFile.adapter.names ?? ({})
+
+    function nameOf(id: int): string {
+        return names[String(id)] ?? "";
+    }
+
+    function setName(id: int, name: string) {
+        const next = {};
+        for (const [k, v] of Object.entries(names))
+            if (k !== String(id))
+                next[k] = v;
+        if (name.trim())
+            next[String(id)] = name.trim();
+        namesFile.adapter.names = next;
+        namesFile.writeAdapter();
+    }
+
+    // Presets (owner's request, 3 November 2026): every workspace's name, kept for good in Store, and,
+    // when saved with them, the apps open on every workspace, opened again there on loading (in the
+    // background, skipping one that already has a window on its workspace).
+    readonly property var presets: Store.saved.workspacePresets ?? []
+
+    function entryOf(appId: string): string {
+        return appId ? DesktopEntries.heuristicLookup(appId)?.id ?? "" : ""; // ("" would find some app)
+    }
+
+    function savePreset(name: string, withApps: bool) {
+        const apps = {};
+        if (withApps)
+            for (const w of windows) {
+                const id = String(w.workspace), entry = entryOf(w.appId);
+                if (w.workspace > 0 && entry && !(apps[id] ?? []).includes(entry))
+                    apps[id] = (apps[id] ?? []).concat([entry]);
+            }
+        Store.saved.workspacePresets = presets.filter(p => p.name !== name).concat([{ name: name, names: Object.assign({}, names), apps: apps }]);
+    }
+
+    function loadPreset(preset) {
+        namesFile.adapter.names = Object.assign({}, preset.names);
+        namesFile.writeAdapter();
+        const quote = a => /^[\w@%+=:,.\/-]+$/.test(a) ? a : `'${a.replace(/'/g, "'\\''")}'`;
+        for (const [id, ids] of Object.entries(preset.apps ?? {}))
+            for (const entryId of ids) {
+                if (windows.some(w => String(w.workspace) === id && entryOf(w.appId) === entryId))
+                    continue;
+                const entry = DesktopEntries.byId(entryId);
+                if (entry)
+                    exec((entry.runInTerminal ? Apps.inTerminal(entry.command, false, "") : entry.command).map(quote).join(" "), { workspace: `${id} silent` });
+            }
+    }
+
+    function deletePreset(name: string) {
+        Store.saved.workspacePresets = presets.filter(p => p.name !== name);
+    }
+
+    // For keybinds: qs -c pistachio ipc call workspace name "music" (empty clears it), workspace preset Work
+    IpcHandler {
+        target: "workspace"
+
+        function name(text: string): void {
+            root.setName(root.activeWorkspace, text);
+        }
+
+        function preset(name: string): void {
+            const p = root.presets.find(x => x.name.toLowerCase() === name.toLowerCase());
+            if (p)
+                root.loadPreset(p);
+        }
+    }
+
+    FileView {
+        id: namesFile
+        path: `${Quickshell.env("XDG_RUNTIME_DIR")}/pistachio-workspace-names.json`
+        printErrors: false // none yet after a login
+        adapter: JsonAdapter {
+            property var names: ({})
+        }
+    }
+
     // Hyprland.activeToplevel stays null until the first focus change; the Wayland one is right from the start.
     readonly property Toplevel focusedWindow: ToplevelManager.activeToplevel
     // the focused window fills the screen (a game, a video): toasts wait meanwhile

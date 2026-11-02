@@ -26,7 +26,7 @@ PanelWindow {
     readonly property bool fullscreen: Compositor.fullscreen
     // Stays up while pointed (even if a window moves under it), for a moment after, long enough to
     // cross the gap to the tray pill, and while a panel or a tray menu is open.
-    readonly property bool shown: !held && (!fullscreen && (!overlapped || pointed || linger.running) || tray.menuOpen || media.cardOpen || quickSettings.open || centre.open || Showoff.active)
+    readonly property bool shown: !held && (!fullscreen && (!overlapped || pointed || linger.running || peekTimer.running) || tray.menuOpen || media.cardOpen || quickSettings.open || centre.open || Showoff.active)
 
     // The startup animation (owner's request, after phase 8; shell.qml): as the shell starts, the bar
     // and its pills wait as the handle while the wallpaper fades in, then grow out of it. Not on a
@@ -95,6 +95,12 @@ PanelWindow {
         interval: 400
     }
 
+    // `bar peek` (owner's request, 3 November 2026): out for 2 s, for a keybind; not over fullscreen
+    Timer {
+        id: peekTimer
+        interval: 2000
+    }
+
     // quick settings asks for a launcher mode; shell.qml owns the launcher
     signal launcherRequested(string mode)
 
@@ -110,6 +116,16 @@ PanelWindow {
     // out. A click outside doesn't close them meanwhile.
     readonly property int stageMargin: 48
     property bool staged
+
+    // the desktop's "Send with LocalSend" and `psc localsend add|open`: its page, in quick settings
+    Connections {
+        target: LocalSend
+
+        function onOpenRequested() {
+            quickSettings.page = "localsend";
+            quickSettings.open = true;
+        }
+    }
 
     Connections {
         target: Showoff
@@ -334,7 +350,7 @@ PanelWindow {
     // only the bottom edge is anchored, so the compositor centres it, like the bar
     Toasts {
         id: toasts
-        visible: Notifs.popups.length > 0 && !centre.open
+        visible: Notifs.popups.length > 0 && !centre.open || LocalSend.toastShown
         anchors.bottom: true
         margins.bottom: root.height + 16 - toasts.below
     }
@@ -362,6 +378,15 @@ PanelWindow {
 
         function toggle(): void {
             root.toggle(quickSettings);
+        }
+    }
+
+    // For a keybind: qs -c pistachio ipc call bar peek
+    IpcHandler {
+        target: "bar"
+
+        function peek(): void {
+            peekTimer.restart();
         }
     }
 

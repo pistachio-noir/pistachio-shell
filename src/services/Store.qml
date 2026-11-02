@@ -30,6 +30,8 @@ Singleton {
         property bool headphonesTakeOver: true // Bluetooth headphones become the output as they connect
         property bool frosted // see-through bar and panels, blurred by Hyprland (needs the owner's layer rule)
         property bool volumeTick: true // a short click as the volume changes
+        property bool workspaceOsd: true // the OSD names the workspace on a switch
+        property var workspacePresets: [] // { name, names: { "2": "code" }, apps: { "2": [desktop entry ids] } }
         property string frostStyle: "subtle" // or "glassy"
         property bool notificationSound: true // a soft sound with each toast
         property var launches: ({}) // app id -> its last launches (ms since epoch), at most 10, oldest first
@@ -42,6 +44,11 @@ Singleton {
         property var wallpaperFits: ({}) // image path -> "fill", "fit", "center" or "tile"
         property bool desktopIcons: true // the Desktop folder's files and folders on the wallpaper
         property var desktopPositions: ({}) // a desktop icon's name -> [column, row]
+        property bool localsendReceive // LocalSend: others on the network may send here (off until switched on)
+        property string localsendName // the name others see; "" for the hostname
+        property string localsendFolder // where received files go; "" for ~/Downloads
+        property bool localsendAcceptKnown // accept at once from devices accepted before
+        property var localsendKnown: [] // their fingerprints
         property var notifications: [] // newest first, plain records
     }
 

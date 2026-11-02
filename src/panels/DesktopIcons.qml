@@ -71,6 +71,68 @@ Item {
     readonly property bool menuOpen: root.menu !== null // (root.: the menu's view below has its own id)
 
     signal renameRequested(var item)
+
+    // Keys (owner's pick, 3 November 2026), once a click has given the desktop the keyboard, which it
+    // takes only on a workspace without windows (Wallpaper.qml): the arrows move to the nearest icon
+    // that way, Enter opens, Delete trashes, F2 renames, Ctrl+A selects all, Esc lets go.
+    focus: true
+    Keys.onPressed: event => root.key(event)
+
+    function key(event) {
+        const ctrl = event.modifiers & Qt.ControlModifier;
+        const chosen = selectedItems;
+        event.accepted = true;
+        if (event.key === Qt.Key_Escape) {
+            if (root.menu)
+                root.menu = null;
+            else
+                root.selection = [];
+        } else if (ctrl && event.key === Qt.Key_A) {
+            selection = Desktop.items.map(i => i.name);
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            chosen.forEach(i => Desktop.open(i));
+        } else if (event.key === Qt.Key_Delete) {
+            if (chosen.length)
+                Desktop.trash(chosen);
+            selection = [];
+        } else if (event.key === Qt.Key_F2) {
+            if (chosen.length === 1)
+                renameRequested(chosen[0]);
+        } else {
+            const way = ({ [Qt.Key_Left]: [-1, 0], [Qt.Key_Right]: [1, 0], [Qt.Key_Up]: [0, -1], [Qt.Key_Down]: [0, 1] })[event.key];
+            if (way)
+                step(way[0], way[1]);
+            else
+                event.accepted = false;
+        }
+    }
+
+    // the nearest icon that way from the last one selected (the first in the grid when none is)
+    function step(dx: int, dy: int) {
+        const at = name => layout[name] ?? [0, 0];
+        if (!selection.length) {
+            const first = Desktop.items.slice().sort((a, b) => at(a.name)[0] - at(b.name)[0] || at(a.name)[1] - at(b.name)[1])[0];
+            if (first)
+                selection = [first.name];
+            return;
+        }
+        const from = at(selection[selection.length - 1]);
+        let best = null, score = Infinity;
+        for (const item of Desktop.items) {
+            const c = at(item.name);
+            const along = (c[0] - from[0]) * dx + (c[1] - from[1]) * dy; // how far that way
+            const across = Math.abs(dx ? c[1] - from[1] : c[0] - from[0]);
+            if (along <= 0)
+                continue;
+            const s = along * 10 + across * 11;
+            if (s < score) {
+                score = s;
+                best = item;
+            }
+        }
+        if (best)
+            selection = [best.name];
+    }
     signal newFolderRequested(var cell)
     signal wallpapersRequested
 
@@ -149,6 +211,7 @@ Item {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onPressed: mouse => {
+            root.forceActiveFocus(); // for the keys, once the layer has the keyboard
             pressedAt = Qt.point(mouse.x, mouse.y);
             root.boxBase = root.selection;
         }
@@ -321,6 +384,7 @@ Item {
                 // Ctrl+click adds or takes away this one; a press on one not yet selected selects it
                 // alone (a press on a selected one keeps the rest, to drag them along)
                 onPressed: mouse => {
+                    root.forceActiveFocus();
                     const name = icon.modelData.name;
                     icon.toggled = mouse.button === Qt.LeftButton && !!(mouse.modifiers & Qt.ControlModifier);
                     if (icon.toggled)
@@ -417,6 +481,12 @@ Item {
 
     // The menu, drawn by the shell as the tray's is, at the click and kept on the screen; it goes
     // with a click elsewhere on the desktop (Wallpaper.qml also closes it on a click in a window).
+    // the desktop's items into LocalSend's list, and its page open in quick settings
+    function sendWithLocalSend(items) {
+        LocalSend.add(items.map(i => i.path));
+        LocalSend.openRequested();
+    }
+
     Item {
         id: menuView
 
@@ -431,14 +501,14 @@ Item {
                     { text: `Open ${several.length} items`, glyph: Icons.folderOpen, run: () => several.forEach(i => Desktop.open(i)) },
                     { text: `Move ${several.length} items to trash`, glyph: Icons.trash, danger: true, run: () => Desktop.trash(several) },
                     { text: "Show in file manager", glyph: Icons.folder, run: () => Desktop.showFolder() }
-                ];
+                ].concat(LocalSend.available ? [{ text: `Send ${several.length} items with LocalSend`, glyph: Icons.share, run: () => root.sendWithLocalSend(several) }] : []);
             if (m.item)
                 return [
                     { text: m.item.app ? "Launch" : "Open", glyph: Icons.folderOpen, run: () => Desktop.open(m.item) },
                     { text: "Rename…", glyph: Icons.pencil, run: () => root.renameRequested(m.item) },
                     { text: "Move to trash", glyph: Icons.trash, danger: true, run: () => Desktop.trash([m.item]) },
                     { text: "Show in file manager", glyph: Icons.folder, run: () => Desktop.showFolder() }
-                ];
+                ].concat(LocalSend.available && !m.item.app ? [{ text: "Send with LocalSend", glyph: Icons.share, run: () => root.sendWithLocalSend([m.item]) }] : []);
             return [
                 { text: "New folder…", glyph: Icons.folderPlus, run: () => root.newFolderRequested(m.cell) },
                 { text: "Open Desktop folder", glyph: Icons.folderOpen, run: () => Desktop.showFolder() },

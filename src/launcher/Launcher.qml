@@ -430,7 +430,7 @@ PanelWindow {
         const a = streams.filter(keep), d = devices.filter(keep), i = inputs.filter(keep);
         // the machine's load (owner's request; not on a board): readings, not controls, so the keys
         // pass them by; the GPU once nvidia-smi has answered
-        const stats = [{ kind: "stat", key: "cpu", title: "CPU" }, { kind: "stat", key: "memory", title: "Memory" }];
+        const stats = [{ kind: "stat", key: "cpu", title: "CPU" }, { kind: "stat", key: "memory", title: "Memory" }, { kind: "stat", key: "shell", title: "Shell" }];
         if (SystemStats.gpuFound)
             stats.push({ kind: "stat", key: "gpu", title: "GPU" });
         // free space (owner's request, after phase 8): one row when /home is on the root filesystem
@@ -438,25 +438,39 @@ PanelWindow {
         for (const m of mounts)
             stats.push({ kind: "stat", key: "disk:" + m, title: mounts.length === 1 ? "Disk" : m === "/" ? "System disk" : "Home" });
         const monitor = card("System monitor", q, stats);
-        // the shell's own look, at the end (owner's request; not on the board)
-        const shell = card("Shell settings", q, [
-            { kind: "switch", key: "frosted", title: "Frosted panels", icon: Icons.layers, on: () => ShellSettings.frosted, status: () => ShellSettings.frosted ? "See-through bar and panels, blurred behind" : "Off: needs a line in Hyprland's config (README)", toggle: () => ShellSettings.setFrosted(!ShellSettings.frosted) },
-            ...(ShellSettings.frosted ? [{ kind: "switch", key: "glassy", title: "Glassy", icon: Icons.sparkles, on: () => ShellSettings.glassy, status: () => ShellSettings.glassy ? "More see-through, less contrast" : "Subtle: easier to read", toggle: () => ShellSettings.setGlassy(!ShellSettings.glassy) }] : []),
-            { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) },
-            { kind: "wplink", key: "wplink", title: "Wallpapers", subtitle: Wallpapers.current.split("/").pop() || "None", glyph: Icons.image },
-            { kind: "showoff", key: "showoff", title: "Showoff mode", subtitle: "Everything open for a screenshot, private things hidden", glyph: Icons.sparkles },
-            { kind: "aboutlink", key: "about", title: "About", subtitle: "Pistachio Noir Shell: version, commit, Quickshell and Hyprland", glyph: Icons.info },
-            { kind: "termlink", key: "terminal", title: "Terminal", subtitle: Apps.terminalName(Apps.terminal), glyph: Icons.terminal },
-            { kind: "setting", key: "weatherCity", title: "Weather location", subtitle: Weather.placeName, glyph: Icons.mapPin, setting: weatherSetting },
-            { kind: "switch", key: "desktopIcons", title: "Desktop icons", icon: Icons.folder, on: () => Desktop.enabled, status: () => Desktop.enabled ? "The Desktop folder, on the wallpaper" : "Off", toggle: () => Desktop.setEnabled(!Desktop.enabled) },
-            { kind: "switch", key: "workspaceOsd", title: "Workspace OSD", icon: Icons.layers, on: () => ShellSettings.workspaceOsd, status: () => ShellSettings.workspaceOsd ? "Shows which workspace you switched to" : "Off", toggle: () => ShellSettings.setWorkspaceOsd(!ShellSettings.workspaceOsd) },
-            { kind: "switch", key: "volumeTick", title: "Volume tick", icon: Icons.volume, on: () => ShellSettings.volumeTick, status: () => ShellSettings.volumeTick ? "A short click as the volume changes" : "Off", toggle: () => ShellSettings.setVolumeTick(!ShellSettings.volumeTick) },
-            { kind: "switch", key: "notificationSound", title: "Notification sound", icon: Icons.volume, on: () => ShellSettings.notificationSound, status: () => ShellSettings.notificationSound ? "A soft sound with each toast" : "Off", toggle: () => ShellSettings.setNotificationSound(!ShellSettings.notificationSound) },
-            { kind: "switch", key: "quietFullscreen", title: "Quiet in fullscreen", icon: Icons.bellOff, on: () => ShellSettings.quietFullscreen, status: () => ShellSettings.quietFullscreen ? "Toasts wait while a fullscreen window has focus" : "Off", toggle: () => ShellSettings.setQuietFullscreen(!ShellSettings.quietFullscreen) },
-            { kind: "switch", key: "headphonesTakeOver", title: "Headphones take over", icon: Icons.headphones, on: () => ShellSettings.headphonesTakeOver, status: () => ShellSettings.headphonesTakeOver ? "Bluetooth headphones get the sound as they connect" : "Off: the output stays as you chose", toggle: () => ShellSettings.setHeadphonesTakeOver(!ShellSettings.headphonesTakeOver) },
-            { kind: "switch", key: "quietCalls", title: "Quiet during calls", icon: Icons.mic, on: () => ShellSettings.quietCalls, status: () => ShellSettings.quietCalls ? "Toasts wait while an app uses the microphone" : "Off", toggle: () => ShellSettings.setQuietCalls(!ShellSettings.quietCalls) }
-        ]);
-        return cards.concat(drives.length ? [section("Drives")].concat(drives) : [], a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(i.length ? [section("Input device")].concat(i) : []).concat(monitor.length ? [section("System monitor")].concat(monitor) : []).concat(shell.length ? [section("Shell settings")].concat(shell) : []);
+        // the shell's own settings (owner's request, not on the board), in groups (owner's request, 3 November 2026)
+        const shellGroups = [
+            ["Look", [
+                { kind: "switch", key: "frosted", title: "Frosted panels", icon: Icons.layers, on: () => ShellSettings.frosted, status: () => ShellSettings.frosted ? "See-through bar and panels, blurred behind" : "Off: needs a line in Hyprland's config (README)", toggle: () => ShellSettings.setFrosted(!ShellSettings.frosted) },
+                ...(ShellSettings.frosted ? [{ kind: "switch", key: "glassy", title: "Glassy", icon: Icons.sparkles, on: () => ShellSettings.glassy, status: () => ShellSettings.glassy ? "More see-through, less contrast" : "Subtle: easier to read", toggle: () => ShellSettings.setGlassy(!ShellSettings.glassy) }] : []),
+                { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) },
+                { kind: "wplink", key: "wplink", title: "Wallpapers", subtitle: Wallpapers.current.split("/").pop() || "None", glyph: Icons.image },
+                { kind: "switch", key: "desktopIcons", title: "Desktop icons", icon: Icons.folder, on: () => Desktop.enabled, status: () => Desktop.enabled ? "The Desktop folder, on the wallpaper" : "Off", toggle: () => Desktop.setEnabled(!Desktop.enabled) },
+                { kind: "switch", key: "workspaceOsd", title: "Workspace OSD", icon: Icons.layers, on: () => ShellSettings.workspaceOsd, status: () => ShellSettings.workspaceOsd ? "Shows which workspace you switched to" : "Off", toggle: () => ShellSettings.setWorkspaceOsd(!ShellSettings.workspaceOsd) }
+            ]],
+            ["Sound", [
+                { kind: "switch", key: "volumeTick", title: "Volume tick", icon: Icons.volume, on: () => ShellSettings.volumeTick, status: () => ShellSettings.volumeTick ? "A short click as the volume changes" : "Off", toggle: () => ShellSettings.setVolumeTick(!ShellSettings.volumeTick) },
+                { kind: "switch", key: "notificationSound", title: "Notification sound", icon: Icons.volume, on: () => ShellSettings.notificationSound, status: () => ShellSettings.notificationSound ? "A soft sound with each toast" : "Off", toggle: () => ShellSettings.setNotificationSound(!ShellSettings.notificationSound) },
+                { kind: "switch", key: "headphonesTakeOver", title: "Headphones take over", icon: Icons.headphones, on: () => ShellSettings.headphonesTakeOver, status: () => ShellSettings.headphonesTakeOver ? "Bluetooth headphones get the sound as they connect" : "Off: the output stays as you chose", toggle: () => ShellSettings.setHeadphonesTakeOver(!ShellSettings.headphonesTakeOver) }
+            ]],
+            ["Quiet", [
+                { kind: "switch", key: "quietFullscreen", title: "Quiet in fullscreen", icon: Icons.bellOff, on: () => ShellSettings.quietFullscreen, status: () => ShellSettings.quietFullscreen ? "Toasts wait while a fullscreen window has focus" : "Off", toggle: () => ShellSettings.setQuietFullscreen(!ShellSettings.quietFullscreen) },
+                { kind: "switch", key: "quietCalls", title: "Quiet during calls", icon: Icons.mic, on: () => ShellSettings.quietCalls, status: () => ShellSettings.quietCalls ? "Toasts wait while an app uses the microphone" : "Off", toggle: () => ShellSettings.setQuietCalls(!ShellSettings.quietCalls) }
+            ]],
+            ["Apps and places", [
+                { kind: "termlink", key: "terminal", title: "Terminal", subtitle: Apps.terminalName(Apps.terminal), glyph: Icons.terminal },
+                { kind: "setting", key: "weatherCity", title: "Weather location", subtitle: Weather.placeName, glyph: Icons.mapPin, setting: weatherSetting }
+            ]],
+            ["More", [
+                { kind: "showoff", key: "showoff", title: "Showoff mode", subtitle: "Everything open for a screenshot, private things hidden", glyph: Icons.sparkles },
+                { kind: "aboutlink", key: "about", title: "About", subtitle: "Pistachio Noir Shell: version, commit, Quickshell and Hyprland", glyph: Icons.info }
+            ]]
+        ];
+        const shell = shellGroups.reduce((all, [name, rows]) => {
+            const c = card(`Shell settings ${name}`, q, rows);
+            return c.length ? all.concat([section(`Shell settings · ${name}`)], c) : all;
+        }, []);
+        return cards.concat(drives.length ? [section("Drives")].concat(drives) : [], a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(i.length ? [section("Input device")].concat(i) : []).concat(monitor.length ? [section("System monitor")].concat(monitor) : []).concat(shell);
     }
 
     function bluetoothRows(q: string): var {
@@ -1398,6 +1412,98 @@ PanelWindow {
                     height: Math.min(contentHeight, 440)
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
+
+                    // A scroll bar while the mouse is in use (owner's request, 3 November 2026): it shows
+                    // as the pointer moves over the list or the list is scrolled by wheel or drag, and
+                    // fades a second later; it sits in the panel's margin right of the rows. Drag it, or
+                    // click its track, to scroll.
+                    HoverHandler {
+                        id: listHover
+                    }
+
+                    Item {
+                        id: scrollBar
+
+                        readonly property bool needed: list.contentHeight > list.height + 1
+                        readonly property point at: listHover.point.position
+                        property bool awake
+
+                        function wake() {
+                            awake = true;
+                            sleep.restart();
+                        }
+
+                        parent: list.parent // not in the list, which clips and scrolls its rows
+                        x: list.x + list.width + 1
+                        y: list.y
+                        width: 6
+                        height: list.height
+                        visible: opacity > 0
+                        opacity: needed && (awake || dragArea.containsMouse || dragArea.pressed) ? 1 : 0
+                        onAtChanged: if (listHover.hovered) wake()
+
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: Theme.motionDuration
+                                easing.type: Theme.easing
+                            }
+                        }
+
+                        Connections {
+                            target: list
+                            function onMovingChanged() {
+                                if (list.moving)
+                                    scrollBar.wake();
+                            }
+                        }
+
+                        Timer {
+                            id: sleep
+                            interval: 1000
+                            onTriggered: scrollBar.awake = false
+                        }
+
+                        Rectangle {
+                            id: thumb
+                            width: parent.width
+                            height: Math.max(32, parent.height * list.height / Math.max(1, list.contentHeight))
+                            y: (parent.height - height) * Math.min(1, Math.max(0, (list.contentY - list.originY) / Math.max(1, list.contentHeight - list.height)))
+                            radius: 3
+                            color: dragArea.containsMouse || dragArea.pressed ? Theme.subtext : Theme.overlay2
+
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: Theme.hoverDuration
+                                    easing.type: Theme.easing
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            id: dragArea
+
+                            property real grabbed // where on the thumb it was taken
+
+                            function scrollTo(y: real) {
+                                const room = Math.max(1, scrollBar.height - thumb.height);
+                                list.contentY = list.originY + Math.max(0, Math.min(1, (y - grabbed) / room)) * (list.contentHeight - list.height);
+                            }
+
+                            x: -4
+                            width: parent.width + 8 // a wider target than the 6 px bar
+                            height: parent.height
+                            enabled: scrollBar.visible
+                            hoverEnabled: true
+                            onPressed: mouse => {
+                                grabbed = mouse.y >= thumb.y && mouse.y <= thumb.y + thumb.height ? mouse.y - thumb.y : thumb.height / 2;
+                                scrollTo(mouse.y);
+                            }
+                            onPositionChanged: mouse => {
+                                if (pressed)
+                                    scrollTo(mouse.y);
+                            }
+                        }
+                    }
                     // The selection: one chip under the rows that glides from row to row (the rows don't
                     // draw their own). Grid rows and questions mark their choice inside, so it fades out
                     // on them.
@@ -2170,9 +2276,11 @@ PanelWindow {
                                 readonly property string key: entry.modelData.key
                                 readonly property var disk: key.startsWith("disk:") ? SystemStats.disks.find(d => d.mount === key.slice(5)) ?? null : null
                                 readonly property bool low: disk?.low ?? false
-                                readonly property real load: key === "cpu" ? Math.max(0, SystemStats.cpu) : key === "memory" ? SystemStats.memUsed / Math.max(1, SystemStats.memTotal) : disk ? 1 - disk.free / Math.max(1, disk.size) : SystemStats.gpu
-                                readonly property bool known: key !== "cpu" || SystemStats.cpu >= 0
-                                readonly property string detail: key === "cpu" ? (SystemStats.cpuTemp >= 0 ? `${Math.round(SystemStats.cpuTemp)} °C · ` : "") + SystemStats.cpuName
+                                readonly property real load: key === "shell" ? Math.max(0, SystemStats.shellCpu) : key === "cpu" ? Math.max(0, SystemStats.cpu) : key === "memory" ? SystemStats.memUsed / Math.max(1, SystemStats.memTotal) : disk ? 1 - disk.free / Math.max(1, disk.size) : SystemStats.gpu
+                                readonly property bool known: key === "shell" ? SystemStats.shellCpu >= 0 : key !== "cpu" || SystemStats.cpu >= 0
+                                // the shell's own: its CPU on the meter, its memory (with its helpers) here
+                                readonly property string detail: key === "shell" ? `${SystemStats.shellMem >= 1024 ? (SystemStats.shellMem / 1024).toFixed(1) + " GB" : Math.round(SystemStats.shellMem) + " MB"} memory, with its helpers`
+                                    : key === "cpu" ? (SystemStats.cpuTemp >= 0 ? `${Math.round(SystemStats.cpuTemp)} °C · ` : "") + SystemStats.cpuName
                                     : key === "memory" ? `${SystemStats.memUsed.toFixed(1)} of ${SystemStats.memTotal.toFixed(1)} GB`
                                     : disk ? `${gigabytes(disk.free)} free of ${gigabytes(disk.size)}`
                                     : `${Math.round(SystemStats.gpuTemp)} °C · ${SystemStats.vramUsed.toFixed(1)} of ${SystemStats.vramTotal.toFixed(1)} GB`
@@ -2200,7 +2308,7 @@ PanelWindow {
                                     x: 22
                                     anchors.verticalCenter: parent.verticalCenter
                                     size: 20
-                                    paths: stat.key === "cpu" ? Icons.cpu : stat.key === "memory" ? Icons.memory : stat.disk ? Icons.hardDrive : Icons.gpu
+                                    paths: stat.key === "shell" ? Icons.sparkles : stat.key === "cpu" ? Icons.cpu : stat.key === "memory" ? Icons.memory : stat.disk ? Icons.hardDrive : Icons.gpu
                                     color: stat.low ? Theme.terracotta : Theme.text
                                 }
 

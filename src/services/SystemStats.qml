@@ -16,6 +16,11 @@ Singleton {
     property real cpu: -1 // 0–1; -1 until two readings give a difference
     property real cpuTemp: -1 // °C; -1 without a sensor
     property real memUsed // GiB
+    // the shell itself with its helpers (owner's request, 3 November 2026): CPU 0–1 of the whole
+    // machine (-1 until two readings), memory in MiB
+    property real shellCpu: -1
+    property real shellMem
+    property var lastShell: null // [ticks, ms]
     property real memTotal
     property bool gpuFound
     property string gpuName // e.g. "GeForce GTX 1660"
@@ -55,6 +60,12 @@ Singleton {
                 else if (!last && watching)
                     again.restart(); // the first reading only sets the baseline
                 last = [busy, total];
+            } else if (f[0] === "shell") {
+                const ticks = Number(f[1]), now = Date.now();
+                if (lastShell && now > lastShell[1])
+                    shellCpu = Math.min(1, (ticks - lastShell[0]) / 100 / ((now - lastShell[1]) / 1000) / Math.max(1, Number(f[3])));
+                lastShell = [ticks, now];
+                shellMem = Number(f[2]) / 1024;
             } else if (f[0] === "mem") {
                 memTotal = Number(f[1]) / 1048576;
                 memUsed = (Number(f[1]) - Number(f[2])) / 1048576;

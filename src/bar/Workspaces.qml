@@ -19,18 +19,18 @@ Row {
     }
 
     // scroll over the dots for the next or previous workspace (owner's pick, 3 November 2026); a
-    // touchpad's small steps add up to a notch
+    // touchpad's small steps add up to a notch. Each dot's MouseArea takes the wheel: a WheelHandler
+    // on the row never got it (owner, 5 November).
     property real scrolled
-    WheelHandler {
-        onWheel: event => {
-            root.scrolled += event.angleDelta.y;
-            if (Math.abs(root.scrolled) < 120)
-                return;
-            const next = Compositor.activeWorkspace + (root.scrolled < 0 ? 1 : -1);
-            root.scrolled = 0;
-            if (next >= 1 && next <= root.count)
-                Compositor.goto(next);
-        }
+
+    function scroll(dy: real) {
+        scrolled += dy;
+        if (Math.abs(scrolled) < 120)
+            return;
+        const next = Compositor.activeWorkspace + (scrolled < 0 ? 1 : -1);
+        scrolled = 0;
+        if (next >= 1 && next <= count)
+            Compositor.goto(next);
     }
 
     leftPadding: 10
@@ -90,6 +90,7 @@ Row {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: Compositor.goto(slot.wsId)
+                onWheel: wheel => root.scroll(wheel.angleDelta.y)
                 onContainsMouseChanged: {
                     if (containsMouse)
                         root.hoveredSlot = slot;

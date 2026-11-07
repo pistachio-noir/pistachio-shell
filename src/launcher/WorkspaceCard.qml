@@ -1,4 +1,5 @@
 import qs
+import qs.components
 import qs.services
 import QtQuick
 import QtQuick.Shapes
@@ -13,6 +14,7 @@ Rectangle {
     property size screenSize
 
     signal clicked
+    signal menuRequested(point at)
 
     readonly property bool empty: card.count === 0
 
@@ -56,11 +58,16 @@ Rectangle {
             spacing: 6
 
             Text {
+                // a long name ends in "…", whole in its tooltip (owner, 5 November)
+                width: Math.min(implicitWidth, root.width - 24 - (root.card.active ? 12 : 0))
+                elide: Text.ElideRight
                 text: Compositor.nameOf(root.card.id) ? `${root.card.id} · ${Compositor.nameOf(root.card.id)}` : root.card.id
                 color: root.card.active ? Theme.pistachio : Theme.text
                 font.family: Theme.fontUi
                 font.pixelSize: 14
                 font.weight: Font.ExtraBold
+
+                TipHover {}
             }
 
             Rectangle {
@@ -117,6 +124,8 @@ Rectangle {
                 font.family: Theme.fontUi
                 font.pixelSize: 13
                 font.weight: Font.Bold
+
+                TipHover {}
             }
 
             Text {
@@ -127,13 +136,16 @@ Rectangle {
                 font.family: Theme.fontUi
                 font.pixelSize: 11
                 font.weight: Font.DemiBold
+
+                TipHover {}
             }
         }
     }
 
     MouseArea {
         anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.clicked()
+        onClicked: mouse => mouse.button === Qt.RightButton ? root.menuRequested(mapToItem(null, mouse.x, mouse.y)) : root.clicked()
     }
 }

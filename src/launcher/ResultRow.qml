@@ -26,6 +26,7 @@ Rectangle {
     property int indent // px, for rows under another (an app's actions)
 
     signal clicked
+    signal menuRequested(point at) // a right click, where (in the window)
 
     height: compact ? 56 : 60
     radius: Theme.tileRadius
@@ -36,8 +37,9 @@ Rectangle {
 
     MouseArea {
         anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.clicked()
+        onClicked: mouse => mouse.button === Qt.RightButton ? root.menuRequested(mapToItem(null, mouse.x, mouse.y)) : root.clicked()
     }
 
     Rectangle {
@@ -97,6 +99,8 @@ Rectangle {
             font.weight: Font.Bold
             lineHeight: root.compact ? 19 : 20
             lineHeightMode: Text.FixedHeight
+
+            TipHover {}
         }
 
         Text {
@@ -111,6 +115,8 @@ Rectangle {
             font.weight: Font.Medium
             lineHeight: 16
             lineHeightMode: Text.FixedHeight
+
+            TipHover {}
         }
     }
 

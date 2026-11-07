@@ -61,8 +61,8 @@ Singleton {
         if (withApps)
             for (const w of windows) {
                 const id = String(w.workspace), entry = entryOf(w.appId);
-                if (w.workspace > 0 && entry && !(apps[id] ?? []).includes(entry))
-                    apps[id] = (apps[id] ?? []).concat([entry]);
+                if (w.workspace > 0 && entry) // one per window: two ghostty windows are two
+                    apps[id] = (apps[id] ?? []).concat([{ entry: entry, appId: w.appId }]);
             }
         Store.saved.workspacePresets = presets.filter(p => p.name !== name).concat([{ name: name, names: Object.assign({}, names), apps: apps }]);
     }
@@ -71,14 +71,40 @@ Singleton {
         namesFile.adapter.names = Object.assign({}, preset.names);
         namesFile.writeAdapter();
         const quote = a => /^[\w@%+=:,.\/-]+$/.test(a) ? a : `'${a.replace(/'/g, "'\\''")}'`;
-        for (const [id, ids] of Object.entries(preset.apps ?? {}))
-            for (const entryId of ids) {
-                if (windows.some(w => String(w.workspace) === id && entryOf(w.appId) === entryId))
-                    continue;
-                const entry = DesktopEntries.byId(entryId);
-                if (entry)
-                    exec((entry.runInTerminal ? Apps.inTerminal(entry.command, false, "") : entry.command).map(quote).join(" "), { workspace: `${id} silent` });
+        for (const [id, list] of Object.entries(preset.apps ?? {})) {
+            const wanted = {}; // desktop entry id -> { count, appId } (older presets kept bare ids)
+            for (const a of list) {
+                const entryId = typeof a === "string" ? a : a.entry;
+                wanted[entryId] = { count: (wanted[entryId]?.count ?? 0) + 1, appId: typeof a === "string" ? "" : a.appId };
             }
+            for (const [entryId, want] of Object.entries(wanted)) {
+                const entry = DesktopEntries.byId(entryId);
+                const have = windows.filter(w => String(w.workspace) === id && entryOf(w.appId) === entryId).length;
+                for (let i = have; entry && i < want.count; i++) {
+                    exec((entry.runInTerminal ? Apps.inTerminal(entry.command, false, "") : entry.command).map(quote).join(" "), { workspace: `${id} silent` });
+                    if (want.appId)
+                        arriving = arriving.concat([{ appId: want.appId, workspace: parseInt(id), until: Date.now() + 15000 }]);
+                }
+            }
+        }
+    }
+
+    // windows a preset opened, on their way: a single-instance app (ghostty, a browser) hands the launch
+    // to its running copy, whose window the exec rule doesn't follow, so the first window of that app
+    // to open goes to the preset's workspace
+    property var arriving: [] // { appId, workspace, until }
+
+    function placeArrival(data: string) {
+        const [address, workspace, appId] = data.split(",");
+        const now = Date.now();
+        arriving = arriving.filter(a => a.until > now);
+        const i = arriving.findIndex(a => a.appId === appId);
+        if (i < 0)
+            return;
+        const target = arriving[i].workspace;
+        arriving = arriving.filter((a, j) => j !== i);
+        if (workspace !== String(target) && workspace !== nameOf(target))
+            sendWindow(address, target);
     }
 
     function deletePreset(name: string) {
@@ -225,6 +251,8 @@ Singleton {
     Connections {
         target: Hyprland
         function onRawEvent(event) {
+            if (event.name === "openwindow" && root.arriving.length)
+                root.placeArrival(event.data);
             if (event.name === "activewindowv2" && event.data)
                 root.focusOrder = [event.data].concat(root.focusOrder.filter(a => a !== event.data));
             else if (event.name === "closewindow")

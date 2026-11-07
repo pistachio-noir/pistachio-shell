@@ -75,6 +75,9 @@ PanelWindow {
     // (the key of the app's row; an app can be listed twice), ← or typing closes them.
     property string expandedKey
     property int column: 0 // selected tile or card within a grid row
+    // A right click on a row or card (owner's request, 5 November 2026): what Enter and the keys do
+    // there, as a menu: { x, y, entries: [{ text, glyph, danger, run }] }, or null
+    property var menu: null
 
     function snapshot() {
         windows = Compositor.windows;
@@ -539,6 +542,87 @@ PanelWindow {
         return { kind: "presetdelete", key: presetRow.key + ":delete", title: `Delete “${presetRow.preset.name}”`, subtitle: "Asks first", glyph: Icons.trash, compact: true, indent: 24, preset: presetRow.preset };
     }
 
+    // what a right click on a row (and `col`, a card in a grid row) offers
+    function menuFor(row, col: int): var {
+        switch (row.kind) {
+        case "app":
+            return [{ text: "Open", glyph: Icons.folderOpen, run: () => activate(row, 0, false) }]
+                .concat(row.app.actions.map(a => ({ text: a.name, glyph: Icons.chevronRight, run: () => activate({ kind: "appaction", app: row.app, action: a }, 0, false) })));
+        case "window":
+            return [
+                { text: "Switch to it", glyph: Icons.window, run: () => activate(row, 0, false) },
+                { text: "Float or tile", glyph: Icons.layers, run: () => { Compositor.toggleFloating(row.address); resnap.restart(); } },
+                { text: "Close window", glyph: Icons.close, danger: true, run: () => { Compositor.close(row.address); resnap.restart(); } }
+            ];
+        case "workspaces": {
+            const card = row.cards[col];
+            if (!card)
+                return [];
+            const named = Compositor.nameOf(card.id) !== "";
+            const count = windows.filter(w => w.workspace === card.id).length;
+            return [
+                { text: `Go to workspace ${card.id}`, glyph: Icons.chevronRight, run: () => activate(row, col, false) },
+                { text: "Move the last window here", glyph: Icons.window, run: () => activate(row, col, true) },
+                { text: named ? "Rename…" : "Name it…", glyph: Icons.pencil, run: () => renameWorkspace(card.id) }
+            ].concat(named ? [{ text: "Clear its name", glyph: Icons.close, run: () => Compositor.setName(card.id, "") }] : [],
+                count ? [{ text: `Close its ${count} window${count === 1 ? "" : "s"}…`, glyph: Icons.trash, danger: true, run: () => askCloseWorkspace(card.id) }] : []);
+        }
+        case "wsname":
+            return [
+                { text: "Go there", glyph: Icons.chevronRight, run: () => activate(row, 0, false) },
+                { text: "Rename…", glyph: Icons.pencil, run: () => renameWorkspace(row.id) },
+                { text: "Clear its name", glyph: Icons.close, run: () => Compositor.setName(row.id, "") }
+            ];
+        case "preset":
+            return [
+                { text: "Load", glyph: Icons.sparkles, run: () => activate(row, 0, false) },
+                { text: "Delete…", glyph: Icons.trash, danger: true, run: () => askDeletePreset(row.preset.name) }
+            ];
+        case "btdevice":
+            return [{ text: row.device.connected ? "Disconnect" : row.device.paired ? "Connect" : "Pair", glyph: Icons.bluetooth, run: () => activate(row, 0, false) }]
+                .concat(row.device.paired ? [{ text: "Forget device", glyph: Icons.trash, danger: true, run: () => Bluetooth.forget(row.device) }] : []);
+        case "file":
+            return [
+                { text: "Open", glyph: Icons.folderOpen, run: () => activate(row, 0, false) },
+                { text: "Show in folder", glyph: Icons.folder, run: () => activate(row, 0, true) }
+            ];
+        }
+        return [];
+    }
+
+    function openMenu(row, col: int, at: point) {
+        const entries = menuFor(row, col);
+        menu = entries.length ? { x: at.x, y: at.y, entries: entries } : null;
+    }
+
+    function askCloseWorkspace(id: int) {
+        confirming = { id: "closews:" + id, title: "Close them", icon: Icons.close, danger: true, question: `Close the windows on workspace ${id}?`, confirm: "Unsaved work in them is lost.", run: () => Compositor.windows.filter(w => w.workspace === id).forEach(w => Compositor.close(w.address)) };
+        current = 0;
+        column = 0; // Cancel first
+    }
+
+    // A key hint, clicked (owner's request, 5 November 2026): does what its key does
+    readonly property var hintKeys: ({
+        "↵": [Qt.Key_Return, 0],
+        "Shift ↵": [Qt.Key_Return, Qt.ShiftModifier],
+        "Esc": [Qt.Key_Escape, 0],
+        "Tab": [Qt.Key_Tab, 0],
+        "→": [Qt.Key_Right, 0],
+        "←": [Qt.Key_Left, 0],
+        "Ctrl W": [Qt.Key_W, Qt.ControlModifier],
+        "Ctrl F": [Qt.Key_F, Qt.ControlModifier],
+        "Ctrl M": [Qt.Key_M, Qt.ControlModifier],
+        "Ctrl ⌫": [Qt.Key_Backspace, Qt.ControlModifier]
+    })
+
+    function pressHint(label: string) {
+        const k = hintKeys[label];
+        if (!k)
+            return;
+        key({ key: k[0], modifiers: k[1], accepted: false });
+        field.forceActiveFocus();
+    }
+
     function askDeletePreset(name: string) {
         confirming = { id: "preset:" + name, title: "Delete", icon: Icons.trash, danger: true, question: `Delete the preset “${name}”?`, confirm: "Only the preset goes: your workspaces and their names stay as they are.", run: () => Compositor.deletePreset(name) };
         current = 0;
@@ -945,6 +1029,13 @@ PanelWindow {
     }
 
     function key(event) {
+        if (menu) {
+            menu = null;
+            if (event.key === Qt.Key_Escape) {
+                event.accepted = true;
+                return;
+            }
+        }
         const ctrl = event.modifiers & Qt.ControlModifier, shift = event.modifiers & Qt.ShiftModifier;
         const row = rows[current];
         // vim motions while Ctrl is held: Ctrl+H J K L work like ← ↓ ↑ → (the arrows still work)
@@ -1093,6 +1184,7 @@ PanelWindow {
     }
 
     onOpenChanged: {
+        menu = null;
         grab.active = open;
         hadKeyboard = false;
         if (!open) {
@@ -1844,6 +1936,8 @@ PanelWindow {
                                     font.family: Theme.fontUi
                                     font.pixelSize: 13
                                     font.weight: Font.DemiBold
+
+                                    TipHover {}
                                 }
                             }
                         }
@@ -1923,6 +2017,8 @@ PanelWindow {
                                         font.family: Theme.fontUi
                                         font.pixelSize: 12
                                         font.weight: Font.Medium
+
+                                        TipHover {}
                                     }
                                 }
 
@@ -2017,6 +2113,8 @@ PanelWindow {
                                         font.family: Theme.fontUi
                                         font.pixelSize: 15
                                         font.weight: Font.Bold
+
+                                        TipHover {}
                                     }
 
                                     Text {
@@ -2191,6 +2289,10 @@ PanelWindow {
                                     root.current = entry.index;
                                     root.activate(row, 0, false);
                                 }
+                                onMenuRequested: at => {
+                                    root.current = entry.index;
+                                    root.openMenu(row, 0, at);
+                                }
                             }
                         }
 
@@ -2245,6 +2347,8 @@ PanelWindow {
                                     font.family: Theme.fontUi
                                     font.pixelSize: 13
                                     font.weight: Font.Bold
+
+                                    TipHover {}
                                 }
 
                                 Slider {
@@ -2337,6 +2441,8 @@ PanelWindow {
                                         font.pixelSize: 11
                                         font.weight: Font.Medium
                                         font.features: { "tnum": 1 }
+
+                                        TipHover {}
                                     }
                                 }
 
@@ -2456,6 +2562,11 @@ PanelWindow {
                                             root.column = index;
                                             root.activate(entry.modelData, index, false);
                                         }
+                                        onMenuRequested: at => {
+                                            root.current = entry.index;
+                                            root.column = index;
+                                            root.openMenu(entry.modelData, index, at);
+                                        }
                                     }
                                 }
                             }
@@ -2484,14 +2595,23 @@ PanelWindow {
                         model: root.keyHints
 
                         Row {
+                            id: hint
                             required property var modelData
+                            readonly property bool clickable: root.hintKeys[modelData[0]] !== undefined
                             spacing: 8
 
                             Rectangle {
                                 width: Math.max(22, keyText.implicitWidth + 12)
                                 height: 22
                                 radius: 7
-                                color: Theme.overlay
+                                color: hintHover.hovered ? Theme.overlay2 : Theme.overlay
+
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Theme.hoverDuration
+                                        easing.type: Theme.easing
+                                    }
+                                }
 
                                 Text {
                                     id: keyText
@@ -2507,15 +2627,150 @@ PanelWindow {
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: modelData[1]
-                                color: Theme.subtext
+                                color: hintHover.hovered ? Theme.text : Theme.subtext
                                 font.family: Theme.fontUi
                                 font.pixelSize: 12
                                 font.weight: Font.DemiBold
+                            }
+
+                            // a click does what the key does (owner's request, 5 November 2026); handlers,
+                            // as a MouseArea would be laid out in the row
+                            HoverHandler {
+                                id: hintHover
+                                enabled: hint.clickable
+                                cursorShape: Qt.PointingHandCursor
+                            }
+
+                            TapHandler {
+                                enabled: hint.clickable
+                                onTapped: root.pressHint(hint.modelData[0])
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    // the right-click menu, over everything; a click beside it (or Esc, or any key) closes it
+    MouseArea {
+        anchors.fill: parent
+        visible: root.menu !== null
+        acceptedButtons: Qt.AllButtons
+        onPressed: root.menu = null
+    }
+
+    Item {
+        id: menuCard
+
+        visible: root.menu !== null
+        x: Math.max(8, Math.min(root.menu?.x ?? 0, root.width - width - 8))
+        y: Math.max(8, Math.min(root.menu?.y ?? 0, root.height - height - 8))
+        width: 240
+        height: menuColumn.implicitHeight + 12
+
+        Shadow {
+            kind: Theme.shadowSmall
+            anchors.fill: menuPanel
+            radius: menuPanel.radius
+        }
+
+        Rectangle {
+            id: menuPanel
+            anchors.fill: parent
+            radius: Theme.tileRadius
+            color: Theme.bgAlt
+            border.width: 1
+            border.color: Theme.overlay2
+            Accessible.role: Accessible.PopupMenu
+        }
+
+        Column {
+            id: menuColumn
+            x: 6
+            y: 6
+            width: parent.width - 12
+
+            Repeater {
+                model: root.menu?.entries ?? []
+
+                Rectangle {
+                    id: menuEntry
+
+                    required property var modelData
+
+                    width: menuColumn.width
+                    height: 36
+                    radius: 14
+                    color: menuEntryMouse.containsMouse ? Theme.overlay : "transparent"
+                    Accessible.role: Accessible.MenuItem
+                    Accessible.name: modelData.text
+
+                    Icon {
+                        x: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        size: 16
+                        paths: menuEntry.modelData.glyph
+                        color: menuEntry.modelData.danger ? Theme.terracotta : Theme.subtext
+                    }
+
+                    Text {
+                        x: 40
+                        width: parent.width - 52
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: menuEntry.modelData.text
+                        textFormat: Text.PlainText
+                        elide: Text.ElideRight
+                        color: Theme.text
+                        font.family: Theme.fontUi
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                    }
+
+                    MouseArea {
+                        id: menuEntryMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            const run = menuEntry.modelData.run;
+                            root.menu = null;
+                            run();
+                            field.forceActiveFocus();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // HoverTip's card: the whole of a text cut short with "…", under it
+    Rectangle {
+        readonly property Item target: HoverTip.item
+        readonly property point at: target ? target.mapToItem(null, 0, target.height) : Qt.point(0, 0)
+
+        visible: HoverTip.shown && target !== null && root.open && root.menu === null
+        x: Math.max(8, Math.min(at.x - 12, root.width - width - 8))
+        y: at.y + 6
+        width: tipText.width + 24
+        height: tipText.implicitHeight + 16
+        radius: 12
+        color: Theme.bgAlt
+        border.width: 1
+        border.color: Theme.overlay2
+
+        Text {
+            id: tipText
+            x: 12
+            y: 8
+            width: Math.min(implicitWidth, 480)
+            wrapMode: Text.Wrap
+            text: HoverTip.text
+            textFormat: Text.PlainText
+            color: Theme.text
+            font.family: Theme.fontUi
+            font.pixelSize: 12
+            font.weight: Font.Medium
         }
     }
 }

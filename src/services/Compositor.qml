@@ -265,6 +265,7 @@ Singleton {
         urgent: t.urgent,
         floating: t.lastIpcObject.floating ?? false,
         pinned: t.lastIpcObject.pinned ?? false,
+        group: (t.lastIpcObject.grouped ?? []).map(a => a.replace(/^0x/, "")), // its tab group's windows, or []
         focused: t.wayland !== null && t.wayland === ToplevelManager.activeToplevel,
         // 0 = most recently focused; windows not focused since the shell started follow, in Hyprland's order
         recency: root.focusOrder.includes(t.address) ? root.focusOrder.indexOf(t.address) : 1000 + (t.lastIpcObject.focusHistoryID ?? 1000),

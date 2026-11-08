@@ -28,12 +28,23 @@ PanelWindow {
     property point pointerStart: Qt.point(-1, -1)
     property bool pointerMoved
 
-    function show(by: int) {
+    // `tabs`: only the tabs of the focused window's group (Alt+`, owner's request, 9 November 2026), in
+    // a tabbed workspace or any Hyprland group; nothing to show outside one
+    property bool tabsOnly // shown by Alt+`: the hint says so
+
+    function show(by: int, tabs: bool) {
         if (open) {
             step(by);
             return;
         }
-        const list = Compositor.windows.slice().sort((a, b) => a.recency - b.recency);
+        tabsOnly = tabs;
+        let list = Compositor.windows.slice().sort((a, b) => a.recency - b.recency);
+        if (tabs) {
+            const group = list[0]?.group ?? [];
+            list = list.filter(w => group.includes(w.address));
+            if (list.length < 2)
+                return;
+        }
         if (list.length === 0)
             return;
         order = list.map(w => w.address);
@@ -83,6 +94,10 @@ PanelWindow {
             cancel();
         else if (k === Qt.Key_Return || k === Qt.Key_Enter)
             commit();
+        else if (k === Qt.Key_QuoteLeft && event.modifiers & Qt.ShiftModifier || k === Qt.Key_AsciiTilde) // Shift+`
+            step(-1);
+        else if (k === Qt.Key_QuoteLeft)
+            step(1);
         else if (k === Qt.Key_Backtab || k === Qt.Key_Left || k === Qt.Key_H)
             step(-1);
         else if (k === Qt.Key_Tab || k === Qt.Key_Right || k === Qt.Key_L)
@@ -125,6 +140,13 @@ PanelWindow {
         }
         function prev(): void {
             root.show(-1);
+        }
+        // the tabs of the group you're in only
+        function tabs(): void {
+            root.show(1, true);
+        }
+        function tabsPrev(): void {
+            root.show(-1, true);
         }
         function commit(): void {
             root.commit();
@@ -438,7 +460,7 @@ PanelWindow {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "Tab next · Shift+Tab previous · Q close window · Esc cancel"
+            text: root.tabsOnly ? "` next tab · Shift+` previous · Q close window · Esc cancel" : "Tab next · Shift+Tab previous · Q close window · Esc cancel"
             color: Theme.subtext
             font.family: Theme.fontUi
             font.pixelSize: 12

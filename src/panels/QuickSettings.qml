@@ -21,7 +21,7 @@ PanelWindow {
 
     property bool open
     property string popup // the card over the panel: "schedule", "dnd", "bluetooth", "localsend" or ""
-    property string page // in place of the usual content: "localsend" or ""
+    property string page // in place of the usual content: "localsend", "mixer" or ""
 
     signal powerRequested
     signal launcherRequested(string mode)
@@ -47,7 +47,7 @@ PanelWindow {
 
     onOpenChanged: {
         if (open) {
-            Brightness.refresh();
+            brightnessLater.restart();
             if (LocalSend.sendRunning)
                 page = "localsend"; // back where the transfer shows
         } else {
@@ -59,6 +59,15 @@ PanelWindow {
     Reveal {
         id: reveal
         open: root.open
+    }
+
+    // the monitor's brightness, read once the panel is open: starting ddcutil holds the shell up
+    // ~170 ms, which delayed quick settings' first frame (measured 9 November: first pixels at 360 ms
+    // against the notification centre's 190; 190 without the read)
+    Timer {
+        id: brightnessLater
+        interval: Theme.motionDuration + 60
+        onTriggered: Brightness.refresh()
     }
 
     Shadow {
@@ -79,7 +88,7 @@ PanelWindow {
         x: shadow.side + root.slide * (1 - reveal.progress)
         y: shadow.above
         width: 380
-        height: (root.page === "localsend" ? localSendPage.implicitHeight : content.implicitHeight) + 40
+        height: (root.page === "localsend" ? localSendPage.implicitHeight : root.page === "mixer" ? mixerPage.implicitHeight : content.implicitHeight) + 40
         radius: Theme.panelRadius
         color: Theme.surface
         border.width: 1
@@ -110,6 +119,16 @@ PanelWindow {
             onBack: root.page = ""
             onSettingsRequested: root.popup = "localsend"
             onVisibleChanged: if (visible && !LocalSend.sendRunning) LocalSend.scan()
+        }
+
+        MixerPage {
+            id: mixerPage
+
+            visible: root.page === "mixer"
+            x: 20
+            y: 20
+            width: parent.width - 40
+            onBack: root.page = ""
         }
 
         Column {
@@ -255,6 +274,7 @@ PanelWindow {
 
             // what's playing, while a media player has something (not on the board; owner's request)
             MediaCard {
+                showQueue: true
                 width: parent.width
             }
 
@@ -362,12 +382,23 @@ PanelWindow {
 
                 // the launcher, in All mode (owner's request; not on the board)
                 IconButton {
+                    id: launcherButton
                     anchors.right: powerButton.left
                     anchors.rightMargin: 8
                     y: 16
                     icon: Icons.search
                     Accessible.name: "Launcher"
                     onClicked: root.launcherRequested("all")
+                }
+
+                // the sound mixer: each app's volume (owner's request, 8 November 2026)
+                IconButton {
+                    anchors.right: launcherButton.left
+                    anchors.rightMargin: 8
+                    y: 16
+                    icon: Icons.mixer
+                    Accessible.name: "Sound mixer"
+                    onClicked: root.page = "mixer"
                 }
             }
         }

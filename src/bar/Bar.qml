@@ -103,6 +103,7 @@ PanelWindow {
 
     // quick settings asks for a launcher mode; shell.qml owns the launcher
     signal launcherRequested(string mode)
+    signal renameWorkspaceRequested(int workspace) // the right-click menu: shell.qml asks in the launcher
 
     // the notification centre at one notification (the launcher's "!")
     function showNotification(n) {
@@ -257,6 +258,16 @@ PanelWindow {
             y: 6 * (1 - content.shownPart)
         }
 
+        // a right click anywhere on the bar: its menu (tabbed, the workspace's name)
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.RightButton
+            onClicked: mouse => {
+                barMenu.at = (root.screen.width - root.width) / 2 + mapToItem(null, mouse.x, 0).x; // the bar is centred
+                barMenu.open = true;
+            }
+        }
+
         // Edges sit 9 px in (1 px border + 8 px padding) with 8 px gaps, as on the board.
         Workspaces {
             id: workspaces
@@ -267,10 +278,77 @@ PanelWindow {
 
         WindowTitle {
             anchors.left: workspaces.right
-            anchors.right: clock.left
+            anchors.right: recordingChip.visible ? recordingChip.left : clock.left
             anchors.leftMargin: 12 // gap + the title's own 4 px padding
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
+        }
+
+        // while the screen is recorded (owner's pick, 8 November 2026): a red dot and the time; a click
+        // stops it and saves the video
+        Rectangle {
+            id: recordingChip
+
+            property real now: Date.now()
+            readonly property int seconds: Math.max(0, Math.floor((now - Screenshots.recordingSince) / 1000))
+
+            visible: Screenshots.recording
+            anchors.right: clock.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            width: recordingRow.implicitWidth + 28
+            height: Theme.chipHeight
+            radius: Theme.chipRadius
+            color: recordingMouse.containsMouse ? Theme.overlay2 : Theme.overlay
+            Accessible.role: Accessible.Button
+            Accessible.name: `Recording, ${recordingTime.text}. Stop`
+
+            Timer {
+                running: recordingChip.visible
+                interval: 500
+                repeat: true
+                onTriggered: recordingChip.now = Date.now()
+            }
+
+            Row {
+                id: recordingRow
+                anchors.centerIn: parent
+                spacing: 8
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 10
+                    height: 10
+                    radius: 5
+                    color: Theme.terracotta
+
+                    SequentialAnimation on opacity {
+                        running: recordingChip.visible
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0.35; duration: 800; easing.type: Theme.easing }
+                        NumberAnimation { to: 1; duration: 800; easing.type: Theme.easing }
+                    }
+                }
+
+                Text {
+                    id: recordingTime
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: `${Math.floor(recordingChip.seconds / 60)}:${String(recordingChip.seconds % 60).padStart(2, "0")}`
+                    color: Theme.textBright
+                    font.family: Theme.fontUi
+                    font.pixelSize: 13
+                    font.weight: Font.ExtraBold
+                    font.features: { "tnum": 1 }
+                }
+            }
+
+            MouseArea {
+                id: recordingMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: Screenshots.stopRecording()
+            }
         }
 
         ClockChip {
@@ -333,6 +411,12 @@ PanelWindow {
         }
     }
 
+    BarMenu {
+        id: barMenu
+        lift: root.height
+        onRenameRequested: ws => root.renameWorkspaceRequested(ws)
+    }
+
     PowerMenu {
         id: powerMenu
     }
@@ -378,6 +462,12 @@ PanelWindow {
 
         function toggle(): void {
             root.toggle(quickSettings);
+        }
+
+        // straight to the sound mixer
+        function mixer(): void {
+            quickSettings.page = "mixer";
+            quickSettings.open = true;
         }
     }
 

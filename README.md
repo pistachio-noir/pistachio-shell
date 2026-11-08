@@ -27,6 +27,12 @@ What you get:
 - **The shell's own use:** a Shell row in the launcher's System monitor: the CPU the shell and its helpers use (the meter, of the whole machine) and their memory.
 - **Launcher scroll bar:** while you use the mouse over a long list, a thin bar at its right edge shows where you are; drag it or click its track to scroll. It fades a second after the mouse rests. Shell settings come in groups: Look, Sound, Quiet, Apps and places, More.
 - **Launcher with the mouse:** right-click a row or a workspace card for what it offers: an app's own actions (a browser's New incognito window), a window's Switch, Float or tile and Close, a workspace's Go, Move the last window here, Name or Rename, Clear its name and Close its windows (asks first), a preset's Load and Delete, a device's Connect and Forget, a file's Open and Show in folder. The key hints at the bottom are buttons too (↵, Esc, Tab, →, Ctrl W…), and text cut short with "…" shows whole in a tooltip when you rest the pointer on it.
+- **Cider:** with Cider's app token pasted in launcher → System → Shell settings → Cider token (make one in Cider: Settings → Connectivity → Manage External Application Access), the media card shows Up next (a click plays from there), and `m <words>` in the launcher searches Apple Music: Enter plays, Shift+Enter plays next, → adds to the queue.
+- **More in the launcher:** your recent CLion projects and your games (Steam's, with covers, and Sober) come up as you type their names (`clion` lists every project, `games` every game); `kill <name>` lists your programs, busiest first, and ends one (asks first; Force quit in its right-click menu); `tldr <command>` shows tldr's description and examples (Enter copies one), and a row that opens the full manual (`man`) in your terminal.
+- **Windows:** right-click a window row for Pin on top (Ctrl+P; it floats and stays above everything, on every workspace), and a workspace card for Move its windows to another workspace.
+- **Tabbed workspaces, i3-style:** a workspace card's right-click menu → Tabbed (or `workspace tabbed` for the one you're on): its windows gather into one group under Hyprland's own tab bar, which the shell styles in the Pistachio look (pill tabs, the shown one pistachio, Manrope; set at runtime, your Hyprland config is untouched, and again after each config reload); new windows join it; click a tab to show it, middle-click to close it; the same entry tiles them again. It lasts until you log out. Right-click the bar for the same switch, and to name the workspace. An OSD says when tabs go on or off (Shell settings → Tabbed OSD). Keybind: `hl.bind(mainMod .. " + T", hl.dsp.exec_cmd(shell .. "workspace tabbed"))`. The group's border takes your window border's colours.
+- **Screenshot menu:** Colour (hyprpicker: click anywhere, the hex code is copied and shown with a swatch) and Record (gpu-screen-recorder: drag out an area, or click for the whole screen; the sound playing is recorded too; a red dot and the time on the bar while it runs, click it to stop; the video goes to `~/Videos`). The screenshot notification has Edit (satty: arrows, boxes, blur; saving writes over the picture).
+- **Sound mixer:** the mixer button at the bottom of quick settings (or `quicksettings mixer`): a volume slider for each app playing sound, those on your workspace first; click an app's icon to mute it.
 - **Wallpaper:** the shell draws it (hyprpaper isn't needed). While night light is on, it dims a little, so the desktop isn't the brightest thing on screen late at night (the desktop icons stay as they are). Launcher → Wallpapers opens a switcher with the images in `~/Pictures/Wallpapers`: the screen behind it previews the one you pick, and each image keeps its own fit (Fill, Fit, Center, Tile). New wallpapers fade in.
 - **Window switcher:** Alt+Tab shows every open window, on any workspace, with a picture of each, most recently used first; let go of Alt to switch.
 - **Showoff mode:** for screenshots of your setup. It moves to an empty workspace, opens the notification centre (with the calendar and the weather) on the left and quick settings on the right, sliding in one after the other while the wallpaper settles, and fastfetch in your terminal between them, with the shell's own config: a pistachio and your system, without your user name, host name or anything else that names the machine. Private things are hidden meanwhile: notifications (the centre shows Inbox zero, and no toast shows, not even a critical one; they all reach the centre), window titles, the weather's city and Bluetooth device names. What's playing stays visible (cover, title, artist), as in most setup screenshots. Take the screenshot with your usual key. Esc, a click on the wallpaper, closing the terminal, going to another workspace or starting it again ends it and takes you back. Start it from launcher → System → Shell settings → Showoff mode, or `showoff toggle`.
@@ -63,6 +69,8 @@ Tested on Arch Linux with Hyprland 0.56.2 (Lua config) and Quickshell 0.3.2 on Q
 | Notification sound | `pipewire`'s `pw-play` (already there) | the sound with each toast (the shell brings its own, `src/sounds/notification.wav`) | silent toasts |
 | Showoff mode (optional) | `fastfetch` | the terminal in showoff mode | the panels open without it |
 | LocalSend | `localsend` (the AUR's `localsend-bin`, or Flathub's) installed but not running; `python`, `openssl` (already there); `zenity` for the Add files and Add folder buttons; `wl-clipboard` for Paste | sending and receiving in quick settings | no LocalSend row; without `zenity`, add files by dropping or pasting them |
+| Screen tools (optional) | `hyprpicker`, `gpu-screen-recorder`, `satty` | the screenshot menu's Colour and Record, and Edit on the screenshot notification | those choices aren't offered |
+| Launcher extras (optional) | `tldr`; Cider (with its app token); CLion; Steam | `tldr`, `m`, CLion projects, games | that part of the launcher stays empty |
 | USB drives | `udiskie`; `udisks2` (already there) | mounting drives as they're plugged in; Eject | drives don't mount by themselves; Eject still works |
 | Text from the screen (optional) | `tesseract`, `tesseract-data-eng`, `tesseract-data-pol` | the screenshot menu's Text | "Couldn't read the text: tesseract isn't installed" |
 | Font | Manrope (weights 500 to 800), installed by `install.sh`; needs `curl` | all text | Qt falls back to another font |
@@ -179,6 +187,9 @@ qs -c pistachio ipc call <target> <function> [arguments]
 | `workspace name <text>` | names the workspace you're on (empty clears it; names last until you log out) |
 | `workspace preset <name>` | loads a workspace preset (its names, and its apps if saved with them) |
 | `bar peek` | shows the hidden bar for 2 s |
+| `workspace tabbed` | turns tabbed (i3-style) on or off for the workspace you're on |
+| `quicksettings mixer` | opens quick settings at the sound mixer |
+| `screenshot record` / `screenshot colour` | starts recording the whole screen, or stops the recording; picks a colour |
 | `localsend add <path>` / `localsend open` | adds a file or folder to LocalSend's list and opens its page in quick settings (one path a call; only while the LocalSend app is installed) |
 | `switcher commit` / `switcher cancel` | switches to the chosen window, or closes the switcher; letting go of Alt does the first by itself |
 
@@ -302,6 +313,13 @@ hyprctl eval 'hl.layer_rule({ name = "pistachio-frost", match = { namespace = "^
 ```
 
 How strong the blur is comes from your `decoration.blur` settings (size, passes, brightness), which apply to every blurred window.
+
+
+The shell's windows animate themselves, so it's best if Hyprland doesn't fade them as well. Add this layer rule next to the blur rule:
+
+```lua
+hl.layer_rule({ name = "pistachio-motion", match = { namespace = "^pistachio-" }, no_anim = true })
+```
 
 ## Lock screen
 

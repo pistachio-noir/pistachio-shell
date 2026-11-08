@@ -124,7 +124,7 @@ Singleton {
     }
 
     function setStreamVolume(node, v: real) {
-        if (!node.audio)
+        if (!node.audio || !Number.isFinite(v)) // a bad value got saved by WirePlumber as nan (8 November)
             return;
         node.audio.muted = false;
         node.audio.volume = Math.max(0, Math.min(1, v));

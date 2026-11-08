@@ -17,6 +17,36 @@ Rectangle {
     property bool dragging
     property real dragTo // 0–1 while dragging
     readonly property real fraction: dragging ? dragTo : hasLength ? Math.min(1, player.position / player.length) : 0
+    // Up next from Cider's queue (owner's pick, 8 November 2026), where the card asks for it (quick
+    // settings and the pill's card, not the lock screen), while Cider plays and its token is set
+    property bool showQueue
+    readonly property bool cider: showQueue && Cider.usable && /cider/i.test(player?.identity ?? "")
+    readonly property var upNext: cider ? Cider.queue.slice(0, 3) : []
+    onCiderChanged: if (cider) Cider.refreshQueue()
+    onVisibleChanged: if (visible && cider) Cider.refreshSoon()
+
+    Connections {
+        target: media.cider ? media.player : null
+        function onTrackTitleChanged() {
+            Cider.refreshSoon();
+            settle.restart();
+        }
+    }
+
+    // and again: on the queue's last song Cider's autoplay adds the next ones a while later (owner,
+    // 9 November), so the queue is read again 3 s after a change and every 10 s while it plays
+    Timer {
+        id: settle
+        interval: 3000
+        onTriggered: Cider.refreshQueue()
+    }
+
+    Timer {
+        running: media.cider && media.visible && (media.player?.isPlaying ?? false)
+        interval: 10000
+        repeat: true
+        onTriggered: Cider.refreshQueue()
+    }
 
     // "3:07", "1:02:45"
     function time(seconds: real): string {
@@ -33,13 +63,16 @@ Rectangle {
     }
 
     visible: player !== null
-    height: 76 + (hasLength ? 22 : 0)
+    // the card's own part eases; Up next's part doesn't (quick settings would resize its window every
+    // frame as it opens)
+    property real ownHeight: 76 + (hasLength ? 22 : 0)
+    height: ownHeight + (upNext.length ? 32 + upNext.length * 40 : 0)
     radius: Theme.tileRadius
     color: Theme.overlay
     Accessible.role: Accessible.Grouping
     Accessible.name: `Now playing: ${title.text}, ${artist.text}`
 
-    Behavior on height {
+    Behavior on ownHeight {
         NumberAnimation {
             duration: Theme.motionDuration
             easing.type: Theme.easing
@@ -256,6 +289,99 @@ Rectangle {
                     media.dragging = false;
                 }
                 onCanceled: media.dragging = false
+            }
+        }
+    }
+
+    // Up next: three tracks after this one; a click plays from there
+    Column {
+        visible: media.upNext.length > 0
+        x: 10
+        y: media.hasLength ? 96 : 74
+        width: parent.width - 20
+
+        Text {
+            x: 4
+            height: 24
+            verticalAlignment: Text.AlignVCenter
+            text: "UP NEXT"
+            color: Theme.subtext
+            font.family: Theme.fontUi
+            font.pixelSize: 11
+            font.weight: Font.Bold
+            font.letterSpacing: 0.66
+        }
+
+        Repeater {
+            model: media.upNext
+
+            Rectangle {
+                id: next
+
+                required property var modelData
+
+                width: parent.width
+                height: 40
+                radius: 12
+                color: nextMouse.containsMouse ? Theme.overlay2 : "transparent"
+                Accessible.role: Accessible.Button
+                Accessible.name: `Play ${modelData.name} by ${modelData.artist}`
+
+                ClippingRectangle {
+                    id: nextArt
+                    x: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 28
+                    height: 28
+                    radius: 6
+                    color: Theme.overlay2
+
+                    Image {
+                        anchors.fill: parent
+                        source: next.modelData.art
+                        sourceSize: Qt.size(56, 56)
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                    }
+                }
+
+                Column {
+                    anchors.left: nextArt.right
+                    anchors.leftMargin: 10
+                    anchors.right: parent.right
+                    anchors.rightMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Text {
+                        width: parent.width
+                        text: next.modelData.name
+                        textFormat: Text.PlainText
+                        elide: Text.ElideRight
+                        color: Theme.text
+                        font.family: Theme.fontUi
+                        font.pixelSize: 12
+                        font.weight: Font.Bold
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: next.modelData.artist
+                        textFormat: Text.PlainText
+                        elide: Text.ElideRight
+                        color: Theme.subtext
+                        font.family: Theme.fontUi
+                        font.pixelSize: 11
+                        font.weight: Font.DemiBold
+                    }
+                }
+
+                MouseArea {
+                    id: nextMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Cider.jump(next.modelData.index)
+                }
             }
         }
     }

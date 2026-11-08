@@ -1,5 +1,6 @@
 pragma Singleton
 
+import qs
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
@@ -111,12 +112,126 @@ Singleton {
         Store.saved.workspacePresets = presets.filter(p => p.name !== name);
     }
 
+    // Tabbed workspaces, i3-style (owner's request, 8 November 2026): a workspace's tiled windows
+    // in one Hyprland group, shown one at a time under Hyprland's own tab bar, styled below. Kept with
+    // the names, so until logout. A
+    // window joins a group only while focused (into_group takes the focused one, toward the group), so
+    // gathering goes to the workspace and takes them in one by one; new windows join by themselves
+    // (Hyprland's auto_group), or are taken in as they open.
+    readonly property var tabbed: namesFile.adapter.tabbed ?? []
+
+    function isTabbed(id: int): bool {
+        return tabbed.includes(id);
+    }
+
+    signal tabbedToggled(int workspace, bool on) // for the OSD
+
+    function setTabbed(id: int, on: bool) {
+        namesFile.adapter.tabbed = tabbed.filter(t => t !== id).concat(on ? [id] : []);
+        namesFile.writeAdapter();
+        tabbedToggled(id, on);
+        if (on) {
+            gathering = id;
+            gatherSteps = 0;
+            gather.restart();
+        } else {
+            const done = [];
+            for (const t of Hyprland.toplevels.values) {
+                const g = t.lastIpcObject.grouped ?? [];
+                if (t.workspace?.id === id && g.length > 0 && !done.includes(g[0])) {
+                    done.push(g[0]);
+                    dispatch(`hl.dsp.group.toggle({ window = "address:0x${t.address}" })`, `togglegroup address:0x${t.address}`);
+                }
+            }
+        }
+    }
+
+    property int gathering: 0 // the workspace being gathered into a group, or 0
+    property int gatherSteps
+
+    // one window a step, after Hyprland has moved the last one (its list is read again between)
+    Timer {
+        id: gather
+        interval: 160
+        onTriggered: {
+            const id = root.gathering;
+            if (!id || ++root.gatherSteps > 24) {
+                root.gathering = 0;
+                return;
+            }
+            Hyprland.refreshToplevels();
+            const tiled = Hyprland.toplevels.values.filter(t => t.workspace?.id === id && !(t.lastIpcObject.floating ?? false) && t.lastIpcObject.size);
+            const grouped = tiled.filter(t => (t.lastIpcObject.grouped ?? []).length > 0);
+            if (tiled.length < 2 && grouped.length === 0) {
+                root.gathering = 0; // one window: it becomes a group when the next opens
+                return;
+            }
+            if (grouped.length === 0) {
+                const lead = tiled.find(t => root.focusOrder[0] === t.address) ?? tiled[0];
+                root.dispatch(`hl.dsp.group.toggle({ window = "address:0x${lead.address}" })`, `togglegroup address:0x${lead.address}`);
+                gather.restart();
+                return;
+            }
+            const group = grouped[0];
+            const loose = tiled.filter(t => !(group.lastIpcObject.grouped ?? []).includes("0x" + t.address));
+            if (loose.length === 0) {
+                root.gathering = 0;
+                return;
+            }
+            const w = loose[0], a = w.lastIpcObject, b = group.lastIpcObject;
+            const dx = (b.at[0] + b.size[0] / 2) - (a.at[0] + a.size[0] / 2), dy = (b.at[1] + b.size[1] / 2) - (a.at[1] + a.size[1] / 2);
+            const toward = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "r" : "l") : (dy > 0 ? "d" : "u");
+            root.focus(w.address);
+            root.dispatch(`hl.dsp.window.move({ into_group = "${toward}" })`, `moveintogroup ${toward}`);
+            gather.restart();
+        }
+    }
+
+    // Hyprland's own tab bar on groups, in the Pistachio look (owner's call, 9 November 2026: the shell's
+    // strip, a layer above every window, covered windows and lagged when things moved): filled pill
+    // tabs, the shown one pistachio with bg text, the rest overlay with subtext, Manrope titles; the
+    // group's border as the owner's window border. Set at runtime (the config file is untouched), at
+    // startup and after each config reload, which would undo it.
+    function hex(c: color, alpha: real): string {
+        const two = v => Math.round(v * 255).toString(16).padStart(2, "0");
+        return `rgba(${two(c.r)}${two(c.g)}${two(c.b)}${two(alpha)})`;
+    }
+
+    function styleGroups() {
+        if (!Hyprland.usingLua)
+            return; // a hyprland.conf: the README gives its lines
+        hl(`hl.config({ group = { groupbar = { gradients = true, gradient_rounding = 11, gradient_round_only_edges = false, rounding = 11, height = 22, indicator_height = 0, gaps_in = 4, gaps_out = 4, font_family = "${Theme.fontUi}", font_size = 11, font_weight_active = "heavy", font_weight_inactive = "bold", text_color = "${hex(Theme.bg, 1)}", text_color_inactive = "${hex(Theme.subtext, 1)}", col = { active = "${hex(Theme.pistachio, 1)}", inactive = "${hex(Theme.overlay, 1)}", locked_active = "${hex(Theme.clay, 1)}", locked_inactive = "${hex(Theme.overlay2, 1)}" } } } })`);
+        borderReader.running = true;
+    }
+
+    function hl(lua: string) {
+        Quickshell.execDetached(["hyprctl", "eval", lua]);
+    }
+
+    // the group's border: the owner's own window border colours, read from Hyprland
+    Process {
+        id: borderReader
+        command: ["sh", "-c", "hyprctl getoption general:col.active_border | head -1; hyprctl getoption general:col.inactive_border | head -1"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const colours = text.split("\n").map(l => (/gradient data: ([0-9a-f]{8})/.exec(l) ?? [])[1]).map(v => v ? `rgba(${v.slice(2)}${v.slice(0, 2)})` : "");
+                if (colours[0])
+                    root.hl(`hl.config({ group = { col = { border_active = "${colours[0]}", border_inactive = "${colours[1] || "rgba(00000000)"}" } } })`);
+            }
+        }
+    }
+
     // For keybinds: qs -c pistachio ipc call workspace name "music" (empty clears it), workspace preset Work
     IpcHandler {
         target: "workspace"
 
         function name(text: string): void {
             root.setName(root.activeWorkspace, text);
+        }
+
+        // tabbed on or off for the workspace on screen
+        function tabbed(): void {
+            root.setTabbed(root.activeWorkspace, !root.isTabbed(root.activeWorkspace));
         }
 
         function preset(name: string): void {
@@ -132,6 +247,7 @@ Singleton {
         printErrors: false // none yet after a login
         adapter: JsonAdapter {
             property var names: ({})
+            property var tabbed: [] // workspace ids
         }
     }
 
@@ -148,6 +264,7 @@ Singleton {
         workspace: t.workspace?.id ?? 0,
         urgent: t.urgent,
         floating: t.lastIpcObject.floating ?? false,
+        pinned: t.lastIpcObject.pinned ?? false,
         focused: t.wayland !== null && t.wayland === ToplevelManager.activeToplevel,
         // 0 = most recently focused; windows not focused since the shell started follow, in Hyprland's order
         recency: root.focusOrder.includes(t.address) ? root.focusOrder.indexOf(t.address) : 1000 + (t.lastIpcObject.focusHistoryID ?? 1000),
@@ -217,6 +334,15 @@ Singleton {
         dispatch(`hl.dsp.window.move({ workspace = ${workspace}, follow = false, window = "address:0x${address}" })`, `movetoworkspacesilent ${workspace},address:0x${address}`);
     }
 
+    // Pin on top (owner's pick, 8 November 2026): above everything, on every workspace. Hyprland pins
+    // only floating windows, so a tiled one floats first; unpinning leaves it floating.
+    function togglePin(address: string) {
+        const w = windows.find(x => x.address === address);
+        if (w && !w.pinned && !w.floating)
+            toggleFloating(address);
+        dispatch(`hl.dsp.window.pin({ window = "address:0x${address}" })`, `pin address:0x${address}`);
+    }
+
     function toggleFloating(address: string) {
         dispatch(`hl.dsp.window.float({ action = "toggle", window = "address:0x${address}" })`, `togglefloating address:0x${address}`);
     }
@@ -251,8 +377,15 @@ Singleton {
     Connections {
         target: Hyprland
         function onRawEvent(event) {
+            if (event.name === "configreloaded")
+                root.styleGroups();
             if (event.name === "openwindow" && root.arriving.length)
                 root.placeArrival(event.data);
+            if (event.name === "openwindow" && root.isTabbed(parseInt(event.data.split(",")[1])) && !root.gathering) {
+                root.gathering = parseInt(event.data.split(",")[1]);
+                root.gatherSteps = 0;
+                gather.restart();
+            }
             if (event.name === "activewindowv2" && event.data)
                 root.focusOrder = [event.data].concat(root.focusOrder.filter(a => a !== event.data));
             else if (event.name === "closewindow")
@@ -268,5 +401,8 @@ Singleton {
         onTriggered: Hyprland.refreshToplevels()
     }
 
-    Component.onCompleted: Hyprland.refreshToplevels()
+    Component.onCompleted: {
+        Hyprland.refreshToplevels();
+        styleGroups();
+    }
 }

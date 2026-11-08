@@ -27,6 +27,7 @@ Singleton {
     // Audio plays it)
     readonly property bool volumeTick: Store.saved.volumeTick
     readonly property bool workspaceOsd: Store.saved.workspaceOsd
+    readonly property bool tabbedOsd: Store.saved.tabbedOsd
 
     // Bluetooth headphones get the sound as they connect, whatever output was chosen (owner's request,
     // 31 October 2026; Audio does it)
@@ -41,6 +42,10 @@ Singleton {
 
     function setQuietFullscreen(on: bool) {
         Store.saved.quietFullscreen = on;
+    }
+
+    function setTabbedOsd(on: bool) {
+        Store.saved.tabbedOsd = on;
     }
 
     function setWorkspaceOsd(on: bool) {

@@ -221,6 +221,7 @@ PanelWindow {
 
         MediaCard {
             id: media
+            showQueue: true // Up next, from Cider
 
             x: shadow.side
             y: shadow.above

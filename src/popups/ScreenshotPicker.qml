@@ -27,9 +27,10 @@ PanelWindow {
         { name: "Window", key: Qt.Key_W, icon: Icons.window },
         { name: "Screen", key: Qt.Key_S, icon: Icons.monitor },
         { name: "Text", key: Qt.Key_T, icon: Icons.fileText }
-    ]
+    ].concat(Screenshots.hasPicker ? [{ name: "Colour", key: Qt.Key_C, icon: Icons.droplet }] : [],
+        Screenshots.hasRecorder && !Screenshots.recording ? [{ name: "Record", key: Qt.Key_V, icon: Icons.film }] : [])
     // dragging out an area: for a picture, or for its text
-    readonly property bool dragging: mode === "region" || mode === "text"
+    readonly property bool dragging: mode === "region" || mode === "text" || mode === "record"
     readonly property bool picking: mode === "menu" || mode === "window" || dragging
     // what stays bright: the area dragged out or the window under the pointer
     readonly property rect hole: dragging ? selection : mode === "window" && hovered ? hovered.bounds : Qt.rect(0, 0, 0, 0)
@@ -48,6 +49,23 @@ PanelWindow {
         giveUp.restart();
     }
 
+    // Colour and Record (owner's picks, 8 November 2026) start a moment after the picker has gone, so
+    // neither picks up or records it
+    property rect recordArea
+    property bool recordWhole
+
+    Timer {
+        id: colourAfter
+        interval: 250
+        onTriggered: Screenshots.pickColour()
+    }
+
+    Timer {
+        id: recordAfter
+        interval: 250
+        onTriggered: Screenshots.record(root.recordArea, root.recordWhole, root.screen.name)
+    }
+
     function close() {
         mode = "";
     }
@@ -56,6 +74,10 @@ PanelWindow {
         const name = choices[i].name;
         if (name === "Screen")
             save(Qt.rect(0, 0, width, height));
+        else if (name === "Colour") { // hyprpicker takes over the screen once the menu is gone
+            close();
+            colourAfter.restart();
+        }
         else
             mode = name.toLowerCase();
     }
@@ -132,6 +154,16 @@ PanelWindow {
         }
         function text(): void {
             root.start("text");
+        }
+        // starts recording the whole screen, or stops the recording that runs (for a keybind)
+        function record(): void {
+            if (Screenshots.recording)
+                Screenshots.stopRecording();
+            else
+                Screenshots.record(Qt.rect(0, 0, root.width, root.height), true, root.screen.name);
+        }
+        function colour(): void {
+            Screenshots.pickColour();
         }
     }
 
@@ -257,7 +289,7 @@ PanelWindow {
             Text {
                 id: hint
                 anchors.centerIn: parent
-                text: root.mode === "region" ? "Drag out an area · Esc cancel" : root.mode === "text" ? "Drag over some text to copy it · Esc cancel" : "Click a window · Esc cancel"
+                text: root.mode === "record" ? "Drag out an area to record, or click for the whole screen · Esc cancel" : root.mode === "region" ? "Drag out an area · Esc cancel" : root.mode === "text" ? "Drag over some text to copy it · Esc cancel" : "Click a window · Esc cancel"
                 color: Theme.subtext
                 font.family: Theme.fontUi
                 font.pixelSize: 12
@@ -285,7 +317,13 @@ PanelWindow {
                 root.selection = Qt.rect(Math.min(root.anchor.x, mouse.x), Math.min(root.anchor.y, mouse.y), Math.abs(mouse.x - root.anchor.x), Math.abs(mouse.y - root.anchor.y));
         }
         onReleased: {
-            if (root.dragging)
+            if (root.mode === "record") { // an area, or a click for the whole screen; once the picker is gone
+                const whole = root.selection.width < 8 || root.selection.height < 8;
+                root.recordArea = whole ? Qt.rect(0, 0, root.width, root.height) : root.selection;
+                root.recordWhole = whole;
+                root.close();
+                recordAfter.restart();
+            } else if (root.dragging)
                 root.save(root.selection);
         }
         onClicked: {

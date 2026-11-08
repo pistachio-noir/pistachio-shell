@@ -31,7 +31,11 @@ PanelWindow {
     // the workspace you switched to, with its name and the bar's dots (owner's request, 3 November
     // 2026, in place of peeking at the hidden bar; a Shell setting)
     readonly property bool workspace: kind === "workspace"
-    readonly property bool notice: cue || desktop || workspace
+    // a workspace's tabs on or off (owner's request, 9 November 2026; a Shell setting)
+    readonly property bool tabs: kind === "tabs"
+    property bool tabsOn
+    property int tabsWorkspace
+    readonly property bool notice: cue || desktop || workspace || tabs
     readonly property bool muted: (kind === "volume" || output) && Audio.muted
     readonly property real value: kind === "brightness" ? Brightness.value : Audio.volume
     // The bar and number ease to a new value; they start at it while hidden and on a switch between
@@ -131,6 +135,14 @@ PanelWindow {
     Connections {
         target: Compositor
 
+        function onTabbedToggled(workspace, on) {
+            if (!ShellSettings.tabbedOsd)
+                return;
+            root.tabsOn = on;
+            root.tabsWorkspace = workspace;
+            root.show("tabs");
+        }
+
         function onActiveWorkspaceChanged() {
             if (!root.settling && ShellSettings.workspaceOsd && Compositor.activeWorkspace > 0 && !Compositor.fullscreen)
                 root.show("workspace");
@@ -204,7 +216,8 @@ PanelWindow {
             anchors.fill: parent
             radius: parent.radius
         }
-        Accessible.name: root.workspace ? workspaceTitle.text
+        Accessible.name: root.tabs ? `${tabsTitle.text}, ${tabsDetail.text}`
+            : root.workspace ? workspaceTitle.text
             : root.desktop ? `${desktopTitle.text}, ${desktopDetail.text}`
             : root.cue ? `${root.cueTitle}, ${root.cueNames}`
             : root.output ? `Output ${root.outputName}`
@@ -215,7 +228,8 @@ PanelWindow {
             x: 22
             anchors.verticalCenter: parent.verticalCenter
             size: 20
-            paths: root.workspace ? Icons.layers
+            paths: root.tabs ? Icons.layers
+                : root.workspace ? Icons.layers
                 : root.desktop ? (Desktop.enabled ? Icons.folder : Icons.folder.concat(Icons.slash))
                 : root.kind === "brightness" ? Icons.sun
                 : root.output ? (Audio.isHeadphones(Audio.sink) ? Icons.headphones : Icons.speaker)
@@ -223,7 +237,8 @@ PanelWindow {
                 : root.kind === "screen" ? Icons.screenShare
                 : root.muted ? Icons.volumeMuted : Icons.volume
             // as the bar shows them: clay while in use, subtext when muted or let go
-            color: root.workspace ? Theme.textBright
+            color: root.tabs ? (root.tabsOn ? Theme.pistachio : Theme.subtext)
+                : root.workspace ? Theme.textBright
                 : root.desktop ? (Desktop.enabled ? Theme.textBright : Theme.subtext)
                 : root.cue ? (root.cueOn && !(root.kind === "mic" && Audio.micMuted) ? Theme.clay : Theme.subtext)
                 : root.muted ? Theme.subtext : Theme.textBright
@@ -268,6 +283,44 @@ PanelWindow {
             Text {
                 width: parent.width
                 text: root.cueNames
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: Theme.subtext
+                font.family: Theme.fontUi
+                font.pixelSize: 12
+                font.weight: Font.Medium
+            }
+        }
+
+        // tabs on or off, and for which workspace
+        Column {
+            visible: root.tabs
+            anchors.left: icon.right
+            anchors.leftMargin: 14
+            anchors.right: parent.right
+            anchors.rightMargin: 22
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 1
+
+            Text {
+                id: tabsTitle
+                width: parent.width
+                text: root.tabsOn ? "Tabbed" : "Tabs off"
+                elide: Text.ElideRight
+                color: Theme.textBright
+                font.family: Theme.fontUi
+                font.pixelSize: 14
+                font.weight: Font.Bold
+            }
+
+            Text {
+                id: tabsDetail
+                width: parent.width
+                text: {
+                    const name = Compositor.nameOf(root.tabsWorkspace);
+                    const ws = `Workspace ${root.tabsWorkspace}${name ? ` · ${name}` : ""}`;
+                    return root.tabsOn ? `${ws}: its windows as tabs` : `${ws}: tiled again`;
+                }
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
                 color: Theme.subtext

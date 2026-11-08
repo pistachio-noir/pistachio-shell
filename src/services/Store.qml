@@ -31,6 +31,8 @@ Singleton {
         property bool frosted // see-through bar and panels, blurred by Hyprland (needs the owner's layer rule)
         property bool volumeTick: true // a short click as the volume changes
         property bool workspaceOsd: true // the OSD names the workspace on a switch
+        property bool tabbedOsd: true // the OSD says when a workspace's tabs go on or off
+        property string ciderToken // Cider's local API (Up next, Apple Music search); "" until pasted
         property var workspacePresets: [] // { name, names: { "2": "code" }, apps: { "2": [desktop entry ids] } }
         property string frostStyle: "subtle" // or "glassy"
         property bool notificationSound: true // a soft sound with each toast

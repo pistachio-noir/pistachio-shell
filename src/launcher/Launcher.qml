@@ -28,7 +28,7 @@ PanelWindow {
         all: [["↑↓", "navigate"], ["↵", "open"], ["Tab", "switch mode"], ["Esc", "close"]],
         apps: [["↑↓", "navigate"], ["↵", "open"], ["Tab", "switch mode"], ["Esc", "close"]],
         // (no ↑↓ here, to make room for the window actions)
-        windows: [["↵", "switch"], ["Ctrl W", "close window"], ["Ctrl F", "float"], ["Ctrl 1–9", "move"], ["Esc", "close"]],
+        windows: [["↵", "switch"], ["Ctrl W", "close window"], ["Ctrl F", "float"], ["Ctrl P", "pin"], ["Ctrl 1–9", "move"], ["Esc", "close"]],
         workspaces: [["←→", "choose"], ["↵", "go"], ["Shift ↵", "move window here"], ["Esc", "close"]],
         system: [["↑↓", "navigate"], ["←→", "adjust"], ["↵", "switch / select"], ["Ctrl M", "mute"], ["Esc", "close"]],
         // Ctrl, unlike the board's plain ⌫: Backspace also edits the search, and forgetting is not undoable
@@ -98,6 +98,9 @@ PanelWindow {
         : rows[current]?.kind === "appaction" ? [["↑↓", "navigate"], ["↵", "open"], ["←", "back"], ["Esc", "close"]]
         : rows[current]?.kind === "claude" ? [["↑↓", "navigate"], ["↵", "ask Claude"], ["Esc", "close"]]
         : rows[current]?.kind === "preset" ? [["↑↓", "navigate"], ["↵", "load"], ["→", "delete"], ["Esc", "close"]]
+        : rows[current]?.kind === "music" ? [["↵", "play"], ["Shift ↵", "play next"], ["→", "add to queue"], ["Esc", "close"]]
+        : rows[current]?.kind === "process" ? [["↑↓", "navigate"], ["↵", "end it"], ["Esc", "close"]]
+        : rows[current]?.kind === "tldr" ? [["↑↓", "navigate"], ["↵", "copy"], ["Esc", "close"]]
         : rows[current]?.kind === "app" && rows[current].app.actions.length > 0 ? [["↑↓", "navigate"], ["↵", "open"], ["→", "more actions"], ["Tab", "switch mode"], ["Esc", "close"]]
         : filesWanted ? [["↑↓", "navigate"], ["↵", "open"], ["Shift ↵", "show in folder"], ["Esc", "close"]]
         : (mode === "all" || mode === "apps") && query.startsWith("!") ? [["↑↓", "navigate"], ["↵", "show in centre"], ["Esc", "close"]]
@@ -287,8 +290,10 @@ PanelWindow {
             [":", "Emoji; Enter copies one"],
             ["?", "This cheat sheet"],
             ["12*3", "A calculation: the answer shows at the top"]
-        ].concat(Apps.claudeApp ? [["claude", "Ask Claude: a new chat in Claude Desktop"]] : [])
-            .map(([k, t], i) => row("prefix", i, [k], t, { prefix: k === "12*3" ? "" : k === "claude" ? "claude " : k }));
+        ].concat(Apps.claudeApp ? [["claude", "Ask Claude: a new chat in Claude Desktop"]] : [],
+            Cider.installed ? [["m", "Apple Music in Cider: Enter plays, Shift+Enter plays next"]] : [],
+            [["kill", "Your running programs; Enter ends one"], ["tldr", "Examples for a command; Enter copies one"]])
+            .map(([k, t], i) => row("prefix", i, [k], t, { prefix: k === "12*3" ? "" : ["claude", "m", "kill", "tldr"].includes(k) ? k + " " : k }));
         const keys = [
             [["Tab"], "Next mode; Shift+Tab goes back"],
             [["↑", "↓"], "Move between results (or Ctrl+K, Ctrl+J)"],
@@ -449,6 +454,7 @@ PanelWindow {
                 { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) },
                 { kind: "wplink", key: "wplink", title: "Wallpapers", subtitle: Wallpapers.current.split("/").pop() || "None", glyph: Icons.image },
                 { kind: "switch", key: "desktopIcons", title: "Desktop icons", icon: Icons.folder, on: () => Desktop.enabled, status: () => Desktop.enabled ? "The Desktop folder, on the wallpaper" : "Off", toggle: () => Desktop.setEnabled(!Desktop.enabled) },
+                { kind: "switch", key: "tabbedOsd", title: "Tabbed OSD", icon: Icons.layers, on: () => ShellSettings.tabbedOsd, status: () => ShellSettings.tabbedOsd ? "Says when a workspace's tabs go on or off" : "Off", toggle: () => ShellSettings.setTabbedOsd(!ShellSettings.tabbedOsd) },
                 { kind: "switch", key: "workspaceOsd", title: "Workspace OSD", icon: Icons.layers, on: () => ShellSettings.workspaceOsd, status: () => ShellSettings.workspaceOsd ? "Shows which workspace you switched to" : "Off", toggle: () => ShellSettings.setWorkspaceOsd(!ShellSettings.workspaceOsd) }
             ]],
             ["Sound", [
@@ -462,7 +468,8 @@ PanelWindow {
             ]],
             ["Apps and places", [
                 { kind: "termlink", key: "terminal", title: "Terminal", subtitle: Apps.terminalName(Apps.terminal), glyph: Icons.terminal },
-                { kind: "setting", key: "weatherCity", title: "Weather location", subtitle: Weather.placeName, glyph: Icons.mapPin, setting: weatherSetting }
+                { kind: "setting", key: "weatherCity", title: "Weather location", subtitle: Weather.placeName, glyph: Icons.mapPin, setting: weatherSetting },
+                ...(Cider.installed ? [{ kind: "setting", key: "ciderToken", title: "Cider token", subtitle: Cider.usable ? "Set: Up next and Apple Music search (m …)" : "Not set: for Up next and Apple Music search", glyph: Icons.music, setting: ciderSetting }] : [])
             ]],
             ["More", [
                 { kind: "showoff", key: "showoff", title: "Showoff mode", subtitle: "Everything open for a screenshot, private things hidden", glyph: Icons.sparkles },
@@ -511,6 +518,66 @@ PanelWindow {
         }
     }
 
+    // Other apps' things (owner's picks, 8 November 2026): CLion's recent projects and the games, found
+    // by name in All and Apps ("clion" lists every project, "games" every game)
+    function projectRows(q: string): var {
+        const all = Fuzzy.match(q, "clion") && q.length >= 3;
+        return Library.projects.filter(p => all || Fuzzy.match(q, p.name)).slice(0, all ? 12 : 4).map(p => ({
+            kind: "project", key: "project:" + p.path, title: p.name, subtitle: "CLion · " + p.path.replace(Quickshell.env("HOME"), "~"), icon: Apps.icon(Library.clion?.icon ?? "clion"), glyph: Icons.fileCode, project: p
+        }));
+    }
+
+    function gameRows(q: string): var {
+        const all = Fuzzy.match(q, "games") && q.length >= 4;
+        return Library.games.filter(g => all || Fuzzy.match(q, g.name)).map(g => ({
+            kind: "game", key: "game:" + g.key, title: g.name, subtitle: g.appid ? "Steam" : "Game", icon: g.cover ? "file://" + g.cover : Apps.icon(g.icon ?? ""), glyph: Icons.sparkles, game: g
+        }));
+    }
+
+    // `kill <name>`: your programs matching it, the busiest first
+    function processRows(q: string): var {
+        const rows = Processes.list.filter(p => !q || Fuzzy.fold(p.name).includes(Fuzzy.fold(q)) || Fuzzy.fold(p.command).includes(Fuzzy.fold(q))).slice(0, 30).map(p => ({
+            kind: "process", key: "process:" + p.pid, title: p.name, subtitle: `PID ${p.pid} · ${p.cpu.toFixed(1)} % CPU · ${Math.round(p.memory)} MB · ${p.command}`, icon: Apps.iconFor(p.name), glyph: Icons.cpu, process: p
+        }));
+        return [section(q ? `Programs matching “${q}”` : "Your programs · busiest first")].concat(rows.length ? rows : [{ kind: "empty", key: "noprocess", title: "Nothing by that name is running" }]);
+    }
+
+    // `tldr <command>`: its description and examples; Enter copies one
+    function tldrRows(q: string): var {
+        if (!q)
+            return [{ kind: "empty", key: "tldr", title: "Type a command, e.g. tldr tar" }];
+        Qt.callLater(Tldr.lookup, q); // not while the rows are being worked out: it changes what they read
+        if (Tldr.busy || Tldr.page !== q.trim().toLowerCase().replace(/\s+/g, "-")) // (the page shown is the one asked for)
+            return [{ kind: "empty", key: "tldr", title: "Looking it up…" }];
+        if (Tldr.missing)
+            return [{ kind: "empty", key: "tldr", title: `tldr has no page for “${q}”` }];
+        // the whole description first (owner, 9 November: the heading cut it short), and the full manual
+        return [section(Tldr.page), { kind: "note", key: "tldr:about", title: Tldr.description + (Tldr.more ? `\nMore: ${Tldr.more}` : "") }]
+            .concat([section("Examples")], Tldr.examples.map((e, i) => ({
+                kind: "tldr", key: "tldr:" + i, title: e.what, subtitle: e.command, glyph: Icons.terminal, command: e.command
+            })), [{ kind: "tldrman", key: "tldr:man", title: `Open the full manual: man ${Tldr.page}`, subtitle: `In ${Apps.terminalName(Apps.terminal)}`, glyph: Icons.fileText, page: Tldr.page }]);
+    }
+
+    // `m <words>`: Apple Music through Cider; without its token, a row that asks for it
+    function musicRows(q: string): var {
+        if (!Cider.usable)
+            return [section("Apple Music"), { kind: "setting", key: "ciderToken", title: "Set Cider's token to search Apple Music", subtitle: "Cider → Settings → Connectivity → Manage External Application Access", glyph: Icons.music, setting: ciderSetting }];
+        Qt.callLater(Cider.search, q);
+        const rows = Cider.results.map(r => ({ kind: "music", key: `music:${r.type}:${r.id}`, title: r.name, subtitle: r.detail, icon: r.art, glyph: Icons.music, item: r }));
+        return [section("Apple Music")].concat(rows.length ? rows : [{ kind: "empty", key: "nomusic", title: !q ? "Type a song, an album or a playlist" : Cider.searching ? "Searching…" : Cider.reachable ? "No matches" : "Cider didn't answer: is it open?" }]);
+    }
+
+    // Cider's app token (Shell settings), checked with Cider before it's kept
+    readonly property var ciderSetting: ({
+        key: "ciderToken",
+        title: "Cider token",
+        icon: Icons.music,
+        placeholder: "Paste the token",
+        hint: () => "In Cider: Settings → Connectivity → Manage External Application Access, create one, copy it, paste it here and press Enter.",
+        check: (text, then) => Cider.check(text.trim(), then),
+        apply: token => Cider.setToken(token)
+    })
+
     // Named workspaces matching the search, and presets (owner's request, 3 November 2026): Enter goes
     // to the workspace, or loads the preset
     function namedRows(q: string): var {
@@ -552,6 +619,7 @@ PanelWindow {
             return [
                 { text: "Switch to it", glyph: Icons.window, run: () => activate(row, 0, false) },
                 { text: "Float or tile", glyph: Icons.layers, run: () => { Compositor.toggleFloating(row.address); resnap.restart(); } },
+                { text: Compositor.windows.find(w => w.address === row.address)?.pinned ? "Unpin" : "Pin on top", glyph: Icons.window, run: () => { Compositor.togglePin(row.address); resnap.restart(); } },
                 { text: "Close window", glyph: Icons.close, danger: true, run: () => { Compositor.close(row.address); resnap.restart(); } }
             ];
         case "workspaces": {
@@ -563,8 +631,10 @@ PanelWindow {
             return [
                 { text: `Go to workspace ${card.id}`, glyph: Icons.chevronRight, run: () => activate(row, col, false) },
                 { text: "Move the last window here", glyph: Icons.window, run: () => activate(row, col, true) },
-                { text: named ? "Rename…" : "Name it…", glyph: Icons.pencil, run: () => renameWorkspace(card.id) }
+                { text: named ? "Rename…" : "Name it…", glyph: Icons.pencil, run: () => renameWorkspace(card.id) },
+                { text: Compositor.isTabbed(card.id) ? "Tabs off: tile again" : "Tabbed, i3-style", glyph: Icons.layers, run: () => { const on = !Compositor.isTabbed(card.id); if (on) Compositor.goto(card.id); Compositor.setTabbed(card.id, on); open = false; } }
             ].concat(named ? [{ text: "Clear its name", glyph: Icons.close, run: () => Compositor.setName(card.id, "") }] : [],
+                count ? row.cards.filter(c => c.id !== card.id).map(c => ({ text: `Move its windows to ${c.id}${Compositor.nameOf(c.id) ? " · " + Compositor.nameOf(c.id) : ""}`, glyph: Icons.chevronRight, run: () => { windows.filter(w => w.workspace === card.id).forEach(w => Compositor.sendWindow(w.address, c.id)); resnap.restart(); } })) : [],
                 count ? [{ text: `Close its ${count} window${count === 1 ? "" : "s"}…`, glyph: Icons.trash, danger: true, run: () => askCloseWorkspace(card.id) }] : []);
         }
         case "wsname":
@@ -581,6 +651,23 @@ PanelWindow {
         case "btdevice":
             return [{ text: row.device.connected ? "Disconnect" : row.device.paired ? "Connect" : "Pair", glyph: Icons.bluetooth, run: () => activate(row, 0, false) }]
                 .concat(row.device.paired ? [{ text: "Forget device", glyph: Icons.trash, danger: true, run: () => Bluetooth.forget(row.device) }] : []);
+        case "project":
+            return [{ text: "Open in CLion", glyph: Icons.fileCode, run: () => activate(row, 0, false) }, { text: "Show in file manager", glyph: Icons.folder, run: () => Quickshell.execDetached(["xdg-open", row.project.path]) }];
+        case "game":
+            return [{ text: "Play", glyph: Icons.play, run: () => activate(row, 0, false) }];
+        case "process":
+            return [
+                { text: "End it…", glyph: Icons.close, danger: true, run: () => activate(row, 0, false) },
+                { text: "Force quit", glyph: Icons.trash, danger: true, run: () => Processes.end(row.process, true) }
+            ];
+        case "tldr":
+            return [{ text: "Copy the command", glyph: Icons.clipboard, run: () => activate(row, 0, false) }];
+        case "music":
+            return [
+                { text: "Play now", glyph: Icons.play, run: () => { Cider.play(row.item, "now"); open = false; } },
+                { text: "Play next", glyph: Icons.skipForward, run: () => Cider.play(row.item, "next") },
+                { text: "Add to the queue", glyph: Icons.plus, run: () => Cider.play(row.item, "later") }
+            ];
         case "file":
             return [
                 { text: "Open", glyph: Icons.folderOpen, run: () => activate(row, 0, false) },
@@ -611,16 +698,23 @@ PanelWindow {
         "←": [Qt.Key_Left, 0],
         "Ctrl W": [Qt.Key_W, Qt.ControlModifier],
         "Ctrl F": [Qt.Key_F, Qt.ControlModifier],
+        "Ctrl P": [Qt.Key_P, Qt.ControlModifier],
         "Ctrl M": [Qt.Key_M, Qt.ControlModifier],
         "Ctrl ⌫": [Qt.Key_Backspace, Qt.ControlModifier]
     })
+
+    // back to typing after a click on a hint or a menu entry (from the menu's rows the field's id
+    // read as undefined: "field is not defined", 9 November)
+    function focusField() {
+        field.forceActiveFocus();
+    }
 
     function pressHint(label: string) {
         const k = hintKeys[label];
         if (!k)
             return;
         key({ key: k[0], modifiers: k[1], accepted: false });
-        field.forceActiveFocus();
+        focusField();
     }
 
     function askDeletePreset(name: string) {
@@ -800,6 +894,12 @@ PanelWindow {
             rows = notificationRows(q.slice(1).trim());
         } else if (q.startsWith("@") && (mode === "all" || mode === "apps")) {
             rows = webRows(q.slice(1).trim());
+        } else if (/^kill(\s|$)/i.test(q) && (mode === "all" || mode === "apps")) {
+            rows = processRows(q.slice(4).trim());
+        } else if (/^tldr(\s|$)/i.test(q) && (mode === "all" || mode === "apps")) {
+            rows = tldrRows(q.slice(4).trim());
+        } else if (/^m\s/i.test(q) && Cider.installed && (mode === "all" || mode === "apps")) {
+            rows = musicRows(q.slice(2).trim());
         } else if (q.startsWith("?") && (mode === "all" || mode === "apps")) {
             rows = cheatRows(q.slice(1).trim());
         } else if (mode === "apps") {
@@ -825,8 +925,8 @@ PanelWindow {
             const w = windowRows("", 5).map(r => Object.assign(r, { compact: true }));
             rows = [section("Quick controls"), { kind: "controls", key: "controls" }].concat(w.length ? [section("Open windows")].concat(w) : []);
         } else {
-            const a = appRows(q, 5), w = windowRows(q, 3), named = namedRows(q), presets = presetRows(q);
-            rows = calcRows(q).concat(a.length ? [section("Applications")].concat(a) : []).concat(w.length ? [section("Windows")].concat(w) : [])
+            const a = appRows(q, 5), w = windowRows(q, 3), named = namedRows(q), presets = presetRows(q), projects = projectRows(q), games = gameRows(q);
+            rows = calcRows(q).concat(a.length ? [section("Applications")].concat(a) : [], games.length ? [section("Games")].concat(games) : [], projects.length ? [section("CLion projects")].concat(projects) : []).concat(w.length ? [section("Windows")].concat(w) : [])
                 .concat(named.length ? [section("Workspaces")].concat(named) : [], presets.length ? [section("Presets")].concat(presets) : [])
                 .concat(powerRows(q), systemRows(q));
         }
@@ -851,7 +951,7 @@ PanelWindow {
     // ---- selection and actions ------------------------------------------------------------------
 
     function selectable(i: int): bool {
-        return i >= 0 && i < rows.length && !["section", "empty", "calc", "stat"].includes(rows[i].kind) && !rows[i].off;
+        return i >= 0 && i < rows.length && !["section", "empty", "calc", "stat", "note"].includes(rows[i].kind) && !rows[i].off;
     }
 
     function step(from: int, dir: int): int {
@@ -955,6 +1055,26 @@ PanelWindow {
             wallpapersRequested();
         } else if (row.kind === "setting") {
             startEditing(row.setting);
+        } else if (row.kind === "project") {
+            Library.openProject(row.project);
+            open = false;
+        } else if (row.kind === "game") {
+            Library.play(row.game);
+            open = false;
+        } else if (row.kind === "process") {
+            const p = row.process;
+            confirming = { id: "kill:" + p.pid, title: "End it", icon: Icons.close, danger: true, question: `End ${p.name} (PID ${p.pid})?`, confirm: "It closes without asking, and its unsaved work is lost.", run: () => Processes.end(p, false) };
+            current = 0;
+            column = 0;
+        } else if (row.kind === "tldrman") {
+            Quickshell.execDetached(Apps.inTerminal(["man", row.page], false, `man ${row.page}`));
+            open = false;
+        } else if (row.kind === "tldr") {
+            Clipboard.copyText(row.command);
+            open = false;
+        } else if (row.kind === "music") {
+            Cider.play(row.item, shift ? "next" : "now");
+            open = false;
         } else if (row.kind === "wsname") {
             Compositor.goto(row.id);
             open = false;
@@ -1091,6 +1211,8 @@ PanelWindow {
                 column = Math.max(0, Math.min(gridLength(row) - 1, column + dir));
             // an app's actions: → opens them once the search's cursor is at its end (so → still moves
             // it while typing), ← closes them and goes back to the app
+            else if (dir > 0 && row?.kind === "music" && field.cursorPosition === field.text.length)
+                Cider.play(row.item, "later");
             else if (dir > 0 && (row?.kind === "app" && row.app.actions.length > 0 || row?.kind === "preset") && expandedKey !== row.key && field.cursorPosition === field.text.length) {
                 expandedKey = row.key;
                 current = step(current, 1);
@@ -1116,6 +1238,12 @@ PanelWindow {
             if (!ctrl || row?.kind !== "window")
                 return;
             Compositor.close(row.address);
+            resnap.restart();
+            break;
+        case Qt.Key_P:
+            if (!ctrl || row?.kind !== "window")
+                return;
+            Compositor.togglePin(row.address);
             resnap.restart();
             break;
         case Qt.Key_F:
@@ -1166,6 +1294,8 @@ PanelWindow {
     onConfirmingChanged: list.enter() // a question in place of the results, or back from it
     onEditingChanged: list.enter()
     onQueryChanged: {
+        if (/^kill(\s|$)/i.test(query))
+            Processes.load();
         confirming = null; // typing goes back to searching
         expandedKey = "";
         if (filesWanted)
@@ -1185,6 +1315,8 @@ PanelWindow {
 
     onOpenChanged: {
         menu = null;
+        if (open)
+            Library.load();
         grab.active = open;
         hadKeyboard = false;
         if (!open) {
@@ -1606,7 +1738,7 @@ PanelWindow {
                     property bool quick
                     readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
+                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "music", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -1794,6 +1926,8 @@ PanelWindow {
                             sourceComponent: ({
                                 section: sectionView,
                                 empty: emptyView,
+                                note: noteView,
+                                tldrman: resultView,
                                 app: resultView,
                                 appaction: resultView,
                                 window: resultView,
@@ -1816,6 +1950,11 @@ PanelWindow {
                                 preset: resultView,
                                 presetsave: resultView,
                                 presetdelete: resultView,
+                                project: resultView,
+                                game: resultView,
+                                process: resultView,
+                                tldr: resultView,
+                                music: resultView,
                                 aboutline: resultView,
                                 abouturl: resultView,
                                 terminal: resultView,
@@ -2218,6 +2357,28 @@ PanelWindow {
                             }
                         }
 
+                        // a paragraph, wrapped (tldr's description)
+                        Component {
+                            id: noteView
+
+                            Text {
+                                width: loader.width
+                                leftPadding: 18
+                                rightPadding: 18
+                                topPadding: 2
+                                bottomPadding: 10
+                                wrapMode: Text.Wrap
+                                text: entry.modelData.title
+                                textFormat: Text.PlainText
+                                color: Theme.text
+                                font.family: Theme.fontUi
+                                font.pixelSize: 13
+                                font.weight: Font.Medium
+                                lineHeight: 19
+                                lineHeightMode: Text.FixedHeight
+                            }
+                        }
+
                         Component {
                             id: emptyView
 
@@ -2272,6 +2433,12 @@ PanelWindow {
                                     : row.kind === "preset" ? "Load"
                                     : row.kind === "presetsave" ? "Save"
                                     : row.kind === "presetdelete" ? "Delete"
+                                    : row.kind === "project" ? "Open"
+                                    : row.kind === "game" ? "Play"
+                                    : row.kind === "process" ? "End"
+                                    : row.kind === "tldr" ? "Copy"
+                                    : row.kind === "tldrman" ? "Open"
+                                    : row.kind === "music" ? "Play"
                                     : row.kind === "abouturl" ? "Open"
                                     : row.kind === "terminal" && row.name !== Apps.terminal ? "Use"
                                     : row.kind === "showoff" ? (Showoff.active ? "Stop" : "Start")
@@ -2736,7 +2903,7 @@ PanelWindow {
                             const run = menuEntry.modelData.run;
                             root.menu = null;
                             run();
-                            field.forceActiveFocus();
+                            root.focusField();
                         }
                     }
                 }

@@ -29,6 +29,10 @@ ShellRoot {
     Bar {
         id: bar
         onLauncherRequested: mode => launcher.show(mode)
+        onRenameWorkspaceRequested: ws => {
+            launcher.show("workspaces");
+            launcher.renameWorkspace(ws);
+        }
     }
 
     Launcher {

@@ -79,9 +79,34 @@ PanelWindow {
     function commit() {
         if (!open)
             return;
-        if (chosen)
+        if (chosen) {
             Compositor.focus(chosen.address);
+            // a tab: once the switcher has let go of the keyboard, Hyprland hands it back to the tab
+            // that had it, which brings that one to the front again (owner, 9 November): focus the
+            // chosen one once more after
+            if (chosen.group.length > 1)
+                refocus = chosen.address;
+        }
         open = false;
+    }
+
+    property string refocus
+
+    Connections {
+        target: reveal
+        function onShownChanged() {
+            if (!reveal.shown && root.refocus)
+                refocusLater.restart(); // a beat after the window is gone, when Hyprland has handed the keyboard back
+        }
+    }
+
+    Timer {
+        id: refocusLater
+        interval: 150
+        onTriggered: {
+            Compositor.focus(root.refocus);
+            root.refocus = "";
+        }
     }
 
     function cancel() {

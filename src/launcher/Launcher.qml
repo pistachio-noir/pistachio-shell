@@ -215,6 +215,50 @@ PanelWindow {
         }, Compositor.nameOf(id));
     }
 
+    // From the clock's menu (owner's request, 9 November 2026): a timer's length and label ("25m tea",
+    // "1h 30m", "90s", "10"), an alarm's time and label ("7:30 wake up", "6pm", "18:45")
+    function askTimer() {
+        show("all");
+        startEditing({
+            key: "",
+            title: "Timer",
+            icon: Icons.clock,
+            placeholder: "25m tea",
+            close: true,
+            hint: () => "How long, and a name if you like: 25m tea, 1h 30m, 90s. Enter starts it.",
+            check: (text, then) => {
+                const words = text.trim().split(/\s+/);
+                let n = words.length;
+                while (n > 0 && Clocks.parseDuration(words.slice(0, n).join(" ")) <= 0)
+                    n--;
+                const ms = n ? Clocks.parseDuration(words.slice(0, n).join(" ")) : 0;
+                then(ms > 0 ? { ms: ms, label: words.slice(n).join(" ") } : null, "Say how long: 25m, 1h 30m, 90s.");
+            },
+            apply: v => Clocks.startTimer(v.ms, v.label)
+        }, "");
+    }
+
+    function askAlarm() {
+        show("all");
+        startEditing({
+            key: "",
+            title: "Alarm",
+            icon: Icons.bell,
+            placeholder: "7:30 wake up",
+            close: true,
+            hint: () => "A time, and a name if you like: 7:30 wake up, 6pm, 18:45. It rings once, and shows in GNOME Clocks too.",
+            check: (text, then) => {
+                const m = /^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?\s*(.*)$/i.exec(text.trim());
+                let h = m ? parseInt(m[1]) : -1;
+                const min = m && m[2] ? parseInt(m[2]) : 0;
+                if (m && m[3])
+                    h = h % 12 + (m[3].toLowerCase() === "pm" ? 12 : 0);
+                then(m && h >= 0 && h < 24 && min < 60 ? { hour: h, minute: min, label: m[4] } : null, "Say when: 7:30, 6pm, 18:45.");
+            },
+            apply: v => Clocks.addAlarm(v.hour, v.minute, v.label)
+        }, "");
+    }
+
     function newDesktopFolder(cell) {
         show("all");
         startEditing({

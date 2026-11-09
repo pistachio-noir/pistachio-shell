@@ -1,4 +1,5 @@
 import qs
+import qs.components
 import qs.panels
 import qs.popups
 import qs.services
@@ -104,6 +105,8 @@ PanelWindow {
     // quick settings asks for a launcher mode; shell.qml owns the launcher
     signal launcherRequested(string mode)
     signal renameWorkspaceRequested(int workspace) // the right-click menu: shell.qml asks in the launcher
+    signal timerRequested
+    signal alarmRequested
 
     // the notification centre at one notification (the launcher's "!")
     function showNotification(n) {
@@ -264,6 +267,8 @@ PanelWindow {
             acceptedButtons: Qt.RightButton
             onClicked: mouse => {
                 barMenu.at = (root.screen.width - root.width) / 2 + mapToItem(null, mouse.x, 0).x; // the bar is centred
+                const p = mapToItem(clock, mouse.x, mouse.y), q = mapToItem(clockPills, mouse.x, mouse.y);
+                barMenu.kind = clock.contains(p) || clockPills.visible && clockPills.contains(q) ? "clock" : "workspace";
                 barMenu.open = true;
             }
         }
@@ -278,10 +283,87 @@ PanelWindow {
 
         WindowTitle {
             anchors.left: workspaces.right
-            anchors.right: recordingChip.visible ? recordingChip.left : clock.left
+            anchors.right: clockPills.visible ? clockPills.left : recordingChip.visible ? recordingChip.left : clock.left
             anchors.leftMargin: 12 // gap + the title's own 4 px padding
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
+        }
+
+        // a running timer or stopwatch (owner's request, 9 November 2026): the time counting, its label;
+        // a click pauses or resumes it, a right click opens the clock's menu (stop, lap)
+        Row {
+            id: clockPills
+
+            visible: Clocks.timers.length > 0 || Clocks.stopwatch !== null
+            anchors.right: recordingChip.visible ? recordingChip.left : clock.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 8
+
+            Repeater {
+                model: Clocks.timers.slice(0, 2).map(t => ({ kind: "timer", t: t })).concat(Clocks.stopwatch ? [{ kind: "stopwatch" }] : []).slice(0, 2)
+
+                Rectangle {
+                    id: pill
+
+                    required property var modelData
+                    readonly property bool timer: modelData.kind === "timer"
+                    readonly property bool running: timer ? !!modelData.t.endsAt : !!Clocks.stopwatch?.since
+                    readonly property string time: timer ? Clocks.clock(Clocks.left(modelData.t)) : Clocks.clock(Clocks.elapsed())
+                    readonly property string label: timer ? modelData.t.label : ""
+
+                    width: pillRow.implicitWidth + 28
+                    height: Theme.chipHeight
+                    radius: Theme.chipRadius
+                    color: pillMouse.containsMouse ? Theme.overlay2 : Theme.overlay
+                    Accessible.role: Accessible.Button
+                    Accessible.name: `${timer ? "Timer" : "Stopwatch"} ${time}${label ? ", " + label : ""}. ${running ? "Pause" : "Resume"}`
+
+                    Row {
+                        id: pillRow
+                        anchors.centerIn: parent
+                        spacing: 8
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            size: 16
+                            paths: pill.timer ? Icons.clock : Icons.stopwatch
+                            color: pill.running ? Theme.pistachio : Theme.subtext
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: pill.time
+                            color: pill.running ? Theme.textBright : Theme.subtext
+                            font.family: Theme.fontUi
+                            font.pixelSize: 13
+                            font.weight: Font.ExtraBold
+                            font.features: { "tnum": 1 }
+                        }
+
+                        Text {
+                            visible: pill.label !== ""
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Math.min(implicitWidth, 70)
+                            elide: Text.ElideRight
+                            text: pill.label
+                            textFormat: Text.PlainText
+                            color: Theme.subtext
+                            font.family: Theme.fontUi
+                            font.pixelSize: 11
+                            font.weight: Font.DemiBold
+                        }
+                    }
+
+                    MouseArea {
+                        id: pillMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: pill.timer ? Clocks.pauseTimer(pill.modelData.t.id) : Clocks.pauseStopwatch()
+                    }
+                }
+            }
         }
 
         // while the screen is recorded (owner's pick, 8 November 2026): a red dot and the time; a click
@@ -415,6 +497,8 @@ PanelWindow {
         id: barMenu
         lift: root.height
         onRenameRequested: ws => root.renameWorkspaceRequested(ws)
+        onTimerRequested: root.timerRequested()
+        onAlarmRequested: root.alarmRequested()
     }
 
     PowerMenu {

@@ -10,7 +10,7 @@ import QtQuick
 
 ShellRoot {
     // services that work in the background from the start: a singleton only starts once it's used
-    readonly property var background: [Drives, LocalSend]
+    readonly property var background: [Drives, LocalSend, Clocks]
 
     // frosted panels: how opaque the bar and panels are
     Binding {
@@ -29,6 +29,8 @@ ShellRoot {
     Bar {
         id: bar
         onLauncherRequested: mode => launcher.show(mode)
+        onTimerRequested: launcher.askTimer()
+        onAlarmRequested: launcher.askAlarm()
         onRenameWorkspaceRequested: ws => {
             launcher.show("workspaces");
             launcher.renameWorkspace(ws);
@@ -44,6 +46,7 @@ ShellRoot {
     Lock {}
     PolkitDialog {} // and the polkit agent behind it, which starts with the shell
     ScreenshotPicker {}
+    AlarmPopup {} // timers done and Clocks' alarms ringing
     PistachioRain {
         id: rain
     }

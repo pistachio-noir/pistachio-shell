@@ -16,9 +16,36 @@ PanelWindow {
     property int lift // the bar's top, from the screen's bottom edge
 
     signal renameRequested(int workspace)
+    signal timerRequested
+    signal alarmRequested
+
+    // which menu: the workspace's (anywhere on the bar) or the clock's (on the clock pill: timers, the
+    // stopwatch and alarms, owner's request, 9 November 2026)
+    property string kind: "workspace"
 
     readonly property int ws: Compositor.activeWorkspace
-    readonly property var entries: [
+    readonly property var entries: kind === "clock" ? clockEntries : workspaceEntries
+    readonly property var clockEntries: {
+        const out = [{ text: "Timer…", glyph: Icons.clock, run: () => root.timerRequested() }];
+        for (const t of Clocks.timers) {
+            const name = t.label || `Timer ${Clocks.clock(t.duration)}`;
+            out.push({ text: `${t.endsAt ? "Pause" : "Resume"} ${name}`, glyph: Icons.clock, run: () => Clocks.pauseTimer(t.id) });
+            out.push({ text: `Stop ${name}`, glyph: Icons.close, danger: true, run: () => Clocks.stopTimer(t.id) });
+        }
+        if (!Clocks.stopwatch)
+            out.push({ text: "Start a stopwatch", glyph: Icons.stopwatch, run: () => Clocks.startStopwatch() });
+        else
+            out.push({ text: Clocks.stopwatch.since ? "Pause the stopwatch" : "Resume the stopwatch", glyph: Icons.stopwatch, run: () => Clocks.pauseStopwatch() },
+                { text: `Lap (${Clocks.stopwatch.laps.length} so far)`, glyph: Icons.plus, run: () => Clocks.lap() },
+                { text: "Stop the stopwatch", glyph: Icons.close, danger: true, run: () => Clocks.stopStopwatch() });
+        out.push({ text: "Alarm…", glyph: Icons.bell, run: () => root.alarmRequested() });
+        for (const a of Clocks.alarms)
+            out.push({ text: `${a.active ? "On" : "Off"} · ${a.hour}:${String(a.minute).padStart(2, "0")} ${a.name}`, glyph: a.active ? Icons.check : Icons.bellOff, run: () => Clocks.setAlarm(a.id, !a.active) });
+        if (Clocks.clocksInstalled)
+            out.push({ text: "Open Clocks", glyph: Icons.folderOpen, run: () => Clocks.openClocks() });
+        return out;
+    }
+    readonly property var workspaceEntries: [
         { text: Compositor.isTabbed(ws) ? "Tabs off: tile again" : "Tabbed, i3-style", glyph: Icons.layers, run: () => Compositor.setTabbed(ws, !Compositor.isTabbed(ws)) },
         { text: Compositor.nameOf(ws) ? `Rename “${Compositor.nameOf(ws)}”…` : `Name workspace ${ws}…`, glyph: Icons.pencil, run: () => root.renameRequested(ws) }
     ].concat(Compositor.nameOf(ws) ? [{ text: "Clear its name", glyph: Icons.close, run: () => Compositor.setName(ws, "") }] : [])
@@ -76,7 +103,7 @@ PanelWindow {
                 x: 10
                 height: 28
                 verticalAlignment: Text.AlignVCenter
-                text: `WORKSPACE ${root.ws}`
+                text: root.kind === "clock" ? "TIMERS AND ALARMS" : `WORKSPACE ${root.ws}`
                 color: Theme.subtext
                 font.family: Theme.fontUi
                 font.pixelSize: 11
@@ -104,7 +131,7 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         size: 16
                         paths: entry.modelData.glyph
-                        color: Theme.subtext
+                        color: entry.modelData.danger ? Theme.terracotta : Theme.subtext
                     }
 
                     Text {

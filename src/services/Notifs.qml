@@ -177,6 +177,8 @@ Singleton {
     // a new toast, folding the app's recent ones into it if this makes three or more
     function showPopup(n) {
         const app = n.appName ?? "";
+        if (app === "Clocks")
+            return; // the shell rings Clocks' alarms itself, with its own popup (Clocks.qml)
         const foldable = p => !isCritical(p) && !own(p);
         const recent = foldable(n) ? popups.filter(p => p !== n && (p.appName ?? "") === app && foldable(p) && Date.now() - (receivedAt[p.id] ?? 0) < 5000) : [];
         const count = 1 + recent.reduce((sum, p) => sum + (popupCounts[p.id] ?? 1), 0);

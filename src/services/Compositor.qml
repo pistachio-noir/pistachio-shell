@@ -204,6 +204,22 @@ Singleton {
         borderReader.running = true;
     }
 
+    // At login the shell can start before it knows Hyprland's config is Lua (`usingLua` false at
+    // first): the styling was skipped and only came back with a config reload (owner, 9 November,
+    // after a reboot). So again once that's known, and once more a few seconds in.
+    Connections {
+        target: Hyprland
+        function onUsingLuaChanged() {
+            root.styleGroups();
+        }
+    }
+
+    Timer {
+        running: true
+        interval: 4000
+        onTriggered: root.styleGroups()
+    }
+
     function hl(lua: string) {
         Quickshell.execDetached(["hyprctl", "eval", lua]);
     }

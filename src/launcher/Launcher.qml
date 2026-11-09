@@ -292,6 +292,7 @@ PanelWindow {
             ["12*3", "A calculation: the answer shows at the top"]
         ].concat(Apps.claudeApp ? [["claude", "Ask Claude: a new chat in Claude Desktop"]] : [],
             Cider.installed ? [["m", "Apple Music in Cider: Enter plays, Shift+Enter plays next"]] : [],
+            Qalc.installed ? [["=", "libqalculate: equations, units, currencies, bases; Enter copies"]] : [],
             [["kill", "Your running programs; Enter ends one"], ["tldr", "Examples for a command; Enter copies one"]])
             .map(([k, t], i) => row("prefix", i, [k], t, { prefix: k === "12*3" ? "" : ["claude", "m", "kill", "tldr"].includes(k) ? k + " " : k }));
         const keys = [
@@ -841,7 +842,25 @@ PanelWindow {
 
     function calcRows(q: string): var {
         const v = Calc.evaluate(q);
-        return v === null ? [] : [{ kind: "calc", key: "calc", title: "= " + Calc.format(v), subtitle: q.trim() }];
+        if (v !== null)
+            return [{ kind: "calc", key: "calc", title: "= " + Calc.format(v), subtitle: q.trim() }];
+        return looksLikeMaths(q) ? qalcRows(q) : [];
+    }
+
+    // what calc.js can't read but clearly is maths goes to qalc (owner, 9 November): digits with an
+    // operator, a function call, or "to"/"in" between amounts; a plain name ("7zip", "firefox") doesn't
+    function looksLikeMaths(q: string): bool {
+        q = q.trim();
+        return Qalc.installed && /\d/.test(q) && (/[\^*\/+=%!()]|\d\s*-\s*\d/.test(q) || /\b(sqrt|cbrt|sin|cos|tan|asin|acos|atan|log|ln|exp|abs|solve|integrate|diff|factorial|round|floor|ceil)\s*\(/i.test(q) || /\d\s*\S+\s+(to|in)\s+\S+/i.test(q));
+    }
+
+    // qalc's answer, as a row on top; Enter copies it. The last answer stays until the next comes.
+    function qalcRows(q: string): var {
+        Qt.callLater(Qalc.ask, q);
+        const ready = Qalc.expression === q.trim();
+        if (ready && Qalc.failed)
+            return [];
+        return [{ kind: "qalc", key: "qalc", title: ready ? "= " + Qalc.answer : "= …", subtitle: `${q.trim()} · libqalculate`, glyph: Icons.calculator, answer: ready ? Qalc.answer : "" }];
     }
 
     // The agent's question, worded for the launcher; the last choice accepts. Codes to type on the
@@ -894,6 +913,9 @@ PanelWindow {
             rows = notificationRows(q.slice(1).trim());
         } else if (q.startsWith("@") && (mode === "all" || mode === "apps")) {
             rows = webRows(q.slice(1).trim());
+        } else if (q.startsWith("=") && Qalc.installed && (mode === "all" || mode === "apps")) {
+            const e = q.slice(1).trim();
+            rows = [section("libqalculate")].concat(e ? qalcRows(e) : [], e && Qalc.expression === e && Qalc.failed ? [{ kind: "empty", key: "qalcfail", title: "qalc couldn't read that" }] : [], e ? [] : [{ kind: "empty", key: "qalchint", title: "Equations, units, currencies, bases: = solve(x^2 = 4), = 5 km to mi" }]);
         } else if (/^kill(\s|$)/i.test(q) && (mode === "all" || mode === "apps")) {
             rows = processRows(q.slice(4).trim());
         } else if (/^tldr(\s|$)/i.test(q) && (mode === "all" || mode === "apps")) {
@@ -1066,6 +1088,11 @@ PanelWindow {
             confirming = { id: "kill:" + p.pid, title: "End it", icon: Icons.close, danger: true, question: `End ${p.name} (PID ${p.pid})?`, confirm: "It closes without asking, and its unsaved work is lost.", run: () => Processes.end(p, false) };
             current = 0;
             column = 0;
+        } else if (row.kind === "qalc") {
+            if (row.answer) {
+                Clipboard.copyText(row.answer);
+                open = false;
+            }
         } else if (row.kind === "tldrman") {
             Quickshell.execDetached(Apps.inTerminal(["man", row.page], false, `man ${row.page}`));
             open = false;
@@ -1738,7 +1765,7 @@ PanelWindow {
                     property bool quick
                     readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "music", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
+                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -1928,6 +1955,7 @@ PanelWindow {
                                 empty: emptyView,
                                 note: noteView,
                                 tldrman: resultView,
+                                qalc: resultView,
                                 app: resultView,
                                 appaction: resultView,
                                 window: resultView,
@@ -2438,6 +2466,7 @@ PanelWindow {
                                     : row.kind === "process" ? "End"
                                     : row.kind === "tldr" ? "Copy"
                                     : row.kind === "tldrman" ? "Open"
+                                    : row.kind === "qalc" ? "Copy"
                                     : row.kind === "music" ? "Play"
                                     : row.kind === "abouturl" ? "Open"
                                     : row.kind === "terminal" && row.name !== Apps.terminal ? "Use"

@@ -9,6 +9,7 @@ Basic.Slider {
     // What's drawn: it eases to a new value (keys, the wheel, a change made elsewhere) but follows a
     // drag as it is. shownValue is the same in the slider's units, for a label that counts along.
     property real shown: position
+    property color trackColor: Theme.overlay
     readonly property real shownValue: from + shown * (to - from)
 
     implicitHeight: 44
@@ -30,7 +31,7 @@ Basic.Slider {
         width: root.width
         height: 10
         radius: 5
-        color: Theme.overlay
+        color: root.trackColor
 
         Rectangle {
             width: root.handle.x + root.handle.width / 2

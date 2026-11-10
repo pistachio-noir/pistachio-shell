@@ -1,0 +1,89 @@
+"""Run the actual settings window with QtTest input and system-service stand-ins."""
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+MOCKS = {
+    "Compositor": 'property var windows: []; property int activeWorkspace: 1; function placeSettingsWindow(w,x,y) {}',
+    "Session": 'property bool locked',
+    "About": 'property string repo: ""; property string commit: "test"; property string date: "2026-11-10"; property string subject: "Test build"; property int changed: 0; property string quickshell: "0.3.2"; property string hyprland: "0.57.1"; property string qt: "6"; function load() {}',
+    "Weather": 'property string city: "Before"; property string placeName: city; property var pending; function lookup(s,then) { pending=then; } function setCity(s) {city=s;}',
+    "Cider": 'property bool installed: true; property bool usable: false; property string token: ""; property var pending; function check(s,then) {pending=then;} function setToken(s) {token=s;}',
+    "LocalSend": 'property bool available:true; property bool wanted:false; property string summary:"Off"; property string name:"Test computer"; property string folderShown:"~/Downloads"; property bool acceptKnown:false; signal openRequested; function setReceive(v){wanted=v;} function setName(v){name=v;} function pickFolder(){} function setAcceptKnown(v){acceptKnown=v;}',
+    "Bluetooth": '''property bool enabled:true; property bool ready:true; property bool agent:true; property bool scanning:false;
+        property string summary:"On"; property var paired:[]; property var nearby:[]; property var request:null;
+        property string requestName:"Test keyboard"; property var answerGiven:null; signal asked;
+        function setEnabled(v){enabled=v;} function setScanning(v){scanning=v;}
+        function name(d){return d.name;} function status(d){return "Not connected";}
+        function toggleConnection(d){} function pair(d){} function forget(d){}
+        function serviceName(u){return "audio";} function answer(ok,value){answerGiven={ok:ok,value:value};request=null;}
+        function ask(kind){request={kind:kind,id:1,code:"123456",entered:2,uuid:"0000110d"};asked();}''',
+    "SystemStats": '''property bool watching:false; property real cpu:0.12;property real cpuTemp:48;property string cpuName:"Test CPU";
+        property real memUsed:12;property real memTotal:32;property bool gpuFound:true;property real gpu:0.05;
+        property real gpuTemp:45;property real vramUsed:1;property real shellCpu:0.002;property real shellMem:100;
+        property var disks:[{mount:"/",size:512,free:150}];function gigabytes(v){return Math.round(v)+" GB";}function setWatching(v){watching=v;}''',
+    "Network": 'property bool connected:true;property bool hasLink:true;property int speed:1000;',
+    "Brightness": 'property bool available:true;property real value:0.7;function set(v){value=v;}',
+    "NightLight": '''property bool available:true;property bool enabled:false;property int temperature:4000;
+        property bool scheduled:false;property int from:1200;property int to:420;
+        function setEnabled(v){enabled=v;}function setTemperature(v){temperature=v;}
+        function setSchedule(on,a,b){scheduled=on;from=a;to=b;}
+        function timeText(v){return String(Math.floor(v/60)).padStart(2,"0")+":"+String(v%60).padStart(2,"0");}''',
+    "Notifs": '''property bool dnd:false;property bool dndScheduled:false;property bool dndFollowsNight:false;
+        property int dndFrom:1320;property int dndTo:420;property var rules:({"Test app":{noToasts:true}});
+        function setDnd(v){dnd=v;}function setDndSchedule(v){dndScheduled=v;}function setDndFollowsNight(v){dndFollowsNight=v;}
+        function setDndTimes(a,b){dndFrom=a;dndTo=b;}function ruleText(a){return "No toasts";}
+        function setRule(a,v){rules={};}''',
+    "Apps": 'property var terminalChoices:["kitty","foot"];property string terminal:"kitty";function terminalName(s){return s;}function setTerminal(s){terminal=s;}',
+    "Wallpapers": 'property string current:"";property string folder:"/tmp/wallpapers";function openFolder(){}',
+    "Desktop": 'property bool enabled:true;function setEnabled(v){enabled=v;}',
+    "Drives": 'property var mounted:[];function eject(d){}',
+    "Audio": '''property var sinks:[{id:1,name:"Speakers"},{id:2,name:"Headphones"},{id:3,name:"Unplugged"}];
+        property var sources:[{id:4,name:"Mic"}];property var sink:sinks[0];property var source:sources[0];
+        property real volume:0.6;property real micVolume:0.4;property bool muted:false;property bool micMuted:false;
+        property var streams:[];function deviceName(n){return n.name;}function isUnplugged(n){return n.id===3;}
+        function setSink(n){sink=n;}function setSource(n){source=n;}
+        function setVolume(v){volume=v;muted=false;}function setMicVolume(v){micVolume=v;micMuted=false;}
+        function toggleMute(){muted=!muted;}function toggleMicMute(){micMuted=!micMuted;}
+        function appName(n){return n.name;}function setStreamVolume(n,v){}function toggleStreamMute(n){}''',
+}
+
+with tempfile.TemporaryDirectory(prefix="pistachio-settings-test-") as directory:
+    base = Path(directory)
+    (base / "services").mkdir()
+    for folder in ("settings", "components"):
+        shutil.copytree(ROOT / "src" / folder, base / folder)
+    shutil.copy(ROOT / "src/Theme.qml", base / "Theme.qml")
+    for name in ("SettingsHub", "Store", "ShellSettings"):
+        shutil.copy(ROOT / f"src/services/{name}.qml", base / f"services/{name}.qml")
+    for name, body in MOCKS.items():
+        (base / f"services/{name}.qml").write_text("pragma Singleton\nimport Quickshell\nimport QtQuick\nSingleton {\n" + body + "\n}\n")
+    shutil.copy(ROOT / "tests/settings-ui.qml", base / "shell.qml")
+    (base / "runtime").mkdir(mode=0o700)
+    env = dict(os.environ, QT_QPA_PLATFORM="offscreen", XDG_RUNTIME_DIR=str(base / "runtime"),
+               XDG_STATE_HOME=str(base / "state"), XDG_CACHE_HOME=str(base / "cache"))
+    for key in ("WAYLAND_DISPLAY", "DISPLAY"):
+        env.pop(key, None)
+    with (base / "log").open("w+") as log:
+        proc = subprocess.Popen(["qs", "-p", directory], env=env, stdout=log, stderr=log)
+        try:
+            result = None
+            for _ in range(70):
+                probe = subprocess.run(["qs", "-p", directory, "ipc", "call", "settingsTest", "ready"], env=env, capture_output=True, text=True)
+                if probe.stdout.strip() == "true":
+                    result = subprocess.run(["qs", "-p", directory, "ipc", "call", "settingsTest", "run"], env=env, capture_output=True, text=True, timeout=35)
+                    break
+                time.sleep(0.1)
+            log.flush()
+            output = (base / "log").read_text()
+            assert result and result.stdout.strip().startswith("all passed"), (result.stdout if result else "No IPC target") + "\n" + output
+            assert "WARN scene:" not in output and "ERROR" not in output, output
+            print("settings QML: " + result.stdout.strip())
+        finally:
+            proc.terminate()
+            proc.wait(timeout=5)

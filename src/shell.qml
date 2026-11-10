@@ -5,6 +5,7 @@ import qs.lock
 import qs.panels
 import qs.popups
 import qs.services
+import qs.settings
 import Quickshell
 import QtQuick
 
@@ -42,6 +43,14 @@ ShellRoot {
         onWallpapersRequested: wallpaperSwitcher.show()
         onNotificationRequested: n => bar.showNotification(n)
         onRainRequested: rain.start()
+        onSettingsRequested: page => settings.showPage(page, "")
+    }
+    SettingsWindow { id: settings }
+    Connections {
+        target: SettingsHub
+        function onPresent() { launcher.open = false; }
+        function onWallpapersRequested() { wallpaperSwitcher.show(); }
+        function onShowoffRequested() { SettingsHub.opened = false; Showoff.start(); }
     }
     Lock {}
     PolkitDialog {} // and the polkit agent behind it, which starts with the shell

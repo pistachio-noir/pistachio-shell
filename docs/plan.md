@@ -49,21 +49,23 @@ One config folder, split by what each file is for: a theme singleton, services t
 │  ├─ Wallpapers.qml  the images in ~/Pictures/Wallpapers, the one in use and each one's fit
 │  ├─ Weather.qml  Open-Meteo: now, the next hours and days, for the city in Store
 │  ├─ Polkit.qml  polkit-agent.py  the polkit agent (Quickshell's own counts Cancel as a failed login)
-│  ├─ SystemStats.qml  stats.sh  CPU, memory, GPU and disk readings for the launcher's System monitor card, and the warnings
+│  ├─ SystemStats.qml  stats.sh  CPU, memory, GPU and disk readings for Settings → System monitor, and the warnings
 │  ├─ Files.qml  files.py  the launcher's "/" search through the home folder
 │  ├─ Showoff.qml  showoff mode: the stage workspace, fastfetch's config and its terminal
 │  ├─ Desktop.qml  the Desktop folder's files and folders for the desktop icons, where each sits, and acting on them
 │  ├─ Drives.qml  removable drives: udiskie mounts them, lsblk lists the mounted ones, eject
 │  ├─ LocalSend.qml  LocalSend, through localsend.py: devices nearby, sending, receiving (only while the app is installed)
+│  ├─ SettingsHub.qml  settings-window navigation, validated text edits and folder/source actions
 ├─ bar/                 Bar, Workspaces, WindowTitle, ClockChip, StatusChip, TrayPill (+ TrayMenu), MediaPill
 ├─ panels/              QuickSettings, NotificationCentre, Calendar (+ calendar.js, MonthPage), PowerMenu, PolkitDialog, WindowSwitcher, Wallpaper (the desktop) and DesktopIcons, WallpaperSwitcher, WeatherPanel
 ├─ popups/              Toasts, Osd (+ PrivacyWatch, its mic and screen sharing cues), ScreenshotPicker, PistachioRain (the easter egg)
-├─ launcher/            Launcher, ModeTabs, providers/ (Apps, Windows, Workspaces, System, Bluetooth)
+├─ launcher/            Launcher, ModeTabs (Apps, Windows, Workspaces, basic System controls)
+├─ settings/            SettingsWindow, page content, search catalog, shared controls and edit/pairing dialogs
 ├─ lock/                Lock
 └─ components/          Chip, IconButton, Slider, Switch, Pill, ActionButton (a notification's action, for toasts and the centre), NotificationPreview (a screenshot under its notification), WallpaperView (a cross-fading wallpaper)
 ```
 
-Rule: files under `bar/`, `panels/`, `popups/`, `launcher/` and `lock/` never import a compositor module directly. They use `Compositor` and the services.
+Rule: files under `bar/`, `panels/`, `popups/`, `launcher/`, `settings/` and `lock/` never import a compositor module directly. They use `Compositor` and the services.
 
 ## Compositor adapter
 
@@ -107,7 +109,7 @@ Found at runtime in phase 2 (Hyprland 0.56.2, Lua config):
 
 Sizes: bar 640 × 56, radius 28, 16 px above the bottom edge; chips 40 px high with radius 20; panels 380–400 px wide with radius 28; tiles radius 20. The wallpaper tone #0D0F09 in the mockups is a placeholder, not a theme token.
 
-Shadows (added after phase 8, owner's request): panels and popups get the boards' drop shadows, black (`shadow`) in three sizes, as CSS `box-shadow: 0 y blur`: `shadowPanel` 18/44 at 60 % (quick settings, centre, calendar), `shadowSmall` 14/36 at 55 % (toasts, OSD), `shadowModal` 24/60 at 65 % (launcher, polkit dialog, power menu). The bar, the tray pill and the small knob shadows stay flat (owner's call). They can be switched off in the launcher (System, Shell settings, Drop shadows; owner's request): `ShellSettings.shadows`, kept in `Store`, hides every `Shadow`, and the windows keep their room. `components/Shadow.qml` is Qt's `RectangularShadow` (`QtQuick.Effects`, Qt 6.9+) set from one of those. Each surface is its own layer window, as big as its panel, so a window with a shadow grows by the shadow's reach (`side`, `above`, `below`), moves back by the same amount and masks the extra room (`Region { item: panel }`), so clicks there reach the windows below. Panels just above the bar cast their shadow onto it (owner's call; on the boards the bar covers it). The OSD sits 16 px above the screen edge while the bar is hidden, less than its shadow's reach, so the edge cuts that shadow off.
+Shadows (added after phase 8, owner's request): panels and popups get the boards' drop shadows, black (`shadow`) in three sizes, as CSS `box-shadow: 0 y blur`: `shadowPanel` 18/44 at 60 % (quick settings, centre, calendar), `shadowSmall` 14/36 at 55 % (toasts, OSD), `shadowModal` 24/60 at 65 % (launcher, polkit dialog, power menu). The bar, the tray pill and the small knob shadows stay flat (owner's call). They can be switched off in Settings → Appearance → Drop shadows (owner's request): `ShellSettings.shadows`, kept in `Store`, hides every `Shadow`, and the windows keep their room. `components/Shadow.qml` is Qt's `RectangularShadow` (`QtQuick.Effects`, Qt 6.9+) set from one of those. Each surface is its own layer window, as big as its panel, so a window with a shadow grows by the shadow's reach (`side`, `above`, `below`), moves back by the same amount and masks the extra room (`Region { item: panel }`), so clicks there reach the windows below. Panels just above the bar cast their shadow onto it (owner's call; on the boards the bar covers it). The OSD sits 16 px above the screen edge while the bar is hidden, less than its shadow's reach, so the edge cuts that shadow off.
 
 Motion rules, so everything feels the same:
 
@@ -158,9 +160,21 @@ Each piece, where its data comes from, and what is not built in. All module and 
 
 Built 10 November 2026 (owner's call; `design/02-LensPrompt.html` through `06-LensError.html`). `ScreenshotPicker` adds L and IPC `screenshot lens`, using its existing frozen `ScreencopyView` / `ShaderEffectSource` crop. The PNG is temporary until the first question; `Lens` retains a full-screen grab in memory for the backdrop. `popups/LensCard.qml` draws the prompt under the selection and the answer beside it, with edge clamping, via two overlay windows. The card maps after the backdrop, holds the keyboard through closing, uses `Theme.surface` and `shadowPanel`, and never closes from an outside click. `components/LensInput.qml` supplies Enter / Shift+Enter and Stop; `LensMarkdown.qml` supplies native selectable Markdown and separate code-copy cards.
 
-`services/Lens.qml` talks JSON lines to `lens.py`. The helper invokes Claude with Read as its only available built-in tool, or attaches the image to a read-only Codex run with execution/hooks/plugins/app tools disabled. Both return a schema-constrained answer and up to two suggestions (`lens-answer.schema.json`). Native session IDs handle follow-ups within a provider; a switch replays completed conversation and the snip. One optional fallback to the other provider handles availability failures, never cancellation. Shell settings · pistachio-lens has separate Claude/ChatGPT cards; provider/model/effort rows open dedicated filtered lists like Terminals, returning to their setting on selection or Esc. It persists provider, each model/effort and each fallback switch in Store; defaults are Claude / Haiku 5.5 / medium and Codex / GPT-6 Luna / low, fallbacks off. Model and effort changes are invocation overrides, not edits to either CLI's global configuration.
+`services/Lens.qml` talks JSON lines to `lens.py`. The helper invokes Claude with Read as its only available built-in tool, or attaches the image to a read-only Codex run with execution/hooks/plugins/app tools disabled. Both return a schema-constrained answer and up to two suggestions (`lens-answer.schema.json`). Native session IDs handle follow-ups within a provider; a switch replays completed conversation and the snip. One optional fallback to the other provider handles availability failures, never cancellation. Settings → Lens has separate Claude/ChatGPT cards with anchored model/effort selectors, a preferred-provider segment and independent fallback switches. It persists provider, each model/effort and each fallback switch in Store; defaults are Claude / Haiku 5.5 / medium and Codex / GPT-6 Luna / low, fallbacks off. Model and effort changes are invocation overrides, not edits to either CLI's global configuration.
 
 First question creates `~/lens-chats/<date time first-question>/snip.png`; each answer rewrites `chat.md` with the image link, questions, answers, provider/model and elapsed seconds. Unique folders avoid overwrites; writes are atomic. Closing cancels/reaps the child and releases the temporary snip; saved chats stay. No history UI or streaming. Pin / Open in Claude Desktop are deferred by agreement. Validation and remaining hand checks: `todos/TODO_10-11-26.md`; fake-CLI tests: `sh tests/lens.sh`; settings persistence: `bash tests/services.sh`.
+
+## Settings window
+
+Approved by the owner on 10 November 2026, from `design/settings/01–24`. This supersedes the detailed System/Bluetooth launcher views described in the original component table. `src/settings/SettingsWindow.qml` is a normal Quickshell `FloatingWindow` (1040 × 760, minimum 900 × 620), with a 64 px title bar, 216 px sidebar, scrollable pages, search and centred edit/pairing dialogs. Theme sizes and reusable controls live in `Theme.qml` and `settings/`; sliders reuse `components/Slider.qml` with an optional track colour.
+
+`services/SettingsHub.qml` owns navigation, validated edits, stale-response rejection and opening the chat/source folders. Existing services still own every setting and system action. `Compositor.placeSettingsWindow` detaches only Settings from tabs and places it once on mapping; gathering excludes it. UI never imports Hyprland. The normal window is solid, with a `ClippingRectangle` keeping content inside its 1 px themed border and radius 28. Window-local compositor properties disable the duplicate border and match the radius; they are reapplied on config reload. Global decoration settings and config files are untouched. Layer-panel frost and shadows retain their existing settings.
+
+Pages: Appearance, Display & night light, Sound (Devices/Applications), Notifications, Bluetooth, Network, LocalSend (conditional), Lens, Apps & places, System monitor and About. Network is status only. Device selectors disable unplugged devices. Bluetooth discovery runs only while the page is visible and requested, with the existing one-minute cap; pairing handles all agent request kinds. System monitor uses the existing fast watcher only on its visible page; background warning polling remains unchanged. Wallpaper and LocalSend sending reuse the current panels.
+
+Launcher System keeps output volume, brightness, Bluetooth basics, Night light, DND and Settings. Quick settings keeps Settings, Mixer, Launcher and power in its footer (owner’s clarified call, 10 November 2026). Mixer uses a clean 22 px waveform icon. The mixer remains accessible through `quicksettings mixer`. IPC: `settings open|toggle|close`, `settings section <page>`, `settings search <text>`, `settings status`; existing `launcher bluetooth` and `launcher open about` redirect. Ctrl+F searches, Ctrl+W closes, Esc first clears search/cancels a dialog and then closes. Text edits use Save/Cancel; other controls apply immediately.
+
+Validation: `tests/settings.test.js` searches/filtering; `tests/settings.sh` runs the actual controls with QtTest and isolated service stand-ins. Live screenshots and watcher/focus checks use the existing shell, with no device switching or owner setting changes.
 
 ## Audio, Bluetooth and brightness
 

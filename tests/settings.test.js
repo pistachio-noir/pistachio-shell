@@ -1,0 +1,16 @@
+const fs = require("fs");
+const assert = require("assert");
+const path = require("path");
+const code = fs.readFileSync(path.join(__dirname, "../src/settings/catalog.js"), "utf8");
+const { pages, settings, search } = new Function(code + "\nreturn { pages, settings, search };")();
+assert.strictEqual(new Set(pages.map(p => p[0])).size, pages.length);
+assert.strictEqual(new Set(settings.map(s => s[0] + ":" + s[1])).size, settings.length);
+for (const s of settings) assert(pages.some(p => p[0] === s[0]), s[0]);
+assert.deepStrictEqual(search("volume", true, true, true).map(s => s[1]), ["output", "applications", "tick"]);
+assert(search("  CLAUDE model ", true, true, true).some(s => s[1] === "claude"));
+assert.strictEqual(search("", true, true, true).length, 0);
+assert.strictEqual(search("trackpad", true, true, true).length, 0);
+assert.strictEqual(search("localsend", false, true, true).length, 0);
+assert.strictEqual(search("cider", true, false, true).length, 0);
+assert.strictEqual(search("brightness", true, true, false).length, 0);
+console.log("settings search: all passed");

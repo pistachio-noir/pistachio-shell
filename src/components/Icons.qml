@@ -27,7 +27,7 @@ Singleton {
     readonly property list<string> headphones: ["M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"]
     readonly property list<string> moon: ["M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"]
     readonly property list<string> info: ["M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0", "M12 16v-4", "M12 8h.01"]
-    readonly property list<string> mixer: ["M4 21v-7", "M4 10V3", "M12 21v-9", "M12 8V3", "M20 21v-5", "M20 12V3", "M2 14h4", "M10 8h4", "M18 16h4"]
+    readonly property list<string> mixer: ["M2 10v4", "M6 3v18", "M10 7v10", "M14 5v14", "M18 8v8", "M22 10v4"]
     readonly property list<string> stopwatch: ["M4 14a8 8 0 1 0 16 0a8 8 0 1 0-16 0", "M10 2h4", "M12 14l3-3"]
     // LocalSend (its boards)
     readonly property list<string> share: ["M15 5a3 3 0 1 0 6 0a3 3 0 1 0-6 0", "M3 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0", "M15 19a3 3 0 1 0 6 0a3 3 0 1 0-6 0", "M8.59 13.51l6.83 3.98", "M15.41 6.51l-6.82 3.98"]

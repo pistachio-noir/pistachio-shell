@@ -1,11 +1,12 @@
 import qs
 import QtQuick
 
-// Round 44 px button with a 20 px icon.
+// Round 44 px button; icons default to 20 px.
 Rectangle {
     id: root
 
     required property list<string> icon
+    property int iconSize: 20
 
     signal clicked
 
@@ -24,7 +25,7 @@ Rectangle {
 
     Icon {
         anchors.centerIn: parent
-        size: 20
+        size: root.iconSize
         paths: root.icon
         color: mouse.containsMouse ? Theme.textBright : Theme.text
     }

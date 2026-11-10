@@ -380,7 +380,6 @@ PanelWindow {
                     onClicked: root.powerRequested()
                 }
 
-                // the launcher, in All mode (owner's request; not on the board)
                 IconButton {
                     id: launcherButton
                     anchors.right: powerButton.left
@@ -391,14 +390,24 @@ PanelWindow {
                     onClicked: root.launcherRequested("all")
                 }
 
-                // the sound mixer: each app's volume (owner's request, 8 November 2026)
                 IconButton {
+                    id: mixerButton
                     anchors.right: launcherButton.left
                     anchors.rightMargin: 8
                     y: 16
                     icon: Icons.mixer
+                    iconSize: 22
                     Accessible.name: "Sound mixer"
                     onClicked: root.page = "mixer"
+                }
+
+                IconButton {
+                    anchors.right: mixerButton.left
+                    anchors.rightMargin: 8
+                    y: 16
+                    icon: Icons.sliders
+                    Accessible.name: "Settings"
+                    onClicked: { root.open = false; SettingsHub.openPage("appearance", ""); }
                 }
             }
         }
@@ -741,7 +750,7 @@ PanelWindow {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.launcherRequested("bluetooth")
+                    onClicked: { root.open = false; SettingsHub.openPage("bluetooth", ""); }
                 }
             }
         }

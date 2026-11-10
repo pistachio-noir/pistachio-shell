@@ -160,7 +160,7 @@ Singleton {
                 return;
             }
             Hyprland.refreshToplevels();
-            const tiled = Hyprland.toplevels.values.filter(t => t.workspace?.id === id && !(t.lastIpcObject.floating ?? false) && t.lastIpcObject.size);
+            const tiled = Hyprland.toplevels.values.filter(t => t.workspace?.id === id && t.title !== "Pistachio Settings" && !(t.lastIpcObject.floating ?? false) && t.lastIpcObject.size);
             const grouped = tiled.filter(t => (t.lastIpcObject.grouped ?? []).length > 0);
             if (tiled.length < 2 && grouped.length === 0) {
                 root.gathering = 0; // one window: it becomes a group when the next opens
@@ -277,6 +277,7 @@ Singleton {
         address: t.address,
         title: t.title,
         appId: t.wayland?.appId ?? "",
+        pid: t.lastIpcObject.pid ?? -1,
         workspace: t.workspace?.id ?? 0,
         urgent: t.urgent,
         floating: t.lastIpcObject.floating ?? false,
@@ -364,6 +365,27 @@ Singleton {
         dispatch(`hl.dsp.window.float({ action = "toggle", window = "address:0x${address}" })`, `togglefloating address:0x${address}`);
     }
 
+    // FloatingWindow is an xdg toplevel, so Hyprland otherwise tiles it (and can add it to tabs).
+    // Apply to this window once on mapping; no config files or other windows are changed.
+    function placeSettingsWindow(window, width: int, height: int) {
+        const address = window.address, selector = `address:0x${address}`;
+        if (!Hyprland.usingLua) focus(address);
+        if (window.group.length > 1) {
+            dispatch(`hl.dsp.window.move({ window = "${selector}", out_of_group = true })`, "moveoutofgroup");
+        }
+        dispatch(`hl.dsp.window.float({ action = "set", window = "${selector}" })`, `setfloating ${selector}`);
+        dispatch(`hl.dsp.window.resize({ window = "${selector}", x = ${width}, y = ${height}, relative = false })`, `resizewindowpixel exact ${width} ${height},${selector}`);
+        dispatch(`hl.dsp.window.center({ window = "${selector}" })`, "centerwindow");
+        styleSettingsWindow(address);
+    }
+
+    // Settings draws its own neutral border and rounded content; avoid a second compositor frame.
+    function styleSettingsWindow(address: string) {
+        const selector = `address:0x${address}`;
+        dispatch(`hl.dsp.window.set_prop({ window = "${selector}", prop = "border_size", value = "0" })`, `setprop ${selector} bordersize 0`);
+        dispatch(`hl.dsp.window.set_prop({ window = "${selector}", prop = "rounding", value = "${Theme.panelRadius}" })`, `setprop ${selector} rounding ${Theme.panelRadius}`);
+    }
+
     function close(address: string) {
         dispatch(`hl.dsp.window.close({ window = "address:0x${address}" })`, `closewindow address:0x${address}`);
     }
@@ -394,11 +416,14 @@ Singleton {
     Connections {
         target: Hyprland
         function onRawEvent(event) {
-            if (event.name === "configreloaded")
+            if (event.name === "configreloaded") {
                 root.styleGroups();
+                const settings = root.windows.find(w => w.title === "Pistachio Settings" && w.pid === Quickshell.processId);
+                if (settings) root.styleSettingsWindow(settings.address);
+            }
             if (event.name === "openwindow" && root.arriving.length)
                 root.placeArrival(event.data);
-            if (event.name === "openwindow" && root.isTabbed(parseInt(event.data.split(",")[1])) && !root.gathering) {
+            if (event.name === "openwindow" && !event.data.endsWith(",Pistachio Settings") && root.isTabbed(parseInt(event.data.split(",")[1])) && !root.gathering) {
                 root.gathering = parseInt(event.data.split(",")[1]);
                 root.gatherSteps = 0;
                 gather.restart();

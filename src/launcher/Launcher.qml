@@ -39,6 +39,7 @@ PanelWindow {
 
     property bool open
     property string mode: "all"
+    signal settingsRequested(string page)
     signal wallpapersRequested // the Wallpapers row: shell.qml opens the switcher
     signal notificationRequested(var n) // a "!" result: shell.qml has the bar show it in the centre
     signal rainRequested // the Konami code: shell.qml has pistachios rain
@@ -55,12 +56,7 @@ PanelWindow {
     property bool editBusy
     property string editError
     readonly property string query: field.text
-    // The pairing agent's question (Bluetooth.request) also takes the place of the results; the
-    // launcher opens for it. A PIN or passkey is typed into the search field.
-    readonly property bool codeWanted: Bluetooth.request?.kind === "pin" || Bluetooth.request?.kind === "passkey"
-    readonly property bool codeValid: Bluetooth.request?.kind === "pin" ? query.length > 0 : /^\d{1,6}$/.test(query)
-    // what the question's typed answer needs before its last choice (Pair, Save) can be picked
-    readonly property bool inputValid: editing ? query.trim() !== "" && !editBusy : codeValid
+    readonly property bool inputValid: editing && query.trim() !== "" && !editBusy
     // Windows and workspaces as they were when the launcher opened, so the rows only change when you
     // type or switch mode, not under the cursor (window titles change all the time).
     property var windows: []
@@ -88,13 +84,9 @@ PanelWindow {
     // Bluetooth is a view inside System (LauncherBluetooth board), so it has no tab of its own;
     // the System tab stays highlighted. So is Terminals, from Shell settings (owner's request).
     readonly property string tab: mode === "bluetooth" || mode === "terminals" || mode === "about" || mode === "lenschoices" ? "system" : mode
-    readonly property string placeholder: Bluetooth.request ? (Bluetooth.request.kind === "pin" ? "PIN" : Bluetooth.request.kind === "passkey" ? "6-digit code" : "Bluetooth")
-        : editing ? editing.placeholder
+    readonly property string placeholder: editing ? editing.placeholder
         : mode === "bluetooth" ? "Filter devices…" : mode === "terminals" ? "Filter terminals…" : mode === "lenschoices" ? `Filter ${lensChoice.includes("Model") ? "models" : lensChoice.includes("Effort") ? "effort levels" : "providers"}…` : mode === "about" ? "About the shell" : modes.find(m => m.id === mode).placeholder
-    readonly property var keyHints: Bluetooth.request ? (codeWanted ? [["↵", "pair"], ["Esc", "cancel"]]
-            : Bluetooth.request.id ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "decline"]]
-            : [["Esc", "cancel pairing"]])
-        : confirming ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "back"]]
+    readonly property var keyHints: confirming ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "back"]]
         : editing ? [["↵", "save"], ["Esc", "back"]]
         : rows[current]?.kind === "appaction" ? [["↑↓", "navigate"], ["↵", "open"], ["←", "back"], ["Esc", "close"]]
         : rows[current]?.kind === "claude" ? [["↑↓", "navigate"], ["↵", "ask Claude"], ["Esc", "close"]]
@@ -109,10 +101,10 @@ PanelWindow {
         : hints[mode]
     // scan for new devices only while the Bluetooth view is on screen
     readonly property bool scanWanted: open && mode === "bluetooth" && Bluetooth.ready
-    onScanWantedChanged: Bluetooth.setScanning(scanWanted)
+    // Discovery is owned by the Settings window.
     // and read the machine's load only while the System monitor card is
     readonly property bool statsWanted: open && rows.some(r => r.kind === "stat")
-    onStatsWantedChanged: SystemStats.setWatching(statsWanted)
+    // System monitor polling is owned by the Settings window.
     // and Hyprland's binds, each time the cheat sheet opens
     readonly property bool cheatWanted: open && (mode === "all" || mode === "apps") && query.startsWith("?")
     onCheatWantedChanged: if (cheatWanted) Compositor.loadBinds()
@@ -133,6 +125,11 @@ PanelWindow {
     }
 
     function show(m: string) {
+        if (m === "bluetooth" || m === "about") {
+            open = false;
+            settingsRequested(m);
+            return;
+        }
         list.enter();
         confirming = null;
         editing = null;
@@ -478,98 +475,17 @@ PanelWindow {
         if (i >= 0) { current = i; heldKey = key; backToRow.restart(); }
     }
 
+    // Detailed controls live in Settings; keep this list quick to use from the keyboard.
     function systemRows(q: string): var {
-        const audio = [{ kind: "slider", key: "volume", title: "Volume" }];
-        if (Audio.source)
-            audio.push({ kind: "slider", key: "mic", title: "Microphone" });
-        if (Brightness.available)
-            audio.push({ kind: "slider", key: "brightness", title: "Brightness" });
-        const night = [{ kind: "switch", key: "nightlight", title: "Night light", icon: Icons.moon, on: () => NightLight.enabled, status: () => NightLight.status, toggle: () => NightLight.setEnabled(!NightLight.enabled) }];
-        if (NightLight.available)
-            night.push({ kind: "slider", key: "warmth", title: "Warmth" },
-                { kind: "switch", key: "schedule", title: "Schedule", icon: Icons.clock, on: () => NightLight.scheduled, status: () => NightLight.scheduleText, toggle: () => NightLight.setSchedule(!NightLight.scheduled, NightLight.from, NightLight.to) },
-                { kind: "time", key: "from", title: "Turns on", minutes: () => NightLight.from, set: m => NightLight.setSchedule(NightLight.scheduled, m, NightLight.to) },
-                { kind: "time", key: "to", title: "Turns off", minutes: () => NightLight.to, set: m => NightLight.setSchedule(NightLight.scheduled, NightLight.from, m) });
-        // Do not disturb and its schedule, with its own times or night light's (owner's request, after phase 8)
-        const dnd = [
-            { kind: "switch", key: "dnd", title: "Do not disturb", icon: Icons.bellOff, on: () => Notifs.dnd, status: () => Notifs.dndStatus, toggle: () => Notifs.setDnd(!Notifs.dnd) },
-            { kind: "switch", key: "dndSchedule", title: "Schedule", icon: Icons.clock, on: () => Notifs.dndScheduled, status: () => Notifs.dndScheduleText, toggle: () => Notifs.setDndSchedule(!Notifs.dndScheduled) },
-            { kind: "switch", key: "dndNight", title: "Night light's times", icon: Icons.moon, on: () => Notifs.dndFollowsNight, status: () => Notifs.dndFollowsNight ? `${NightLight.timeText(Notifs.dndFrom)}–${NightLight.timeText(Notifs.dndTo)}, as night light` : "Its own times below", toggle: () => Notifs.setDndFollowsNight(!Notifs.dndFollowsNight) }
-        ];
-        if (!Notifs.dndFollowsNight)
-            dnd.push({ kind: "time", key: "dndFrom", title: "Turns on", minutes: () => Notifs.dndFrom, set: m => Notifs.setDndTimes(m, Notifs.dndTo) },
-                { kind: "time", key: "dndTo", title: "Turns off", minutes: () => Notifs.dndTo, set: m => Notifs.setDndTimes(Notifs.dndFrom, m) });
-        const bluetooth = [bluetoothSwitch(), { kind: "btlink", key: "btlink", title: "Scan for devices" }];
-        // the apps with a notification rule (set from a card's right click); switching one off undoes it
-        const rules = Object.keys(Notifs.rules).sort().map(app => ({ kind: "switch", key: "rule:" + app, title: app || "Unnamed app", icon: Icons.bellOff, on: () => true, status: () => Notifs.ruleText(app), toggle: () => Notifs.setRule(app, null) }));
-        const cards = card("Audio", q, audio).concat(card("Night light", q, night), card("Do not disturb", q, dnd), card("Notification rules", q, rules), card("Bluetooth", q, bluetooth));
-        cards.forEach((r, i) => r.gap = i > 0 && (r.card === "top" || r.card === "single") ? 10 : 0);
-        const streams = Audio.streams.map(n => ({ kind: "slider", key: "stream:" + n.id, title: Audio.appName(n), node: n }));
-        const devices = Audio.sinks.map(n => ({ kind: "device", key: "device:" + n.id, title: Audio.deviceName(n), node: n }));
-        // an input with nothing plugged in is greyed out, and the keys pass it by
-        const inputs = Audio.sources.map(n => ({ kind: "device", key: "input:" + n.id, title: Audio.deviceName(n), node: n, input: true, off: Audio.isUnplugged(n) }));
-        const keep = r => !q || Fuzzy.match(q, r.title);
-        // mounted USB drives (owner's request, 30 October 2026): Enter ejects one
-        const drives = Drives.mounted.map(m => ({ kind: "drive", key: "drive:" + m.path, title: m.name, subtitle: `${m.mountpoint} · ${m.size}`, glyph: Icons.hardDrive, drive: m })).filter(keep);
-        const a = streams.filter(keep), d = devices.filter(keep), i = inputs.filter(keep);
-        // the machine's load (owner's request; not on a board): readings, not controls, so the keys
-        // pass them by; the GPU once nvidia-smi has answered
-        const stats = [{ kind: "stat", key: "cpu", title: "CPU" }, { kind: "stat", key: "memory", title: "Memory" }, { kind: "stat", key: "shell", title: "Shell" }];
-        if (SystemStats.gpuFound)
-            stats.push({ kind: "stat", key: "gpu", title: "GPU" });
-        // free space (owner's request, after phase 8): one row when /home is on the root filesystem
-        const mounts = SystemStats.diskMounts;
-        for (const m of mounts)
-            stats.push({ kind: "stat", key: "disk:" + m, title: mounts.length === 1 ? "Disk" : m === "/" ? "System disk" : "Home" });
-        const monitor = card("System monitor", q, stats);
-        // the shell's own settings (owner's request, not on the board), in groups (owner's request, 3 November 2026)
-        const shellGroups = [
-            ["Look", [
-                { kind: "switch", key: "frosted", title: "Frosted panels", icon: Icons.layers, on: () => ShellSettings.frosted, status: () => ShellSettings.frosted ? "See-through bar and panels, blurred behind" : "Off: needs a line in Hyprland's config (README)", toggle: () => ShellSettings.setFrosted(!ShellSettings.frosted) },
-                ...(ShellSettings.frosted ? [{ kind: "switch", key: "glassy", title: "Glassy", icon: Icons.sparkles, on: () => ShellSettings.glassy, status: () => ShellSettings.glassy ? "More see-through, less contrast" : "Subtle: easier to read", toggle: () => ShellSettings.setGlassy(!ShellSettings.glassy) }] : []),
-                { kind: "switch", key: "shadows", title: "Drop shadows", icon: Icons.layers, on: () => ShellSettings.shadows, status: () => ShellSettings.shadows ? "Under panels and popups" : "Off", toggle: () => ShellSettings.setShadows(!ShellSettings.shadows) },
-                { kind: "wplink", key: "wplink", title: "Wallpapers", subtitle: Wallpapers.current.split("/").pop() || "None", glyph: Icons.image },
-                { kind: "switch", key: "desktopIcons", title: "Desktop icons", icon: Icons.folder, on: () => Desktop.enabled, status: () => Desktop.enabled ? "The Desktop folder, on the wallpaper" : "Off", toggle: () => Desktop.setEnabled(!Desktop.enabled) },
-                { kind: "switch", key: "tabbedOsd", title: "Tabbed OSD", icon: Icons.layers, on: () => ShellSettings.tabbedOsd, status: () => ShellSettings.tabbedOsd ? "Says when a workspace's tabs go on or off" : "Off", toggle: () => ShellSettings.setTabbedOsd(!ShellSettings.tabbedOsd) },
-                { kind: "switch", key: "workspaceOsd", title: "Workspace OSD", icon: Icons.layers, on: () => ShellSettings.workspaceOsd, status: () => ShellSettings.workspaceOsd ? "Shows which workspace you switched to" : "Off", toggle: () => ShellSettings.setWorkspaceOsd(!ShellSettings.workspaceOsd) }
-            ]],
-            ["Sound", [
-                { kind: "switch", key: "volumeTick", title: "Volume tick", icon: Icons.volume, on: () => ShellSettings.volumeTick, status: () => ShellSettings.volumeTick ? "A short click as the volume changes" : "Off", toggle: () => ShellSettings.setVolumeTick(!ShellSettings.volumeTick) },
-                { kind: "switch", key: "notificationSound", title: "Notification sound", icon: Icons.volume, on: () => ShellSettings.notificationSound, status: () => ShellSettings.notificationSound ? "A soft sound with each toast" : "Off", toggle: () => ShellSettings.setNotificationSound(!ShellSettings.notificationSound) },
-                { kind: "switch", key: "headphonesTakeOver", title: "Headphones take over", icon: Icons.headphones, on: () => ShellSettings.headphonesTakeOver, status: () => ShellSettings.headphonesTakeOver ? "Bluetooth headphones get the sound as they connect" : "Off: the output stays as you chose", toggle: () => ShellSettings.setHeadphonesTakeOver(!ShellSettings.headphonesTakeOver) }
-            ]],
-            ["Quiet", [
-                { kind: "switch", key: "quietFullscreen", title: "Quiet in fullscreen", icon: Icons.bellOff, on: () => ShellSettings.quietFullscreen, status: () => ShellSettings.quietFullscreen ? "Toasts wait while a fullscreen window has focus" : "Off", toggle: () => ShellSettings.setQuietFullscreen(!ShellSettings.quietFullscreen) },
-                { kind: "switch", key: "quietCalls", title: "Quiet during calls", icon: Icons.mic, on: () => ShellSettings.quietCalls, status: () => ShellSettings.quietCalls ? "Toasts wait while an app uses the microphone" : "Off", toggle: () => ShellSettings.setQuietCalls(!ShellSettings.quietCalls) }
-            ]],
-            ["Apps and places", [
-                { kind: "termlink", key: "terminal", title: "Terminal", subtitle: Apps.terminalName(Apps.terminal), glyph: Icons.terminal },
-                { kind: "setting", key: "weatherCity", title: "Weather location", subtitle: Weather.placeName, glyph: Icons.mapPin, setting: weatherSetting },
-                ...(Cider.installed ? [{ kind: "setting", key: "ciderToken", title: "Cider token", subtitle: Cider.usable ? "Set: Up next and Apple Music search (m …)" : "Not set: for Up next and Apple Music search", glyph: Icons.music, setting: ciderSetting }] : [])
-            ]],
-            ["pistachio-lens", [
-                ...lensSetting("lensProvider", "Preferred provider")
-            ]],
-            ["pistachio-lens · Claude", [
-                ...lensSetting("lensClaudeModel", "Model"),
-                ...lensSetting("lensClaudeEffort", "Effort"),
-                { kind: "switch", key: "lensClaudeFallback", title: "Fall back to ChatGPT", icon: Icons.sparkles, on: () => ShellSettings.lensClaudeFallback, status: () => "If Claude is unavailable · one attempt", toggle: () => ShellSettings.setLensFallback("claude", !ShellSettings.lensClaudeFallback) }
-            ]],
-            ["pistachio-lens · ChatGPT", [
-                ...lensSetting("lensCodexModel", "Model"),
-                ...lensSetting("lensCodexEffort", "Effort"),
-                { kind: "switch", key: "lensCodexFallback", title: "Fall back to Claude", icon: Icons.sparkles, on: () => ShellSettings.lensCodexFallback, status: () => "If ChatGPT is unavailable · one attempt", toggle: () => ShellSettings.setLensFallback("codex", !ShellSettings.lensCodexFallback) }
-            ]],
-            ["More", [
-                { kind: "showoff", key: "showoff", title: "Showoff mode", subtitle: "Everything open for a screenshot, private things hidden", glyph: Icons.sparkles },
-                { kind: "aboutlink", key: "about", title: "About", subtitle: "Pistachio Noir Shell: version, commit, Quickshell and Hyprland", glyph: Icons.info }
-            ]]
-        ];
-        const shell = shellGroups.reduce((all, [name, rows]) => {
-            const c = card(`Shell settings ${name}`, q, rows);
-            return c.length ? all.concat([section(`Shell settings · ${name}`)], c) : all;
-        }, []);
-        return cards.concat(drives.length ? [section("Drives")].concat(drives) : [], a.length ? [section("Apps")].concat(a) : []).concat(d.length ? [section("Output device")].concat(d) : []).concat(i.length ? [section("Input device")].concat(i) : []).concat(monitor.length ? [section("System monitor")].concat(monitor) : []).concat(shell);
+        const quick = [{ kind: "slider", key: "volume", title: "Volume" }];
+        if (Brightness.available) quick.push({ kind: "slider", key: "brightness", title: "Brightness" });
+        quick.push(bluetoothSwitch(),
+            { kind: "btlink", key: "btlink", title: "Bluetooth devices" },
+            { kind: "switch", key: "nightlight", title: "Night light", icon: Icons.moon, on: () => NightLight.enabled, status: () => NightLight.status, toggle: () => NightLight.setEnabled(!NightLight.enabled) },
+            { kind: "switch", key: "dnd", title: "Do not disturb", icon: Icons.bellOff, on: () => Notifs.dnd, status: () => Notifs.dndStatus, toggle: () => Notifs.setDnd(!Notifs.dnd) });
+        return card("Quick controls", q, quick).concat(card("Settings", q, [
+            { kind: "settingslink", key: "settings", title: "Settings", subtitle: "Sound, Bluetooth, appearance, Lens and more", glyph: Icons.sliders }
+        ]));
     }
 
     function bluetoothRows(q: string): var {
@@ -951,41 +867,8 @@ PanelWindow {
         return [{ kind: "qalc", key: "qalc", title: ready ? "= " + Qalc.answer : "= …", subtitle: `${q.trim()} · libqalculate`, glyph: Icons.calculator, answer: ready ? Qalc.answer : "" }];
     }
 
-    // The agent's question, worded for the launcher; the last choice accepts. Codes to type on the
-    // device show a cursor under the next key once the device reports the keys typed.
-    function pairingQuestion(r): var {
-        const name = Bluetooth.requestName;
-        const q = { icon: Icons.bluetooth, title: `Pair with ${name}?`, text: "", code: "", entered: -1, input: false, choices: ["Cancel", "Pair"] };
-        if (r.kind === "confirm") {
-            q.text = "Pair only if the device shows the same code.";
-            q.code = r.code;
-        } else if (r.kind === "authorize") {
-            q.text = "The device asks to pair with this computer.";
-            q.choices = ["Decline", "Pair"];
-        } else if (r.kind === "service") {
-            q.title = `Let ${name} use ${Bluetooth.serviceName(r.uuid)}?`;
-            q.text = "The device is paired but not trusted, so it asks each time.";
-            q.choices = ["Decline", "Allow"];
-        } else if (r.kind === "pin") {
-            q.text = "Type the PIN the device shows or its manual gives (often 0000), then press Enter.";
-            q.input = true;
-        } else if (r.kind === "passkey") {
-            q.text = "Type the 6-digit code the device shows, then press Enter.";
-            q.input = true;
-        } else { // display-pin, display-passkey
-            q.title = `Pairing with ${name}`;
-            q.text = "Type this code on the device, then press Enter on it.";
-            q.code = r.code;
-            q.entered = r.entered;
-            q.choices = ["Cancel"];
-        }
-        return q;
-    }
-
     // (windows and workspaces are parameters only so the binding re-runs when a snapshot is taken)
     function buildRows(mode: string, q: string, windows, workspaces): var {
-        if (Bluetooth.request)
-            return [{ kind: "pairing", key: "pairing", question: pairingQuestion(Bluetooth.request) }];
         if (editing)
             return [{ kind: "edit", key: "edit", question: { icon: editing.icon, title: editing.title, text: editBusy ? `Looking up “${q.trim()}”…` : editError || editing.hint(), error: editError !== "", code: "", entered: -1, input: true, choices: ["Cancel", "Save"] } }];
         if (confirming)
@@ -1102,7 +985,10 @@ PanelWindow {
     }
 
     function activate(row, col: int, shift: bool) {
-        if (row.kind === "app") {
+        if (row.kind === "settingslink" || row.kind === "btlink") {
+            open = false;
+            settingsRequested(row.kind === "btlink" ? "bluetooth" : "appearance");
+        } else if (row.kind === "app") {
             Apps.launch(row.app);
             open = false;
         } else if (row.kind === "cheat") {
@@ -1127,8 +1013,10 @@ PanelWindow {
             open = false;
         } else if (row.kind === "controls") {
             const id = controls[col].id;
-            if (id === "bluetooth")
-                mode = "bluetooth";
+            if (id === "bluetooth" || id === "ethernet") {
+                open = false;
+                settingsRequested(id === "bluetooth" ? "bluetooth" : "network");
+            }
             else if (id === "volume" || id === "brightness")
                 mode = "system";
         } else if (row.kind === "device") {
@@ -1265,10 +1153,6 @@ PanelWindow {
                 Bluetooth.toggleConnection(row.device);
             else
                 Bluetooth.pair(row.device);
-        } else if (row.kind === "pairing") {
-            if (row.question.input && col === 1 && !codeValid)
-                return; // nothing to send yet
-            Bluetooth.answer(col === 1, row.question.input ? query : "");
         }
     }
 
@@ -1297,9 +1181,7 @@ PanelWindow {
         event.accepted = false; // unhandled keys go on to the search field
         switch (pressed) {
         case Qt.Key_Escape:
-            if (Bluetooth.request)
-                Bluetooth.answer(false, ""); // back to the devices
-            else if (confirming)
+            if (confirming)
                 confirming = null; // back to the results
             else if (editing)
                 stopEditing();
@@ -1318,7 +1200,7 @@ PanelWindow {
             break;
         case Qt.Key_Tab:
         case Qt.Key_Backtab: {
-            if (Bluetooth.request || editing)
+            if (editing)
                 break; // answer it first
             const i = modes.findIndex(m => m.id === mode);
             mode = modes[(i + (event.key === Qt.Key_Backtab ? -1 : 1) + modes.length) % modes.length].id;
@@ -1447,36 +1329,7 @@ PanelWindow {
         hadKeyboard = false;
         if (!open) {
             editing = null; // closing leaves a setting as it was
-            Bluetooth.answer(false, ""); // closing declines a question still waiting
         }
-    }
-
-    Connections {
-        target: Bluetooth
-
-        function onAsked() {
-            if (!root.open)
-                root.show("bluetooth");
-            root.confirming = null;
-            root.mode = "bluetooth"; // the devices are there once it's answered
-            field.text = "";
-            root.resetSelection();
-        }
-
-        function onRequestChanged() {
-            if (!Bluetooth.request)
-                field.text = ""; // never leave a typed code in the search
-        }
-    }
-
-    // what a PIN (1–16 letters and digits) and a passkey (up to 6 digits) may hold
-    RegularExpressionValidator {
-        id: pinChars
-        regularExpression: /[0-9A-Za-z]{0,16}/
-    }
-    RegularExpressionValidator {
-        id: passkeyChars
-        regularExpression: /\d{0,6}/
     }
 
     // ---- window ---------------------------------------------------------------------------------
@@ -1569,7 +1422,8 @@ PanelWindow {
             root.toggleMode("system");
         }
         function bluetooth(): void {
-            root.toggleMode("bluetooth");
+            root.open = false;
+            root.settingsRequested("bluetooth");
         }
     }
 
@@ -1622,7 +1476,7 @@ PanelWindow {
                     x: 26
                     anchors.verticalCenter: parent.verticalCenter
                     size: 20
-                    paths: Bluetooth.request ? Icons.bluetooth : root.editing ? root.editing.icon : Icons.search
+                    paths: root.editing ? root.editing.icon : Icons.search
                     color: Theme.subtext
                 }
 
@@ -1642,9 +1496,6 @@ PanelWindow {
                     font.weight: Font.DemiBold
                     focus: true
                     clip: true
-                    // takes only a code while the agent wants one, and nothing during its other questions
-                    readOnly: !!Bluetooth.request && !root.codeWanted
-                    validator: Bluetooth.request?.kind === "pin" ? pinChars : Bluetooth.request?.kind === "passkey" ? passkeyChars : null
                     Accessible.role: Accessible.EditableText
                     Accessible.name: root.placeholder
                     Keys.onPressed: event => root.key(event)
@@ -1864,7 +1715,7 @@ PanelWindow {
                     property bool quick
                     readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["lenschoice", "lensoption", "app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
+                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["settingslink", "lenschoice", "lensoption", "app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -2064,6 +1915,7 @@ PanelWindow {
                                 controls: controlsView,
                                 workspaces: workspacesView,
                                 btlink: resultView,
+                                settingslink: resultView,
                                 btdevice: resultView,
                                 switch: switchView,
                                 time: timeView,
@@ -2097,7 +1949,6 @@ PanelWindow {
                                 cheat: cheatView,
                                 power: resultView,
                                 confirm: questionView,
-                                pairing: questionView,
                                 edit: questionView
                             })[entry.modelData.kind]
                         }

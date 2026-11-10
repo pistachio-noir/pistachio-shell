@@ -1,0 +1,61 @@
+// A setting's stable id is also the destination for search and IPC navigation.
+var pages = [
+    ["appearance", "Appearance", "Panels, wallpaper and the details around them.", "Personal", "image"],
+    ["display", "Display & night light", "Brightness, warmth and your daily schedule.", "Personal", "sun"],
+    ["sound", "Sound", "Choose your devices and get the levels right.", "Personal", "volume"],
+    ["notifications", "Notifications", "Decide when the desktop asks for your attention.", "Personal", "bell"],
+    ["bluetooth", "Bluetooth", "Headphones, keyboards and the things nearby.", "Connections", "bluetooth"],
+    ["network", "Network", "Your wired connection at a glance.", "Connections", "ethernet"],
+    ["localsend", "LocalSend", "Set your device name and where incoming files go.", "Connections", "share"],
+    ["lens", "Lens", "Choose who answers questions about your screen.", "Shell", "sparkles"],
+    ["apps", "Apps & places", "Your terminal, your places and the apps you use.", "Shell", "folder"],
+    ["system", "System monitor", "A quiet look at what your desktop is doing.", "Shell", "cpu"],
+    ["about", "About", "Made for your desktop.", "Shell", "info"]
+];
+var settings = [
+    ["appearance", "frost", "Frosted panels", "Surfaces", "solid subtle glassy opacity blur"],
+    ["appearance", "shadows", "Drop shadows", "Surfaces", "depth"],
+    ["appearance", "wallpaper", "Wallpaper", "Desktop", "background image"],
+    ["appearance", "desktop", "Desktop icons", "Desktop", "files folders"],
+    ["appearance", "workspace", "Workspace OSD", "At a glance", "overlay"],
+    ["appearance", "tabbed", "Tabbed OSD", "At a glance", "tabs overlay"],
+    ["sound", "output", "Output volume", "Devices", "speaker headphones mute device"],
+    ["sound", "input", "Microphone", "Devices", "input recording mute level"],
+    ["sound", "applications", "Application volume", "Applications", "mixer apps"],
+    ["sound", "takeover", "Headphones take over", "Behaviour", "bluetooth output"],
+    ["sound", "tick", "Volume tick", "Behaviour", "click sound"],
+    ["display", "brightness", "Brightness", "Display", "monitor"],
+    ["display", "night", "Night light", "Display", "warmth temperature"],
+    ["display", "schedule", "Night light schedule", "Schedule", "times evening"],
+    ["notifications", "dnd", "Do not disturb", "Notifications", "quiet toasts"],
+    ["notifications", "schedule", "Quiet hours", "Schedule", "times night light"],
+    ["notifications", "fullscreen", "Quiet in fullscreen", "While you are busy", "game video"],
+    ["notifications", "calls", "Quiet during calls", "While you are busy", "microphone"],
+    ["notifications", "chime", "Notification sound", "While you are busy", "chime"],
+    ["notifications", "rules", "App rules", "Notifications", "restore silenced"],
+    ["bluetooth", "power", "Bluetooth", "Devices", "power headphones keyboard connect pair scan"],
+    ["network", "ethernet", "Ethernet", "Connection details", "network cable link speed"],
+    ["localsend", "receive", "Receive files", "LocalSend", "transfer share"],
+    ["localsend", "name", "Device name", "This device", "alias"],
+    ["localsend", "folder", "Save received files to", "This device", "download folder"],
+    ["localsend", "known", "Accept known devices", "Incoming requests", "trust"],
+    ["lens", "provider", "Preferred provider", "Lens", "claude chatgpt codex"],
+    ["lens", "claude", "Claude model and effort", "Lens", "haiku sonnet opus fallback"],
+    ["lens", "codex", "ChatGPT model and effort", "Lens", "codex luna low fallback"],
+    ["lens", "chats", "Saved chats", "Lens", "snip markdown history folder"],
+    ["apps", "terminal", "Terminal", "Open things with", "kitty foot ghostty alacritty"],
+    ["apps", "weather", "Weather location", "Places", "city"],
+    ["apps", "wallpapers", "Wallpapers folder", "Places", "images"],
+    ["apps", "cider", "Cider token", "Integrations", "music apple"],
+    ["system", "stats", "CPU, memory and graphics", "System monitor", "gpu temperature ram vram load"],
+    ["system", "storage", "Storage and removable drives", "System monitor", "disk eject free space"],
+    ["about", "build", "Build and source code", "About", "version quickshell hyprland qt"],
+    ["about", "showoff", "Showoff mode", "About", "screenshot"]
+];
+function page(id) { return pages.find(p => p[0] === id) || pages[0]; }
+function search(query, localSend, cider, brightness) {
+    const words = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
+    return settings.filter(s => (localSend || s[0] !== "localsend") && (cider || s[1] !== "cider")
+        && (brightness || s[1] !== "brightness") && words.every(w => (s.slice(2).join(" ") + " " + page(s[0])[1]).toLowerCase().includes(w)));
+}

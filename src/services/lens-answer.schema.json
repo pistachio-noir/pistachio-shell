@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "answer": { "type": "string" },
+    "actions": {
+      "type": "array", "maxItems": 2,
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": { "type": "string" },
+          "kind": { "type": "string", "enum": ["search", "followup"] },
+          "query": { "type": "string" },
+          "prompt": { "type": "string" }
+        },
+        "required": ["label", "kind", "query", "prompt"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["answer", "actions"],
+  "additionalProperties": false
+}

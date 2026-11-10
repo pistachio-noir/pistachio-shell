@@ -7,12 +7,14 @@ Rectangle {
     id: button
 
     property string text
+    property list<string> icon: []
+    property int horizontalPadding: 16
     property bool primary
     property color base: Theme.overlay
 
     signal clicked
 
-    width: label.implicitWidth + 32
+    width: label.implicitWidth + horizontalPadding * 2 + (icon.length ? 22 : 0)
     height: 40
     radius: height / 2
     color: primary ? Theme.pistachio : mouse.containsMouse ? Theme.overlay2 : base
@@ -29,12 +31,22 @@ Rectangle {
     Text {
         id: label
         anchors.centerIn: parent
+        anchors.horizontalCenterOffset: button.icon.length ? 11 : 0
         text: button.text
         textFormat: Text.PlainText
         color: button.primary ? Theme.bg : Theme.text
         font.family: Theme.fontUi
         font.pixelSize: 12
         font.weight: button.primary ? Font.ExtraBold : Font.Bold
+    }
+
+    Icon {
+        visible: button.icon.length > 0
+        x: button.horizontalPadding - 4
+        anchors.verticalCenter: parent.verticalCenter
+        paths: button.icon
+        size: 15
+        color: button.primary ? Theme.bg : Theme.subtext
     }
 
     MouseArea {

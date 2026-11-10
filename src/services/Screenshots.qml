@@ -43,6 +43,10 @@ Singleton {
         return `${Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"}/pistachio-text-${Date.now()}.png`;
     }
 
+    function nextLensPath(): string {
+        return `${Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"}/pistachio-lens-${Date.now()}.png`;
+    }
+
     function readText(path: string) {
         reader.createObject(root, { path: path });
     }

@@ -46,6 +46,7 @@ ShellRoot {
     Lock {}
     PolkitDialog {} // and the polkit agent behind it, which starts with the shell
     ScreenshotPicker {}
+    LensCard {}
     AlarmPopup {} // timers done and Clocks' alarms ringing
     PistachioRain {
         id: rain

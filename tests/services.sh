@@ -237,12 +237,27 @@ echo "ok: a CPU hot for a minute warns"
 ipc parseStats "temp 50000"
 
 # Settings survive a restart (the test shell keeps its own state file, not the real shell's).
+ipc setLensChoice lensProvider codex
+ipc setLensChoice lensClaudeModel sonnet
+ipc setLensChoice lensClaudeEffort high
+ipc setLensChoice lensCodexModel gpt-6.1-sol
+ipc setLensChoice lensCodexEffort low
+ipc setLensFallback claude true
+ipc setLensFallback codex false
+ipc setLensChoice lensCodexEffort invalid
+check "s['lensProvider'] == 'codex' and s['lensClaudeModel'] == 'sonnet' and s['lensClaudeEffort'] == 'high' and s['lensCodexModel'] == 'gpt-6.1-sol' and s['lensCodexEffort'] == 'low' and s['lensClaudeFallback'] and not s['lensCodexFallback']" "Lens provider, model, effort and fallback settings stay independent; invalid choices rejected"
 ipc setDnd true; sleep 0.8 # saved 300 ms after a change
 kill "$SHELL_PID"; wait "$SHELL_PID" 2>/dev/null || true
 qs -p "$ROOT" > /dev/null 2>&1 &
 SHELL_PID=$!
 sleep 3
 check "s['dnd']" "do not disturb kept across a restart"
+check "s['lensProvider'] == 'codex' and s['lensClaudeModel'] == 'sonnet' and s['lensClaudeEffort'] == 'high' and s['lensCodexModel'] == 'gpt-6.1-sol' and s['lensCodexEffort'] == 'low' and s['lensClaudeFallback'] and not s['lensCodexFallback']" "Lens settings kept across a restart"
+ipc setLensChoice lensProvider claude
+ipc setLensChoice lensClaudeModel claude-haiku-5-5
+ipc setLensChoice lensClaudeEffort medium
+ipc setLensChoice lensCodexModel gpt-6-luna
+ipc setLensFallback claude false
 ipc setDnd false; sleep 0.8
 
 echo "all passed"

@@ -62,10 +62,19 @@ Scope {
                 memTotal: SystemStats.memTotal,
                 memUsed: SystemStats.memUsed,
                 gpuFound: SystemStats.gpuFound,
+                lensProvider: ShellSettings.lensProvider,
+                lensClaudeModel: ShellSettings.lensClaudeModel,
+                lensClaudeEffort: ShellSettings.lensClaudeEffort,
+                lensCodexModel: ShellSettings.lensCodexModel,
+                lensCodexEffort: ShellSettings.lensCodexEffort,
+                lensClaudeFallback: ShellSettings.lensClaudeFallback,
+                lensCodexFallback: ShellSettings.lensCodexFallback,
                 disks: SystemStats.disks
             });
         }
         function setVolume(v: real): void { Audio.setVolume(v); }
+        function setLensChoice(key: string, value: string): void { ShellSettings.setLensChoice(key, value); }
+        function setLensFallback(provider: string, on: bool): void { ShellSettings.setLensFallback(provider, on); }
         function setMicVolume(v: real): void { Audio.setMicVolume(v); }
         function toggleMicMute(): void { Audio.toggleMicMute(); }
         function setStatsWatching(on: bool): void { SystemStats.setWatching(on); }

@@ -26,11 +26,12 @@ PanelWindow {
         { name: "Region", key: Qt.Key_R, icon: Icons.region },
         { name: "Window", key: Qt.Key_W, icon: Icons.window },
         { name: "Screen", key: Qt.Key_S, icon: Icons.monitor },
-        { name: "Text", key: Qt.Key_T, icon: Icons.fileText }
+        { name: "Text", key: Qt.Key_T, icon: Icons.fileText },
+        { name: "Lens", key: Qt.Key_L, icon: Icons.sparkles }
     ].concat(Screenshots.hasPicker ? [{ name: "Colour", key: Qt.Key_C, icon: Icons.droplet }] : [],
         Screenshots.hasRecorder && !Screenshots.recording ? [{ name: "Record", key: Qt.Key_V, icon: Icons.film }] : [])
     // dragging out an area: for a picture, or for its text
-    readonly property bool dragging: mode === "region" || mode === "text" || mode === "record"
+    readonly property bool dragging: mode === "region" || mode === "text" || mode === "record" || mode === "lens"
     readonly property bool picking: mode === "menu" || mode === "window" || dragging
     // what stays bright: the area dragged out or the window under the pointer
     readonly property rect hole: dragging ? selection : mode === "window" && hovered ? hovered.bounds : Qt.rect(0, 0, 0, 0)
@@ -38,6 +39,12 @@ PanelWindow {
     function start(next: string) {
         if (mode !== "")
             return;
+        if (Lens.open) {
+            Lens.close();
+            queuedMode = next;
+            afterLens.restart();
+            return;
+        }
         Screenshots.prepare();
         wanted = next;
         cut = Qt.rect(0, 0, 0, 0);
@@ -53,6 +60,12 @@ PanelWindow {
     // neither picks up or records it
     property rect recordArea
     property bool recordWhole
+    property string queuedMode
+    Timer {
+        id: afterLens
+        interval: Theme.motionDuration + 80
+        onTriggered: root.start(root.queuedMode)
+    }
 
     Timer {
         id: colourAfter
@@ -101,10 +114,22 @@ PanelWindow {
         cut = Qt.rect(x, y, w, h);
         Screenshots.shutter();
         const forText = mode === "text";
-        const path = forText ? Screenshots.nextTextPath() : Screenshots.nextPath();
+        const forLens = mode === "lens";
+        const path = forLens ? Screenshots.nextLensPath() : forText ? Screenshots.nextTextPath() : Screenshots.nextPath();
         const grabbing = crop.grabToImage(result => {
             if (!result.saveToFile(path))
                 console.warn("screenshot: can't save", path);
+            else if (forLens) {
+                const area = root.cut;
+                if (!shot.grabToImage(still => {
+                    Lens.begin(path, area, still);
+                    root.close();
+                })) {
+                    Lens.begin(path, area, null);
+                    root.close();
+                }
+                return;
+            }
             else if (forText)
                 Screenshots.readText(path);
             else
@@ -154,6 +179,9 @@ PanelWindow {
         }
         function text(): void {
             root.start("text");
+        }
+        function lens(): void {
+            root.start("lens");
         }
         // starts recording the whole screen, or stops the recording that runs (for a keybind)
         function record(): void {
@@ -289,7 +317,7 @@ PanelWindow {
             Text {
                 id: hint
                 anchors.centerIn: parent
-                text: root.mode === "record" ? "Drag out an area to record, or click for the whole screen · Esc cancel" : root.mode === "region" ? "Drag out an area · Esc cancel" : root.mode === "text" ? "Drag over some text to copy it · Esc cancel" : "Click a window · Esc cancel"
+                text: root.mode === "lens" ? "Drag out an area to ask about · Esc cancel" : root.mode === "record" ? "Drag out an area to record, or click for the whole screen · Esc cancel" : root.mode === "region" ? "Drag out an area · Esc cancel" : root.mode === "text" ? "Drag over some text to copy it · Esc cancel" : "Click a window · Esc cancel"
                 color: Theme.subtext
                 font.family: Theme.fontUi
                 font.pixelSize: 12

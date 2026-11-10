@@ -5,6 +5,33 @@ import QtQuick
 
 // The shell's own look, set in the launcher (System, Shell settings) and kept in Store.
 Singleton {
+    readonly property string lensProvider: Store.saved.lensProvider
+    readonly property string lensClaudeModel: Store.saved.lensClaudeModel
+    readonly property string lensClaudeEffort: Store.saved.lensClaudeEffort
+    readonly property string lensCodexModel: Store.saved.lensCodexModel
+    readonly property string lensCodexEffort: Store.saved.lensCodexEffort
+    readonly property bool lensClaudeFallback: Store.saved.lensClaudeFallback
+    readonly property bool lensCodexFallback: Store.saved.lensCodexFallback
+    readonly property var lensChoices: ({
+        lensProvider: [{ value: "claude", title: "Claude" }, { value: "codex", title: "ChatGPT (Codex)" }],
+        lensClaudeModel: [{ value: "claude-haiku-5-5", title: "Haiku 5.5" }, { value: "sonnet", title: "Sonnet" }, { value: "opus", title: "Opus" }],
+        lensCodexModel: [{ value: "gpt-6-luna", title: "GPT-6 Luna" }, { value: "gpt-6.1-sol", title: "GPT-6.1 Sol" }, { value: "gpt-6.1-terra", title: "GPT-6.1 Terra" }, { value: "gpt-6-astra", title: "GPT-6 Astra" }],
+        lensClaudeEffort: ["low", "medium", "high"].map(value => ({ value: value, title: value[0].toUpperCase() + value.slice(1) })),
+        lensCodexEffort: ["low", "medium", "high"].map(value => ({ value: value, title: value[0].toUpperCase() + value.slice(1) }))
+    })
+
+    function setLensChoice(key: string, value: string) {
+        if (lensChoices[key]?.some(choice => choice.value === value))
+            Store.saved[key] = value;
+    }
+    function lensLabel(key: string): string {
+        return lensChoices[key]?.find(choice => choice.value === Store.saved[key])?.title ?? Store.saved[key];
+    }
+    function setLensFallback(provider: string, on: bool) {
+        if (provider === "claude") Store.saved.lensClaudeFallback = on;
+        else if (provider === "codex") Store.saved.lensCodexFallback = on;
+    }
+
     // drop shadows under panels and popups (components/Shadow.qml)
     readonly property bool shadows: Store.saved.shadows
 

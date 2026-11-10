@@ -39,6 +39,8 @@ Singleton {
     readonly property int chipRadius: 20
     readonly property int tileRadius: 20
     readonly property int panelRadius: 28
+    readonly property int lensPromptWidth: 560
+    readonly property int lensAnswerWidth: 480
 
     // Drop shadows from the boards (CSS box-shadow: 0 <y> <blur> black at <alpha>), for panels and
     // popups; the bar and the tray pill stay flat (owner's call).

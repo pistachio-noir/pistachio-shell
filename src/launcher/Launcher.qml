@@ -33,7 +33,8 @@ PanelWindow {
         system: [["↑↓", "navigate"], ["←→", "adjust"], ["↵", "switch / select"], ["Ctrl M", "mute"], ["Esc", "close"]],
         // Ctrl, unlike the board's plain ⌫: Backspace also edits the search, and forgetting is not undoable
         bluetooth: [["↑↓", "navigate"], ["↵", "connect / disconnect"], ["Ctrl ⌫", "forget device"], ["Esc", "close"]],
-        terminals: [["↑↓", "navigate"], ["↵", "use"], ["Esc", "back"]]
+        terminals: [["↑↓", "navigate"], ["↵", "use"], ["Esc", "back"]],
+        lenschoices: [["↑↓", "navigate"], ["↵", "use"], ["Esc", "back"]]
     })
 
     property bool open
@@ -86,10 +87,10 @@ PanelWindow {
 
     // Bluetooth is a view inside System (LauncherBluetooth board), so it has no tab of its own;
     // the System tab stays highlighted. So is Terminals, from Shell settings (owner's request).
-    readonly property string tab: mode === "bluetooth" || mode === "terminals" || mode === "about" ? "system" : mode
+    readonly property string tab: mode === "bluetooth" || mode === "terminals" || mode === "about" || mode === "lenschoices" ? "system" : mode
     readonly property string placeholder: Bluetooth.request ? (Bluetooth.request.kind === "pin" ? "PIN" : Bluetooth.request.kind === "passkey" ? "6-digit code" : "Bluetooth")
         : editing ? editing.placeholder
-        : mode === "bluetooth" ? "Filter devices…" : mode === "terminals" ? "Filter terminals…" : mode === "about" ? "About the shell" : modes.find(m => m.id === mode).placeholder
+        : mode === "bluetooth" ? "Filter devices…" : mode === "terminals" ? "Filter terminals…" : mode === "lenschoices" ? `Filter ${lensChoice.includes("Model") ? "models" : lensChoice.includes("Effort") ? "effort levels" : "providers"}…` : mode === "about" ? "About the shell" : modes.find(m => m.id === mode).placeholder
     readonly property var keyHints: Bluetooth.request ? (codeWanted ? [["↵", "pair"], ["Esc", "cancel"]]
             : Bluetooth.request.id ? [["←→", "choose"], ["↵", "confirm"], ["Esc", "decline"]]
             : [["Esc", "cancel pairing"]])
@@ -136,6 +137,7 @@ PanelWindow {
         confirming = null;
         editing = null;
         expandedKey = "";
+        lensChoice = "";
         snapshot();
         mode = m === "bluetooth" || m === "about" || modes.some(x => x.id === m) ? m : "all";
         if (m === "about")
@@ -447,6 +449,35 @@ PanelWindow {
         return { kind: "switch", key: "bluetooth", title: "Bluetooth", icon: Icons.bluetooth, on: () => Bluetooth.enabled, status: () => Bluetooth.summary, toggle: () => Bluetooth.setEnabled(!Bluetooth.enabled) };
     }
 
+    property string lensChoice
+    readonly property string lensChoiceTitle: ({
+        lensProvider: "Lens · Provider", lensClaudeModel: "Lens · Claude model", lensClaudeEffort: "Lens · Claude effort",
+        lensCodexModel: "Lens · ChatGPT model", lensCodexEffort: "Lens · ChatGPT effort"
+    })[lensChoice] ?? "Lens"
+
+    function lensSetting(key: string, title: string): var {
+        return [{ kind: "lenschoice", key: key, title: title, subtitle: ShellSettings.lensLabel(key), glyph: key.includes("Effort") ? Icons.sliders : Icons.sparkles }];
+    }
+
+    function lensChoiceRows(q: string): var {
+        const choices = ShellSettings.lensChoices[lensChoice] ?? [];
+        return [section(lensChoiceTitle)].concat(choices.filter(choice => !q || Fuzzy.match(q, choice.title) || Fuzzy.match(q, choice.value)).map(choice => ({
+            kind: "lensoption", key: lensChoice + ":" + choice.value, title: choice.title,
+            subtitle: choice.value === Store.saved[lensChoice] ? "Current" : lensChoice.includes("Model") ? choice.value : "",
+            glyph: choice.value === Store.saved[lensChoice] ? Icons.check : lensChoice.includes("Effort") ? Icons.sliders : Icons.sparkles,
+            settingKey: lensChoice, value: choice.value
+        })));
+    }
+
+    function leaveLensChoices() {
+        const key = lensChoice;
+        field.text = "";
+        mode = "system";
+        lensChoice = "";
+        const i = rows.findIndex(r => r.key === key);
+        if (i >= 0) { current = i; heldKey = key; backToRow.restart(); }
+    }
+
     function systemRows(q: string): var {
         const audio = [{ kind: "slider", key: "volume", title: "Volume" }];
         if (Audio.source)
@@ -515,6 +546,19 @@ PanelWindow {
                 { kind: "termlink", key: "terminal", title: "Terminal", subtitle: Apps.terminalName(Apps.terminal), glyph: Icons.terminal },
                 { kind: "setting", key: "weatherCity", title: "Weather location", subtitle: Weather.placeName, glyph: Icons.mapPin, setting: weatherSetting },
                 ...(Cider.installed ? [{ kind: "setting", key: "ciderToken", title: "Cider token", subtitle: Cider.usable ? "Set: Up next and Apple Music search (m …)" : "Not set: for Up next and Apple Music search", glyph: Icons.music, setting: ciderSetting }] : [])
+            ]],
+            ["pistachio-lens", [
+                ...lensSetting("lensProvider", "Preferred provider")
+            ]],
+            ["pistachio-lens · Claude", [
+                ...lensSetting("lensClaudeModel", "Model"),
+                ...lensSetting("lensClaudeEffort", "Effort"),
+                { kind: "switch", key: "lensClaudeFallback", title: "Fall back to ChatGPT", icon: Icons.sparkles, on: () => ShellSettings.lensClaudeFallback, status: () => "If Claude is unavailable · one attempt", toggle: () => ShellSettings.setLensFallback("claude", !ShellSettings.lensClaudeFallback) }
+            ]],
+            ["pistachio-lens · ChatGPT", [
+                ...lensSetting("lensCodexModel", "Model"),
+                ...lensSetting("lensCodexEffort", "Effort"),
+                { kind: "switch", key: "lensCodexFallback", title: "Fall back to Claude", icon: Icons.sparkles, on: () => ShellSettings.lensCodexFallback, status: () => "If ChatGPT is unavailable · one attempt", toggle: () => ShellSettings.setLensFallback("codex", !ShellSettings.lensCodexFallback) }
             ]],
             ["More", [
                 { kind: "showoff", key: "showoff", title: "Showoff mode", subtitle: "Everything open for a screenshot, private things hidden", glyph: Icons.sparkles },
@@ -985,6 +1029,8 @@ PanelWindow {
             rows = bluetoothRows(q);
         } else if (mode === "terminals") {
             rows = terminalRows(q);
+        } else if (mode === "lenschoices") {
+            rows = lensChoiceRows(q);
         } else if (mode === "about") {
             rows = aboutRows();
         } else if (!q) {
@@ -1172,6 +1218,13 @@ PanelWindow {
         } else if (row.kind === "abouturl") {
             Quickshell.execDetached(["xdg-open", row.url]);
             open = false;
+        } else if (row.kind === "lenschoice") {
+            lensChoice = row.key;
+            field.text = "";
+            mode = "lenschoices";
+        } else if (row.kind === "lensoption") {
+            ShellSettings.setLensChoice(row.settingKey, row.value);
+            leaveLensChoices();
         } else if (row.kind === "termlink") {
             field.text = "";
             mode = "terminals";
@@ -1250,6 +1303,8 @@ PanelWindow {
                 confirming = null; // back to the results
             else if (editing)
                 stopEditing();
+            else if (mode === "lenschoices")
+                leaveLensChoices();
             else if (mode === "terminals" || mode === "about")
                 leaveTerminals();
             else
@@ -1809,7 +1864,7 @@ PanelWindow {
                     property bool quick
                     readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
+                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["lenschoice", "lensoption", "app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -2017,6 +2072,8 @@ PanelWindow {
                                 wplink: resultView,
                                 setting: resultView,
                                 termlink: resultView,
+                                lenschoice: resultView,
+                                lensoption: resultView,
                                 aboutlink: resultView,
                                 wsname: resultView,
                                 preset: resultView,
@@ -2499,7 +2556,8 @@ PanelWindow {
                                     : row.kind === "emoji" ? "Copy"
                                     : row.kind === "wplink" ? "Open"
                                     : row.kind === "setting" ? "Change"
-                                    : row.kind === "termlink" ? "Choose"
+                                    : row.kind === "termlink" || row.kind === "lenschoice" ? "Choose"
+                                    : row.kind === "lensoption" ? "Use"
                                     : row.kind === "aboutlink" ? "Show"
                                     : row.kind === "wsname" ? "Go"
                                     : row.kind === "preset" ? "Load"

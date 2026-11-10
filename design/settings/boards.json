@@ -1,0 +1,146 @@
+[
+  {
+    "file": "01-appearance.html",
+    "title": "Appearance",
+    "section": "Appearance",
+    "state": "Default"
+  },
+  {
+    "file": "02-sound.html",
+    "title": "Sound",
+    "section": "Sound",
+    "state": "Default"
+  },
+  {
+    "file": "03-sound-output.html",
+    "title": "Sound",
+    "section": "Sound",
+    "state": "Output selector open"
+  },
+  {
+    "file": "04-sound-apps.html",
+    "title": "Sound",
+    "section": "Sound",
+    "state": "Application mixer"
+  },
+  {
+    "file": "05-bluetooth.html",
+    "title": "Bluetooth",
+    "section": "Bluetooth",
+    "state": "Default"
+  },
+  {
+    "file": "06-bluetooth-discover.html",
+    "title": "Bluetooth",
+    "section": "Bluetooth",
+    "state": "Looking for devices"
+  },
+  {
+    "file": "07-bluetooth-pair.html",
+    "title": "Bluetooth",
+    "section": "Bluetooth",
+    "state": "Confirm pairing code"
+  },
+  {
+    "file": "08-bluetooth-empty.html",
+    "title": "Bluetooth",
+    "section": "Bluetooth",
+    "state": "No nearby devices"
+  },
+  {
+    "file": "09-network.html",
+    "title": "Network",
+    "section": "Network",
+    "state": "Connected"
+  },
+  {
+    "file": "10-network-unplugged.html",
+    "title": "Network",
+    "section": "Network",
+    "state": "Cable unplugged"
+  },
+  {
+    "file": "11-display.html",
+    "title": "Display & night light",
+    "section": "Display & night light",
+    "state": "Default"
+  },
+  {
+    "file": "12-notifications.html",
+    "title": "Notifications",
+    "section": "Notifications",
+    "state": "Default"
+  },
+  {
+    "file": "13-lens.html",
+    "title": "Pistachio Lens",
+    "section": "Lens",
+    "state": "Default"
+  },
+  {
+    "file": "14-lens-model.html",
+    "title": "Pistachio Lens",
+    "section": "Lens",
+    "state": "Claude model selector open"
+  },
+  {
+    "file": "15-lens-effort.html",
+    "title": "Pistachio Lens",
+    "section": "Lens",
+    "state": "Claude effort selector open"
+  },
+  {
+    "file": "16-apps.html",
+    "title": "Apps & places",
+    "section": "Apps & places",
+    "state": "Default"
+  },
+  {
+    "file": "17-terminal.html",
+    "title": "Apps & places",
+    "section": "Apps & places",
+    "state": "Terminal selector open"
+  },
+  {
+    "file": "18-weather-error.html",
+    "title": "Apps & places",
+    "section": "Apps & places",
+    "state": "Weather location not found"
+  },
+  {
+    "file": "19-localsend.html",
+    "title": "LocalSend",
+    "section": "LocalSend",
+    "state": "Default"
+  },
+  {
+    "file": "20-system.html",
+    "title": "System monitor",
+    "section": "System monitor",
+    "state": "Default"
+  },
+  {
+    "file": "21-about.html",
+    "title": "About",
+    "section": "About",
+    "state": "Default"
+  },
+  {
+    "file": "22-search.html",
+    "title": "Search results",
+    "section": "",
+    "state": "Search results"
+  },
+  {
+    "file": "23-search-empty.html",
+    "title": "Search results",
+    "section": "",
+    "state": "Search has no results"
+  },
+  {
+    "file": "24-launcher-basics.html",
+    "title": "Launcher basics",
+    "section": "Launcher",
+    "state": "Reduced System view"
+  }
+]

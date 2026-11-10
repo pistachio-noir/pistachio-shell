@@ -5,6 +5,14 @@ import QtQuick
 
 // Lucide path data from the design boards, for Icon.paths. Every path starts with an absolute "M".
 Singleton {
+    readonly property list<string> copy: ["M8 8h14v14H8z", "M4 16H2V2h14v2"]
+    readonly property list<string> arrowUp: ["M5 12l7-7 7 7", "M12 19V5"]
+    readonly property list<string> stop: ["M6 6h12v12H6z"]
+    readonly property list<string> lightbulb: ["M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5", "M9 18h6", "M10 22h4"]
+    readonly property list<string> wrench: ["M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"]
+    readonly property list<string> languages: ["M5 8l6 6", "M4 14l6-6 2-3", "M2 5h12", "M7 2h1", "M22 22l-5-10-5 10", "M14 18h6"]
+    readonly property list<string> summarise: ["M21 6H3", "M15 12H3", "M17 18H3"]
+    readonly property list<string> textScan: ["M4 7V4h16v3", "M9 20h6", "M12 4v16"]
     readonly property list<string> slash: ["M2 2l20 20"]
 
     readonly property list<string> bell: ["M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9", "M10.3 21a1.94 1.94 0 0 0 3.4 0"]

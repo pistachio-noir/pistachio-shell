@@ -24,13 +24,16 @@ record=pathlib.Path(os.environ['LENS_TEST_RECORD'])
 with record.open('a') as out: out.write(json.dumps({'name':name,'args':sys.argv[1:],'cwd':os.getcwd()})+'\n')
 if control.get('read_stdin'): sys.stdin.read()
 if control.get('delay'): time.sleep(control['delay'])
-if name in control.get('fail', []):
+model=sys.argv[sys.argv.index('--model')+1] if '--model' in sys.argv else ''
+if name in control.get('fail', []) or model in control.get('fail_models', []):
     message=control.get('message','Usage limit reached (429)')
     print(json.dumps({'is_error':True,'result':message} if name=='claude' else {'type':'error','message':message}))
     sys.exit(1)
 if control.get('malformed'):
     print('not json'); sys.exit(0)
 answer={'answer':'**Read the snip.**\n\n```rust\nlet owned = &name;\n```','actions':[{'label':'Explain','kind':'followup','prompt':'Why borrow?','query':''}]}
+answer['replacement']=control.get('replacement')
+answer['task']=control.get('task','other')
 session=name+'-session'
 if name=='claude': print(json.dumps({'is_error':False,'session_id':session,'structured_output':answer}))
 else:
@@ -60,8 +63,10 @@ class BridgeTests(unittest.TestCase):
         image.write_bytes(b"test-image-content")
         self.lens.begin(image)
         self.request = {"question": "Why doesn't this compile?", "provider": "claude",
-                        "claude": {"model": "claude-haiku-5-5", "effort": "medium", "fallback": False},
-                        "codex": {"model": "gpt-6-luna", "effort": "low", "fallback": False}}
+                        "claude": {"model": "claude-haiku-5-5", "effort": "medium", "fallback": False,
+                                   "coding": {"model": "sonnet", "effort": "high"}},
+                        "codex": {"model": "gpt-6-luna", "effort": "low", "fallback": False,
+                                  "coding": {"model": "gpt-6.1-sol", "effort": "high"}}}
 
     def tearDown(self):
         self.lens.stop()
@@ -219,6 +224,194 @@ class BridgeTests(unittest.TestCase):
             {"kind": "search", "label": "Find", "query": "Rust ownership"}]}))
         self.assertEqual(text, "Hi")
         self.assertEqual([a["kind"] for a in actions], ["search"])
+
+    def attach(self, text="old\n"):
+        path = self.root / "example.rs"
+        path.write_bytes(text.encode())
+        path.chmod(0o751)
+        self.lens.attach(str(path))
+        return path
+
+    def test_proposal_apply_is_explicit_and_preserves_permissions(self):
+        path = self.attach()
+        self.control.write_text(json.dumps({"replacement": "new\n"}))
+        result = self.ask()
+        self.assertIn("-old\n+new", result["diff"])
+        self.assertEqual(path.read_text(), "old\n")
+        self.lens.review(True)
+        self.assertEqual(path.read_text(), "new\n")
+        self.assertEqual(path.stat().st_mode & 0o777, 0o751)
+        self.assertIn("Proposed changes · Applied", (self.lens.folder / "chat.md").read_text())
+        self.assertFalse(list(self.root.glob(".pistachio-lens-*")))
+
+    def test_discard_and_missing_attachment_never_write(self):
+        path = self.attach()
+        self.control.write_text(json.dumps({"replacement": "new\n"}))
+        self.ask()
+        self.lens.review(False)
+        self.assertEqual(path.read_text(), "old\n")
+        self.assertIsNone(self.lens.proposal)
+        self.lens.attach("")
+        self.assertEqual(self.ask()["diff"], "")
+
+    def test_changed_or_replaced_file_rejects_apply(self):
+        path = self.attach()
+        self.control.write_text(json.dumps({"replacement": "new\n"}))
+        self.ask()
+        path.write_text("owner's edit\n")
+        with self.assertRaisesRegex(ValueError, "changed"):
+            self.lens.review(True)
+        self.assertEqual(path.read_text(), "owner's edit\n")
+        path.unlink()
+        target = self.root / "other.rs"
+        target.write_text("old\n")
+        path.symlink_to(target)
+        with self.assertRaisesRegex(ValueError, "changed"):
+            self.lens.review(True)
+        self.assertEqual(target.read_text(), "old\n")
+
+    def test_transfer_reuses_snapshot_and_context_without_auto_fallback(self):
+        path = self.attach()
+        self.control.write_text(json.dumps({"replacement": "first proposal\n"}))
+        self.ask()
+        path.write_text("changed on disk\n")
+        self.request.update(provider="codex", transfer=True)
+        self.control.write_text(json.dumps({"replacement": "second proposal\n"}))
+        self.assertEqual(self.ask()["provider"], "codex")
+        prompt = self.calls()[-1]["args"][-1]
+        self.assertIn('"content": "old\\n"', prompt)
+        self.assertNotIn("changed on disk", prompt)
+        self.assertIn("Read the snip", prompt)
+        self.assertEqual(self.lens.proposal["replacement"], "second proposal\n")
+        self.assertEqual((self.lens.folder / "chat.md").read_text().count("## You"), 2)
+        self.control.write_text(json.dumps({"fail": ["codex"]}))
+        self.request["codex"]["fallback"] = True
+        before = len(self.calls())
+        self.assertEqual(self.ask()["event"], "error")
+        self.assertEqual(len(self.calls()), before + 1)
+
+    def test_attachments_validate_and_fresh_questions_refresh_snapshot(self):
+        path = self.attach()
+        self.ask()
+        path.write_text("current\n")
+        self.request["question"] = "Fix the current file"
+        self.ask()
+        self.assertIn('"content": "current\\n"', self.calls()[-1]["args"][1])
+        for content in (b"\xff", b"a\0b", b"x" * 32769):
+            path.write_bytes(content)
+            with self.assertRaises(ValueError):
+                self.lens.attach(str(path))
+
+    def test_empty_replacement_and_final_newline_are_reviewable(self):
+        path = self.attach("old\n")
+        self.control.write_text(json.dumps({"replacement": "old"}))
+        self.assertIn("No newline at end of file", self.ask()["diff"])
+        self.control.write_text(json.dumps({"replacement": ""}))
+        self.assertIn("-old", self.ask()["diff"])
+        self.lens.review(True)
+        self.assertEqual(path.read_bytes(), b"")
+
+    def test_coding_offer_needs_consent_then_retries_same_snapshot(self):
+        path = self.attach()
+        self.control.write_text(json.dumps({"task": "coding", "replacement": "normal proposal\n"}))
+        first = self.ask()
+        self.assertTrue(first["offer_coding"])
+        self.assertEqual(len(self.calls()), 1)
+        path.write_text("changed on disk\n")
+        self.request.update(upgrade=True, coding_enabled=True)
+        self.control.write_text(json.dumps({"task": "coding", "replacement": "coding proposal\n"}))
+        result = self.ask()
+        self.assertEqual((result["model"], result["effort"]), ("sonnet", "high"))
+        self.assertFalse(result["offer_coding"])
+        self.assertIn('"content": "old\\n"', self.calls()[-1]["args"][1])
+        with self.assertRaisesRegex(ValueError, "changed"):
+            self.lens.review(True)
+        saved = (self.lens.folder / "chat.md").read_text()
+        self.assertIn("sonnet · high", saved)
+        self.assertIn("claude-haiku-5-5 · medium", saved)
+
+    def test_accepted_coding_turns_use_each_providers_own_preset(self):
+        self.control.write_text(json.dumps({"task": "coding"}))
+        self.request["coding_enabled"] = True
+        for provider, model in (("claude", "sonnet"), ("codex", "gpt-6.1-sol")):
+            self.request["provider"] = provider
+            before = len(self.calls()) if self.record.exists() else 0
+            result = self.ask()
+            self.assertEqual(len(self.calls()), before + 2)
+            self.assertEqual((result["model"], result["effort"]), (model, "high"))
+
+    def test_non_coding_turns_never_inherit_coding_preset(self):
+        self.request["coding_enabled"] = True
+        for purpose in ("translation", "summary", "extraction"):
+            # Even an erroneous agent classification cannot override an explicit chip.
+            self.control.write_text(json.dumps({"task": "coding"}))
+            self.request.update(purpose=purpose, question=purpose + " this code")
+            before = len(self.calls()) if self.record.exists() else 0
+            result = self.ask()
+            self.assertEqual(result["task"], purpose)
+            self.assertEqual(len(self.calls()), before + 1)
+            self.assertEqual(result["model"], "claude-haiku-5-5")
+            self.assertFalse(result["offer_coding"])
+        self.request.update(purpose="auto", question="Translate this code comment into Polish")
+        self.control.write_text(json.dumps({"task": "translation"}))
+        before = len(self.calls())
+        self.assertEqual(self.ask()["model"], "claude-haiku-5-5")
+        self.assertEqual(len(self.calls()), before + 1)
+
+    def test_explicit_upgrade_rejected_for_non_coding_question(self):
+        self.ask()
+        self.request["upgrade"] = True
+        result = self.ask()
+        self.assertEqual(result["event"], "upgrade_failed")
+        self.assertEqual(len(self.calls()), 1)
+
+    def test_upgrade_failure_keeps_previous_proposal_and_does_not_fallback(self):
+        path = self.attach()
+        self.control.write_text(json.dumps({"task": "coding", "replacement": "normal proposal\n"}))
+        self.ask()
+        proposal = self.lens.proposal
+        self.control.write_text(json.dumps({"fail_models": ["sonnet"]}))
+        self.request.update(upgrade=True, coding_enabled=True)
+        self.request["claude"]["fallback"] = True
+        self.assertEqual(self.ask()["event"], "upgrade_failed")
+        self.assertEqual(len(self.calls()), 2)
+        self.assertIs(self.lens.proposal, proposal)
+        self.lens.review(True)
+        self.assertEqual(path.read_text(), "normal proposal\n")
+
+    def test_automatic_upgrade_failure_keeps_normal_answer(self):
+        self.request["coding_enabled"] = True
+        self.control.write_text(json.dumps({"task": "coding", "fail_models": ["sonnet"]}))
+        result = self.ask()
+        self.assertEqual(result["event"], "answer")
+        self.assertEqual(result["model"], "claude-haiku-5-5")
+        self.assertIn("showing the normal answer", result["warning"])
+
+    def test_identical_preset_does_not_offer_or_repeat(self):
+        self.request["claude"]["coding"] = self.request["claude"].copy()
+        self.control.write_text(json.dumps({"task": "coding"}))
+        self.assertFalse(self.ask()["offer_coding"])
+        self.request["coding_enabled"] = True
+        self.ask()
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_cancel_upgrade_keeps_previous_proposal(self):
+        self.attach()
+        self.control.write_text(json.dumps({"task": "coding", "replacement": "normal proposal\n"}))
+        self.ask()
+        proposal, previous_pid = self.lens.proposal, self.lens.process.pid
+        self.control.write_text(json.dumps({"delay": 30, "task": "coding"}))
+        self.request.update(upgrade=True, coding_enabled=True)
+        before = len(self.events)
+        self.lens.ask(self.request)
+        deadline = time.monotonic() + 3
+        while self.lens.process.pid == previous_pid and time.monotonic() < deadline:
+            time.sleep(.01)
+        self.assertNotEqual(self.lens.process.pid, previous_pid)
+        self.lens.stop()
+        self.lens.worker.join(3)
+        self.assertIs(self.lens.proposal, proposal)
+        self.assertFalse(any(e["event"] in ("answer", "upgrade_failed", "fallback") for e in self.events[before:]))
 
 
 if __name__ == "__main__":

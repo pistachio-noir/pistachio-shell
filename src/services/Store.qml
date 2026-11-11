@@ -40,6 +40,11 @@ Singleton {
         property string lensCodexEffort: "low"
         property bool lensClaudeFallback
         property bool lensCodexFallback
+        property bool lensSuggestCoding: true
+        property string lensClaudeCodingModel: "sonnet"
+        property string lensClaudeCodingEffort: "high"
+        property string lensCodexCodingModel: "gpt-6.1-sol"
+        property string lensCodexCodingEffort: "high"
         property var workspacePresets: [] // { name, names: { "2": "code" }, apps: { "2": [desktop entry ids] } }
         property string frostStyle: "subtle" // or "glassy"
         property bool notificationSound: true // a soft sound with each toast

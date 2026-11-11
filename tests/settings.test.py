@@ -84,6 +84,18 @@ with tempfile.TemporaryDirectory(prefix="pistachio-settings-test-") as directory
             assert result and result.stdout.strip().startswith("all passed"), (result.stdout if result else "No IPC target") + "\n" + output
             assert "WARN scene:" not in output and "ERROR" not in output, output
             print("settings QML: " + result.stdout.strip())
+            proc.terminate()
+            proc.wait(timeout=5)
+            proc = subprocess.Popen(["qs", "-p", directory], env=env, stdout=log, stderr=log)
+            saved = None
+            for _ in range(70):
+                probe = subprocess.run(["qs", "-p", directory, "ipc", "call", "settingsTest", "codingState"], env=env, capture_output=True, text=True)
+                if probe.returncode == 0 and probe.stdout.lstrip().startswith("{"):
+                    saved = json.loads(probe.stdout)
+                    if saved["ready"]: break
+                time.sleep(0.1)
+            assert saved and saved["ready"] and not saved["suggest"] and saved["claude"] == "opus" and saved["codexEffort"] == "medium" and saved["normalClaude"] == "sonnet", saved
+            print("settings QML: coding toggle/presets persist across restart; normal settings stay independent")
         finally:
             proc.terminate()
             proc.wait(timeout=5)

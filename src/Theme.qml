@@ -41,6 +41,8 @@ Singleton {
     readonly property int panelRadius: 28
     readonly property int lensPromptWidth: 560
     readonly property int lensAnswerWidth: 480
+    readonly property int screenshotMenuTop: 96
+    readonly property int screenshotTipWidth: 334
     readonly property int settingsWidth: 1040
     readonly property int settingsHeight: 760
 

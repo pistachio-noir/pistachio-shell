@@ -17,7 +17,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-    Reveal { id: reveal; open: Lens.open }
+    Reveal { id: reveal; open: Lens.open && !Lens.pickingFile }
 
     Item {
         anchors.fill: parent
@@ -97,11 +97,13 @@ PanelWindow {
 
         Connections {
             target: Lens
-            function onOpenChanged() { if (Lens.open) Qt.callLater(() => window.answered ? followup.focusInput() : prompt.focusInput()); }
+            function onOpenChanged() { if (Lens.open && !Lens.upgradePrompt) Qt.callLater(() => window.answered ? followup.focusInput() : prompt.focusInput()); }
+            function onUpgradePromptChanged() { if (!Lens.upgradePrompt) Qt.callLater(() => followup.focusInput()); }
+            function onPickingFileChanged() { if (!Lens.pickingFile && Lens.open) Qt.callLater(() => window.answered ? followup.focusInput() : prompt.focusInput()); }
             function onStateChanged() {
                 if (Lens.state === "answer") {
                     if (!Lens.stoppedRequest) followup.text = "";
-                    Qt.callLater(() => followup.focusInput());
+                    Qt.callLater(() => { if (!Lens.upgradePrompt) followup.focusInput(); });
                 }
                 else if (Lens.state === "prompt") Qt.callLater(() => prompt.focusInput());
             }
@@ -126,7 +128,7 @@ PanelWindow {
             opacity: reveal.progress
             focus: Lens.open
             Keys.onPressed: event => {
-                if (event.key === Qt.Key_Escape) { event.accepted = true; Lens.close(); }
+                if (event.key === Qt.Key_Escape) { event.accepted = true; if (Lens.upgradePrompt) Lens.respondCodingUpgrade(false); else Lens.close(); }
             }
 
             Shadow { anchors.fill: panel; radius: panel.radius; kind: Theme.shadowPanel; frostable: true }
@@ -142,6 +144,7 @@ PanelWindow {
 
             Column {
                 id: content
+                enabled: !Lens.upgradePrompt
                 x: window.inset; y: window.inset
                 width: parent.width - 2 * window.inset
                 spacing: 14
@@ -162,7 +165,8 @@ PanelWindow {
                         width: parent.width - 46 - 88
                         Text { text: Lens.providerName; color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: 13; font.weight: Font.Bold }
                         Text {
-                            text: Lens.busy ? "Reading…" : `Answered in ${Math.round(Lens.seconds)} s`
+                            width: parent.width; elide: Text.ElideRight
+                            text: Lens.busy ? "Reading…" : `Answered in ${Math.round(Lens.seconds)} s · ${Lens.modelLabel}${Lens.effort ? " · " + Lens.effort : ""}`
                             color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold
                             font.features: { "tnum": 1 }
                         }
@@ -195,7 +199,7 @@ PanelWindow {
                     id: response
                     visible: window.answered
                     width: parent.width
-                    height: visible ? Math.min(body.implicitHeight, Math.max(100, window.maxHeight - 300 - followup.height)) : 0
+                    height: visible ? Math.min(body.implicitHeight, Math.max(100, window.maxHeight - 40 - 44 - 56 - attachmentChips.height - answerFooter.height - (statusNotice.visible ? statusNotice.height + 14 : 0) - 56)) : 0
                     contentWidth: width; contentHeight: body.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
@@ -205,6 +209,35 @@ PanelWindow {
                         width: response.width
                         spacing: 14
                         LensMarkdown { width: parent.width; markdown: Lens.answer }
+                        Rectangle {
+                            visible: Lens.diff !== ""
+                            width: parent.width
+                            height: visible ? proposal.implicitHeight + 24 : 0
+                            radius: Theme.tileRadius
+                            color: Theme.overlay
+                            Column {
+                                id: proposal
+                                x: 12; y: 12; width: parent.width - 24; spacing: 12
+                                Text {
+                                    width: parent.width
+                                    text: "Proposed changes · " + Lens.attachment
+                                    textFormat: Text.PlainText; elide: Text.ElideMiddle
+                                    color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: 12; font.weight: Font.Bold
+                                }
+                                TextEdit {
+                                    width: parent.width
+                                    text: Lens.diff; textFormat: TextEdit.PlainText
+                                    readOnly: true; selectByMouse: true; wrapMode: TextEdit.WrapAnywhere
+                                    color: Theme.text; selectionColor: Theme.overlay2; selectedTextColor: Theme.textBright
+                                    font.family: Theme.fontMono; font.pixelSize: 12
+                                }
+                                Row {
+                                    spacing: 8
+                                    ActionButton { text: "Apply changes"; primary: true; height: 44; enabled: !Lens.busy; onClicked: Lens.review(true) }
+                                    ActionButton { text: "Discard"; height: 44; enabled: !Lens.busy; onClicked: Lens.review(false) }
+                                }
+                            }
+                        }
                         Flow {
                             width: parent.width; spacing: 8
                             Repeater {
@@ -251,6 +284,29 @@ PanelWindow {
                     }
                 }
 
+                Flow {
+                    id: attachmentChips
+                    visible: !Lens.busy
+                    width: parent.width; spacing: 8
+                    ActionButton {
+                        text: Lens.attachment ? "Change file" : "Attach file"
+                        icon: Icons.fileCode; height: 44; enabled: Lens.ready
+                        onClicked: Lens.attachFile()
+                    }
+                    ActionButton {
+                        visible: Lens.attachment !== ""
+                        text: "Remove " + (Lens.attachment.length > 24 ? Lens.attachment.slice(0, 21) + "…" : Lens.attachment)
+                        icon: Icons.close; height: 44
+                        onClicked: Lens.detachFile()
+                    }
+                    ActionButton {
+                        visible: (window.answered || window.failed) && Lens.question !== ""
+                        text: Lens.provider === "claude" ? "Ask ChatGPT instead" : "Ask Claude instead"
+                        icon: Icons.sparkles; height: 44; enabled: Lens.ready
+                        onClicked: Lens.askOther()
+                    }
+                }
+
                 LensInput {
                     id: prompt
                     visible: !window.answered && !window.failed
@@ -277,7 +333,9 @@ PanelWindow {
                             icon: modelData.icon
                             horizontalPadding: 12
                             height: 44
-                            onClicked: Lens.ask(modelData.name === "Extract text" ? "Extract all text from this snip, preserving its layout where useful." : modelData.name + " this snip.")
+                            onClicked: Lens.askTask(modelData.name === "Extract text" ? "Extract all text from this snip, preserving its layout where useful."
+                                : modelData.name === "Fix it" && Lens.attachment ? "Fix the attached file using this snip, and explain what changed and why."
+                                : modelData.name + " this snip.", modelData.name === "Translate" ? "translation" : modelData.name === "Summarise" ? "summary" : modelData.name === "Extract text" ? "extraction" : "auto")
                         }
                     }
                 }
@@ -306,11 +364,13 @@ PanelWindow {
                     color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold
                 }
                 Text {
+                    id: statusNotice
                     visible: Lens.notice !== ""
                     width: parent.width; text: Lens.notice; textFormat: Text.PlainText; wrapMode: Text.Wrap
                     color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11
                 }
                 Column {
+                    id: answerFooter
                     visible: window.answered
                     width: parent.width; spacing: 14
                     Rectangle { width: parent.width; height: 1; color: Theme.overlay }
@@ -324,6 +384,7 @@ PanelWindow {
                     }
                 }
             }
+            LensUpgrade { anchors.fill: parent }
         }
     }
 }

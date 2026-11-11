@@ -81,11 +81,19 @@ Singleton {
     readonly property bool recording: recorder.running
     property real recordingSince
     property string recordingPath
+    property rect recordingArea: Qt.rect(0, 0, 0, 0)
+    property bool recordingWhole: true
+    property string recordingMonitor
 
     function record(r: rect, whole: bool, monitor: string) {
         if (recorder.running)
             return;
         const x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.width) & ~1, h = Math.round(r.height) & ~1; // even sizes, for the encoder
+        if (!whole && (w < 2 || h < 2))
+            return;
+        recordingArea = Qt.rect(x, y, w, h);
+        recordingWhole = whole;
+        recordingMonitor = monitor;
         recordingPath = `${videos}/Recording_${Qt.formatDateTime(new Date(), "yyyy-MM-dd_HH-mm-ss")}.mp4`;
         recorder.command = ["sh", "-c", 'mkdir -p "$1" && shift && exec "$@"', "sh", videos, "setpriv", "--pdeathsig", "INT", "gpu-screen-recorder",
             "-w", whole ? monitor : "region"].concat(whole ? [] : ["-region", `${w}x${h}+${x}+${y}`], ["-f", "60", "-a", "default_output", "-o", recordingPath]);

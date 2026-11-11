@@ -55,6 +55,7 @@ ShellRoot {
     Lock {}
     PolkitDialog {} // and the polkit agent behind it, which starts with the shell
     ScreenshotPicker {}
+    RecordingRegion {} // area bounds and an outside Stop pill
     LensCard {}
     AlarmPopup {} // timers done and Clocks' alarms ringing
     PistachioRain {

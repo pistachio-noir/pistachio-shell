@@ -40,6 +40,7 @@ var settings = [
     ["localsend", "folder", "Save received files to", "This device", "download folder"],
     ["localsend", "known", "Accept known devices", "Incoming requests", "trust"],
     ["lens", "provider", "Preferred provider", "Lens", "claude chatgpt codex"],
+    ["lens", "coding", "Suggest a coding model", "Lens", "code snippet upgrade high effort coding model preset"],
     ["lens", "claude", "Claude model and effort", "Lens", "haiku sonnet opus fallback"],
     ["lens", "codex", "ChatGPT model and effort", "Lens", "codex luna low fallback"],
     ["lens", "chats", "Saved chats", "Lens", "snip markdown history folder"],

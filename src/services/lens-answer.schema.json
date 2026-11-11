@@ -2,6 +2,8 @@
   "type": "object",
   "properties": {
     "answer": { "type": "string" },
+    "replacement": { "type": ["string", "null"] },
+    "task": { "type": "string", "enum": ["coding", "translation", "summary", "extraction", "other"] },
     "actions": {
       "type": "array", "maxItems": 2,
       "items": {
@@ -17,6 +19,6 @@
       }
     }
   },
-  "required": ["answer", "actions"],
+  "required": ["answer", "actions", "replacement", "task"],
   "additionalProperties": false
 }

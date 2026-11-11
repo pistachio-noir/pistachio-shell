@@ -12,12 +12,24 @@ Singleton {
     readonly property string lensCodexEffort: Store.saved.lensCodexEffort
     readonly property bool lensClaudeFallback: Store.saved.lensClaudeFallback
     readonly property bool lensCodexFallback: Store.saved.lensCodexFallback
+    readonly property bool lensSuggestCoding: Store.saved.lensSuggestCoding
+    readonly property string lensClaudeCodingModel: Store.saved.lensClaudeCodingModel
+    readonly property string lensClaudeCodingEffort: Store.saved.lensClaudeCodingEffort
+    readonly property string lensCodexCodingModel: Store.saved.lensCodexCodingModel
+    readonly property string lensCodexCodingEffort: Store.saved.lensCodexCodingEffort
+    readonly property var lensClaudeModels: [{ value: "claude-haiku-5-5", title: "Haiku 5.5" }, { value: "sonnet", title: "Sonnet" }, { value: "opus", title: "Opus" }]
+    readonly property var lensCodexModels: [{ value: "gpt-6-luna", title: "GPT-6 Luna" }, { value: "gpt-6.1-sol", title: "GPT-6.1 Sol" }, { value: "gpt-6.1-terra", title: "GPT-6.1 Terra" }, { value: "gpt-6-astra", title: "GPT-6 Astra" }]
+    readonly property var lensEfforts: ["low", "medium", "high"].map(value => ({ value: value, title: value[0].toUpperCase() + value.slice(1) }))
     readonly property var lensChoices: ({
         lensProvider: [{ value: "claude", title: "Claude" }, { value: "codex", title: "ChatGPT (Codex)" }],
-        lensClaudeModel: [{ value: "claude-haiku-5-5", title: "Haiku 5.5" }, { value: "sonnet", title: "Sonnet" }, { value: "opus", title: "Opus" }],
-        lensCodexModel: [{ value: "gpt-6-luna", title: "GPT-6 Luna" }, { value: "gpt-6.1-sol", title: "GPT-6.1 Sol" }, { value: "gpt-6.1-terra", title: "GPT-6.1 Terra" }, { value: "gpt-6-astra", title: "GPT-6 Astra" }],
-        lensClaudeEffort: ["low", "medium", "high"].map(value => ({ value: value, title: value[0].toUpperCase() + value.slice(1) })),
-        lensCodexEffort: ["low", "medium", "high"].map(value => ({ value: value, title: value[0].toUpperCase() + value.slice(1) }))
+        lensClaudeModel: lensClaudeModels,
+        lensCodexModel: lensCodexModels,
+        lensClaudeEffort: lensEfforts,
+        lensCodexEffort: lensEfforts,
+        lensClaudeCodingModel: lensClaudeModels,
+        lensCodexCodingModel: lensCodexModels,
+        lensClaudeCodingEffort: lensEfforts,
+        lensCodexCodingEffort: lensEfforts
     })
 
     function setLensChoice(key: string, value: string) {
@@ -31,6 +43,7 @@ Singleton {
         if (provider === "claude") Store.saved.lensClaudeFallback = on;
         else if (provider === "codex") Store.saved.lensCodexFallback = on;
     }
+    function setLensSuggestCoding(on: bool) { Store.saved.lensSuggestCoding = on; }
 
     // drop shadows under panels and popups (components/Shadow.qml)
     readonly property bool shadows: Store.saved.shadows

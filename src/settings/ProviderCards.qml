@@ -16,6 +16,10 @@ Column {
             SettingsButton { width:104;text:"ChatGPT";active:ShellSettings.lensProvider==="codex";onClicked:ShellSettings.setLensChoice("lensProvider","codex") }
         }
     }
+    SettingsGroup {
+        width: parent.width
+        rows: [{ id: "coding", kind: "toggle", title: "Suggest a coding model", subtitle: () => "Ask once per snip, for coding only. Other tasks keep the normal model.", checked: () => ShellSettings.lensSuggestCoding, toggle: () => ShellSettings.setLensSuggestCoding(!ShellSettings.lensSuggestCoding) }]
+    }
     Row {
         width: parent.width; spacing: 14
         Repeater {
@@ -49,6 +53,19 @@ Column {
                         width: parent.width; height: 80; divided: true
                         horizontalPadding: 0
                         spec: ({id:card.modelData.toLowerCase(),kind:"toggle",title:card.modelData === "Claude" ? "Fall back to ChatGPT" : "Fall back to Claude",subtitle:()=>"If unavailable · one attempt",checked:()=>Store.saved[card.prefix+"Fallback"],toggle:()=>ShellSettings.setLensFallback(card.modelData.toLowerCase(),!Store.saved[card.prefix+"Fallback"])})
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.overlay2 }
+                    SettingsText { text: "Coding only" }
+                    Row {
+                        width: parent.width; spacing: 12
+                        Column { width: parent.width - 122; spacing: 7
+                            SettingsText { text: "Model"; secondary: true; font.pixelSize: 11 }
+                            SettingsChoice { objectName: "choice-"+card.prefix+"CodingModel"; width: parent.width; height: 50; choices: ShellSettings.lensChoices[card.prefix+"CodingModel"]; selected: Store.saved[card.prefix+"CodingModel"]; onChosen: value=>ShellSettings.setLensChoice(card.prefix+"CodingModel",value); Accessible.name: card.modelData+" coding model" }
+                        }
+                        Column { width: 110; spacing: 7
+                            SettingsText { text: "Effort"; secondary: true; font.pixelSize: 11 }
+                            SettingsChoice { objectName: "choice-"+card.prefix+"CodingEffort"; width: parent.width; height: 50; choices: ShellSettings.lensChoices[card.prefix+"CodingEffort"]; selected: Store.saved[card.prefix+"CodingEffort"]; onChosen: value=>ShellSettings.setLensChoice(card.prefix+"CodingEffort",value); Accessible.name: card.modelData+" coding effort" }
+                        }
                     }
                 }
             }

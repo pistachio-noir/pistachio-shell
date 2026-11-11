@@ -1,16 +1,14 @@
 import qs
 import qs.components
+import qs.popups
 import qs.services
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland // layer-shell keyboard focus and screen capture (Wayland protocols, not a compositor module)
 import QtQuick
 
-// Screenshots (owner's request, after phase 8; not on a board). Hyprland's keybinds call `screenshot
-// region` (straight to dragging out an area) or `screenshot menu` (Region, Window, Screen or Text, laid
-// out like the power menu), or `screenshot text`: an area whose text is read and copied (Screenshots). Either first takes a still of the screen and shows it, so the picture is the
-// screen as it was, without the picker on it; the part chosen is cut from that still in memory and
-// saved, and Screenshots sends the notification.
+// Frozen-screen capture with the owner's compact toolbar (design/NewScreenshotMenu.html).
+// Crop/save and the existing modes are shared by menu selection, shortcuts and IPC.
 PanelWindow {
     id: root
 
@@ -23,13 +21,14 @@ PanelWindow {
     property int current // the menu's highlighted choice
     property rect cut // what's being saved
     readonly property var choices: [
-        { name: "Region", key: Qt.Key_R, icon: Icons.region },
-        { name: "Window", key: Qt.Key_W, icon: Icons.window },
-        { name: "Screen", key: Qt.Key_S, icon: Icons.monitor },
-        { name: "Text", key: Qt.Key_T, icon: Icons.fileText },
-        { name: "Lens", key: Qt.Key_L, icon: Icons.sparkles }
-    ].concat(Screenshots.hasPicker ? [{ name: "Colour", key: Qt.Key_C, icon: Icons.droplet }] : [],
-        Screenshots.hasRecorder && !Screenshots.recording ? [{ name: "Record", key: Qt.Key_V, icon: Icons.film }] : [])
+        { name: "Region", key: Qt.Key_R, icon: Icons.crop, description: "Drag out an area of the screen to save.", command: "psc screenshot region" },
+        { name: "Window", key: Qt.Key_W, icon: Icons.monitor, description: "Click a window to capture it.", command: "" },
+        { name: "Screen", key: Qt.Key_S, icon: Icons.grid, description: "Save the whole screen.", command: "" },
+        { name: "Text", key: Qt.Key_T, icon: Icons.textScan, description: "Snip text to read and copy it to the clipboard.", command: "psc screenshot text" },
+        { name: "Lens", key: Qt.Key_L, icon: Icons.scanSearch, description: "Snip anything on screen and ask " + (ShellSettings.lensProvider === "codex" ? "ChatGPT" : "Claude") + " about it.", command: "psc screenshot lens" }
+    ].concat(Screenshots.hasPicker ? [{ name: "Colour", key: Qt.Key_C, icon: Icons.pipette, description: "Pick a colour from the screen and copy its hex value.", command: "psc screenshot colour" }] : [],
+        Screenshots.hasRecorder && !Screenshots.recording ? [{ name: "Record", key: Qt.Key_V, icon: Icons.recordCircle, description: "Drag out an area to record, or click for the whole screen.", command: "psc screenshot record" }] : [])
+    onChoicesChanged: if (current >= choices.length) current = Math.max(0, choices.length - 1)
     // dragging out an area: for a picture, or for its text
     readonly property bool dragging: mode === "region" || mode === "text" || mode === "record" || mode === "lens"
     readonly property bool picking: mode === "menu" || mode === "window" || dragging
@@ -165,7 +164,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Overlay // above fullscreen windows
-    WlrLayershell.keyboardFocus: root.mode !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // For keybinds: qs -c pistachio ipc call screenshot region (or menu)
     IpcHandler {
@@ -257,7 +256,8 @@ PanelWindow {
                 width: modelData.width
                 height: modelData.height
                 color: Theme.bg
-                opacity: 0.5
+                opacity: root.mode === "menu" ? 0.64 : 0.5
+                Behavior on opacity { NumberAnimation { duration: Theme.motionDuration; easing.type: Theme.easing } }
             }
         }
 
@@ -360,118 +360,13 @@ PanelWindow {
         }
     }
 
-    // menu: Region, Window or Screen, as the power menu lays its actions out
-    Column {
-        anchors.centerIn: parent
-        // fades in rising 12 px, and back
-        anchors.verticalCenterOffset: 12 * (1 - reveal.progress)
-        opacity: root.mode === "menu" ? reveal.progress : 0
-        visible: opacity > 0
-        spacing: 20
-
-        Rectangle {
-            width: buttons.implicitWidth + 48
-            height: buttons.implicitHeight + 48
-            radius: 32
-            color: Theme.bgAlt
-            border.width: 1
-            border.color: Theme.overlay2
-            Accessible.role: Accessible.Grouping
-            Accessible.name: "Screenshot"
-
-            Shadow {
-                z: -1 // beneath the panel, fading with it
-                kind: Theme.shadowModal
-                anchors.fill: parent
-                radius: parent.radius
-            }
-
-            // clicks between the buttons don't reach the background
-            MouseArea {
-                anchors.fill: parent
-            }
-
-            Row {
-                id: buttons
-
-                anchors.centerIn: parent
-                spacing: 12
-
-                Repeater {
-                    model: root.choices
-
-                    Rectangle {
-                        id: button
-
-                        required property var modelData
-                        required property int index
-                        readonly property bool selected: root.current === index
-
-                        width: 120
-                        height: 132
-                        radius: 24
-                        color: selected ? Theme.overlay2 : Theme.overlay
-                        Accessible.role: Accessible.Button
-                        Accessible.name: `${modelData.name}, key ${String.fromCharCode(modelData.key)}`
-
-                        Behavior on color {
-                            ColorAnimation {
-                                duration: Theme.hoverDuration
-                                easing.type: Theme.easing
-                            }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onEntered: root.current = button.index
-                            onClicked: root.choose(button.index)
-                        }
-
-                        Column {
-                            anchors.centerIn: parent
-                            spacing: 10
-
-                            Icon {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                size: 30
-                                paths: button.modelData.icon
-                                color: button.selected ? Theme.pistachio : Theme.text
-                            }
-
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: button.modelData.name
-                                color: button.selected ? Theme.textBright : Theme.text
-                                font.family: Theme.fontUi
-                                font.pixelSize: 14
-                                font.weight: Font.Bold
-                            }
-
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: String.fromCharCode(button.modelData.key)
-                                color: Theme.subtext
-                                font.family: Theme.fontUi
-                                font.pixelSize: 11
-                                font.weight: Font.Bold
-                                font.letterSpacing: 0.66
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: "← → move · Enter confirm · Esc cancel"
-            color: Theme.subtext
-            font.family: Theme.fontUi
-            font.pixelSize: 12
-            font.weight: Font.DemiBold
-        }
+    ScreenshotMenu {
+        anchors.fill: parent
+        open: root.mode === "menu"
+        choices: root.choices
+        current: root.current
+        onHighlighted: index => root.current = index
+        onChosen: index => root.choose(index)
     }
 
     // a click beside the menu closes it, as with the power menu

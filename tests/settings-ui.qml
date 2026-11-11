@@ -16,6 +16,12 @@ ShellRoot {
     function need(name) { const item=find(win.contentItem,name) || find(win.dialog.contentItem,name); if(!item) throw new Error("Missing "+name); return item; }
     function check(ok, why) { if(!ok) throw new Error(why); }
     function click(item) { input.mouseClick(item,item.width/2,item.height/2); input.wait(30); }
+    function scrollInto(item) {
+        let scroll=item.parent;
+        while(scroll && scroll.contentY===undefined) scroll=scroll.parent;
+        if(scroll) scroll.contentY=Math.max(0,Math.min(scroll.contentHeight-scroll.height,item.mapToItem(scroll.contentItem,0,0).y-scroll.height/2));
+        input.wait(30);
+    }
     function page(name) { win.navigate(name,""); input.wait(30); }
     function runChecks() {
         for(const name of ["appearance","display","sound","notifications","bluetooth","network","localsend","lens","apps","system","about"]) page(name);
@@ -51,6 +57,17 @@ ShellRoot {
         click(effort); input.keyClick(Qt.Key_Down); input.keyClick(Qt.Key_Return); input.wait(30);
         check(ShellSettings.lensCodexEffort==="medium","independent Codex effort");
         check(ShellSettings.lensClaudeEffort==="medium","Claude effort preserved");
+        check(ShellSettings.lensClaudeCodingModel==="sonnet" && ShellSettings.lensCodexCodingModel==="gpt-6.1-sol" && ShellSettings.lensClaudeCodingEffort==="high" && ShellSettings.lensCodexCodingEffort==="high","independent coding defaults");
+        const codingToggle=need("toggle-coding");click(codingToggle);
+        check(!ShellSettings.lensSuggestCoding,"coding suggestions can be disabled");click(codingToggle);
+        const codingModel=need("choice-lensClaudeCodingModel");scrollInto(codingModel);click(codingModel);
+        input.keyClick(Qt.Key_Down);input.keyClick(Qt.Key_Return);input.wait(30);
+        check(ShellSettings.lensClaudeCodingModel==="opus" && ShellSettings.lensClaudeModel==="sonnet","coding model choice leaves normal model alone");
+        const codingEffort=need("choice-lensCodexCodingEffort");scrollInto(codingEffort);click(codingEffort);
+        input.keyClick(Qt.Key_Up);input.keyClick(Qt.Key_Return);input.wait(30);
+        check(ShellSettings.lensCodexCodingEffort==="medium" && ShellSettings.lensClaudeCodingEffort==="high","coding efforts stay independent");
+        ShellSettings.setLensChoice("lensCodexCodingEffort","invalid");
+        check(ShellSettings.lensCodexCodingEffort==="medium","invalid coding choice rejected");
         page("sound");
         const slider=need("level-output");
         input.mouseClick(slider,slider.width*0.35,22);input.wait(30);
@@ -108,11 +125,14 @@ ShellRoot {
         LocalSend.available=false;win.showPage("localsend","");input.wait(20);check(SettingsHub.page==="appearance","missing LocalSend stays unavailable");
         page("bluetooth");Bluetooth.setScanning(true);SettingsHub.opened=false;input.wait(30);
         check(!Bluetooth.scanning,"closing stops discovery");
+        ShellSettings.setLensSuggestCoding(false);
+        input.wait(350);
         return "all passed (controls, selectors, validation, seven pairing kinds, search, watchers, resize)";
     }
     IpcHandler {
         target:"settingsTest"
         function ready():bool{return Store.ready;}
+        function codingState():string{return JSON.stringify({ready:Store.ready,suggest:ShellSettings.lensSuggestCoding,claude:ShellSettings.lensClaudeCodingModel,codexEffort:ShellSettings.lensCodexCodingEffort,normalClaude:ShellSettings.lensClaudeModel});}
         function run():string{try{return runChecks();}catch(error){return "FAIL: "+error.message;}}
     }
 }

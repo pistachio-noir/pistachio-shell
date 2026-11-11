@@ -3,10 +3,17 @@ import qs.components
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import QtQuick.Window
+import QtTest
 
-// No windows or CLI calls. Exercise cancellation state and the real prompt's geometry.
+// Offscreen only: the prompt, confirmation input and real helper pipe with fake CLIs.
 Scope {
     LensInput { id: input; width: 536; height: implicitHeight; initial: true }
+    Window {
+        visible: true; width: 480; height: 420
+        LensUpgrade { id: upgrade; anchors.fill: parent }
+    }
+    TestCase { id: keys; when: false }
 
     function findNamed(item, name) {
         if (item.objectName === name) return item;
@@ -18,6 +25,22 @@ Scope {
     }
     IpcHandler {
         target: "lensTest"
+        function beginFixture(file: string): void { Lens.begin(file, Qt.rect(0, 0, 600, 200), null); }
+        function chooseFixture(): void { Lens.attachFile(); }
+        function askFixture(): void { Lens.ask("Fix the attached file"); }
+        function transferFixture(): void { Lens.askOther(); }
+        function applyFixture(): void { Lens.review(true); }
+        function taskFixture(task: string): void { Lens.askTask("Translate this code", task); }
+        function keepFixture(): void { keys.keyClick(Qt.Key_Return); }
+        function acceptFixture(): void { keys.keyClick(Qt.Key_Right); keys.keyClick(Qt.Key_Return); }
+        function suggestFixture(on: bool): void { ShellSettings.setLensSuggestCoding(on); }
+        function fixtureState(): string {
+            return JSON.stringify({ ready: Lens.ready, state: Lens.state, attachment: Lens.attachment,
+                picking: Lens.pickingFile, provider: Lens.provider, preferred: ShellSettings.lensProvider,
+                diff: Lens.diff, notice: Lens.notice, model: Lens.model, effort: Lens.effort,
+                upgrade: Lens.upgradePrompt, enabled: Lens.codingEnabled, asked: Lens.codingAsked,
+                normalClaude: ShellSettings.lensClaudeModel, normalCodex: ShellSettings.lensCodexModel });
+        }
         function inputText(text: string): void { input.text = text; }
         function inputEnd(): void { findNamed(input, "lensInputField").cursorPosition = input.text.length; }
         function inputState(): string {
@@ -31,14 +54,15 @@ Scope {
         }
         function check(): string {
             Lens.answer = "Previous answer";
-            Lens.lastAnswer = { provider: "codex", model: "gpt-6-luna", seconds: 4, question: "Original question" };
+            Lens.lastAnswer = { provider: "codex", model: "gpt-6-luna", effort: "low", seconds: 4, question: "Original question" };
             Lens.provider = "claude";
             Lens.model = "sonnet";
+            Lens.effort = "high";
             Lens.seconds = 20;
             Lens.question = "Cancelled follow-up";
             Lens.state = "reading";
             Lens.cancelled();
-            if (Lens.provider !== "codex" || Lens.model !== "gpt-6-luna" || Lens.seconds !== 4 || Lens.question !== "Original question" || Lens.answer !== "Previous answer" || Lens.state !== "answer" || !Lens.stoppedRequest)
+            if (Lens.provider !== "codex" || Lens.model !== "gpt-6-luna" || Lens.effort !== "low" || Lens.seconds !== 4 || Lens.question !== "Original question" || Lens.answer !== "Previous answer" || Lens.state !== "answer" || !Lens.stoppedRequest)
                 return "FAIL: cancelled follow-up lost the previous answer's metadata";
             Lens.answer = "";
             Lens.lastAnswer = null;

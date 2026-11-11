@@ -53,19 +53,12 @@ Singleton {
         return iconFor(terminals[name]?.appId ?? name);
     }
 
-    // run()'s background commands: the command, then a notification with how it went
-    readonly property string background: 'out=$(sh -c "$1" 2>&1); code=$?; last=$(printf "%s\n" "$out" | grep -v "^[[:space:]]*$" | tail -n 1); '
-        + 'if [ "$code" -eq 0 ]; then notify-send --app-name=Command --icon=utilities-terminal "Finished: $1" "${last:-No output}"; '
-        + 'else notify-send --app-name=Command --icon=utilities-terminal "Failed: $1" "Exit $code${last:+ · $last}"; fi'
-
-    // A command typed in the launcher (owner's request, after phase 8): in the terminal, which stays open to
-    // show what it printed, or in the background without a window. It runs exactly as typed, as in a
-    // terminal. In the background a notification says when it's done (owner's request): "Finished"
-    // or "Failed" with its exit code, and the last line it printed. A detached shell waits for it, so
-    // a live reload doesn't stop it.
+    // Background commands are tracked in volatile runtime storage and survive live reload.
+    // Terminal commands keep the existing terminal/hold behaviour.
     function run(command: string, inTerminal: bool) {
         Store.saved.recentCommands = [command].concat(recentCommands.filter(c => c !== command)).slice(0, 20);
-        Quickshell.execDetached(inTerminal ? root.inTerminal(["sh", "-c", command], true, "") : ["sh", "-c", root.background, "sh", command]);
+        if (inTerminal) Quickshell.execDetached(root.inTerminal(["sh", "-c", command], true, ""));
+        else LauncherTools.run(command);
     }
 
 
@@ -93,17 +86,11 @@ Singleton {
     }
 
     function launch(app) {
+        if (LauncherTools.pending[app.id]) return;
         const all = Object.assign({}, Store.saved.launches);
         all[app.id] = (all[app.id] ?? []).concat([Date.now()]).slice(-10);
         Store.saved.launches = all;
-        // execute() ignores Terminal=true, so terminal apps get a terminal here
-        if (app.runInTerminal)
-            Quickshell.execDetached({
-                command: inTerminal(app.command, false, ""),
-                workingDirectory: app.workingDirectory
-            });
-        else
-            app.execute();
+        LauncherTools.launch(app.id, app.runInTerminal ? inTerminal(app.command, false, "") : app.command, app.workingDirectory, app.runInTerminal ? terminalAppId : "");
     }
 
     // One of an app's own actions (its desktop file's, e.g. Helium's New incognito window; owner's
@@ -112,13 +99,7 @@ Singleton {
         const all = Object.assign({}, Store.saved.launches);
         all[app.id] = (all[app.id] ?? []).concat([Date.now()]).slice(-10);
         Store.saved.launches = all;
-        if (app.runInTerminal)
-            Quickshell.execDetached({
-                command: inTerminal(action.command, false, ""),
-                workingDirectory: app.workingDirectory
-            });
-        else
-            action.execute();
+        LauncherTools.launch(app.id, app.runInTerminal ? inTerminal(action.command, false, "") : action.command, app.workingDirectory, app.runInTerminal ? terminalAppId : "");
     }
 
     // An image source for an icon name, or "" if the theme has no such icon.

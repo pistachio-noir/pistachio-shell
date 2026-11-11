@@ -45,6 +45,11 @@ Singleton {
         property string lensClaudeCodingEffort: "high"
         property string lensCodexCodingModel: "gpt-6.1-sol"
         property string lensCodexCodingEffort: "high"
+        property string screenshotOutput: "save"
+        property string recordingAudio: "system"
+        property int recordingCountdown: 0
+        property var launcherPins: []
+        property var launcherAliases: ({})
         property var workspacePresets: [] // { name, names: { "2": "code" }, apps: { "2": [desktop entry ids] } }
         property string frostStyle: "subtle" // or "glassy"
         property bool notificationSound: true // a soft sound with each toast
@@ -70,6 +75,9 @@ Singleton {
         id: file
 
         path: Quickshell.statePath("state.json")
+        // v0.3.2 reapplies a completed write snapshot to its adapter. Finish each
+        // debounced save before accepting newer edits, so an old snapshot cannot undo them.
+        blockWrites: true
         printErrors: false // a missing file is normal on the first start; other errors are logged below
         onLoaded: root.ready = true
         onLoadFailed: error => {

@@ -372,7 +372,7 @@ PanelWindow {
             id: recordingChip
 
             property real now: Date.now()
-            readonly property int seconds: Math.max(0, Math.floor((now - Screenshots.recordingSince) / 1000))
+            readonly property int seconds: Math.floor(Screenshots.elapsedMs(now) / 1000)
 
             visible: Screenshots.recording
             anchors.right: clock.left
@@ -383,7 +383,7 @@ PanelWindow {
             radius: Theme.chipRadius
             color: recordingMouse.containsMouse ? Theme.overlay2 : Theme.overlay
             Accessible.role: Accessible.Button
-            Accessible.name: `Recording, ${recordingTime.text}. Stop`
+            Accessible.name: `Recording, ${recordingTime.text}. Left click stops; right click ${Screenshots.paused ? "resumes" : "pauses"}`
 
             Timer {
                 running: recordingChip.visible
@@ -415,7 +415,7 @@ PanelWindow {
                 Text {
                     id: recordingTime
                     anchors.verticalCenter: parent.verticalCenter
-                    text: `${Math.floor(recordingChip.seconds / 60)}:${String(recordingChip.seconds % 60).padStart(2, "0")}`
+                    text: `${Screenshots.paused ? "Ⅱ " : ""}${Math.floor(recordingChip.seconds / 60)}:${String(recordingChip.seconds % 60).padStart(2, "0")}`
                     color: Theme.textBright
                     font.family: Theme.fontUi
                     font.pixelSize: 13
@@ -429,7 +429,8 @@ PanelWindow {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: Screenshots.stopRecording()
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: event => event.button===Qt.RightButton ? Screenshots.togglePause() : Screenshots.stopRecording()
             }
         }
 

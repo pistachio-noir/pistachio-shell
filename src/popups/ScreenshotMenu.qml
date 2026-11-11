@@ -7,6 +7,8 @@ Item {
     id: root
     property bool open
     property var choices: []
+    property string output: "save"
+    signal outputChosen(string value)
     property int current
     signal highlighted(int index)
     signal chosen(int index)
@@ -27,7 +29,9 @@ Item {
                 viewport.contentX = Math.min(viewport.contentWidth - viewport.width, item.x + item.width - viewport.width);
         });
     }
-    onOpenChanged: scheduleTip()
+    property point pointerPosition
+    property bool pointerKnown
+    onOpenChanged: { pointerKnown = false; scheduleTip(); }
     onCurrentChanged: scheduleTip()
     onChoicesChanged: scheduleTip()
     Reveal { id: reveal; open: root.open }
@@ -124,13 +128,43 @@ Item {
                                 id: mouse
                                 anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 // A still pointer must not replace a keyboard selection when this maps.
-                                onEntered: if (root.current === slot.index) root.scheduleTip()
+                                onEntered: {
+                                    if (reveal.progress >= 1) root.highlighted(slot.index);
+                                    if (root.current === slot.index) root.scheduleTip();
+                                }
                                 onExited: if (root.current === slot.index) { root.tipOpen = false; tipDelay.stop(); }
-                                onPositionChanged: if (containsMouse && root.open) root.highlighted(slot.index)
+                                onPositionChanged: event => {
+                                    const at = mouse.mapToItem(root, event.x, event.y);
+                                    const moved = root.pointerKnown && (Math.abs(at.x-root.pointerPosition.x) > 0.5 || Math.abs(at.y-root.pointerPosition.y) > 0.5);
+                                    root.pointerKnown = true; root.pointerPosition = at;
+                                    if (containsMouse && root.open && moved) root.highlighted(slot.index);
+                                }
                                 onClicked: root.chosen(slot.index)
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        objectName: "screenshot-output"
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: Math.max(8, bar.y - 48)
+        width: outputRow.implicitWidth + 8; height: 40; radius: 20
+        color: Theme.bgAlt; border.width: 1; border.color: Theme.overlay2
+        visible: reveal.shown; opacity: reveal.progress; enabled: root.open
+        Row {
+            id: outputRow; x: 4; y: 4; spacing: 2
+            Repeater {
+                model: [{value:"save",label:"Save"},{value:"copy",label:"Copy"},{value:"both",label:"Both"}]
+                CaptureButton {
+                    required property var modelData
+                    objectName: "capture-output-" + modelData.value
+                    text: modelData.label; selected: root.output === modelData.value
+                    height: 32
+                    onClicked: root.outputChosen(modelData.value)
                 }
             }
         }

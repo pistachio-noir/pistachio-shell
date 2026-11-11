@@ -34,6 +34,16 @@ if control.get('malformed'):
 answer={'answer':'**Read the snip.**\n\n```rust\nlet owned = &name;\n```','actions':[{'label':'Explain','kind':'followup','prompt':'Why borrow?','query':''}]}
 answer['replacement']=control.get('replacement')
 answer['task']=control.get('task','other')
+prompt=sys.argv[sys.argv.index('-p')+1] if name=='claude' else sys.argv[-1]
+if 'SYNTHESISE BOTH PROVIDER RESPONSES' in prompt:
+    if control.get('delay_synthesis'): time.sleep(control['delay_synthesis'])
+    if control.get('fail_synthesis'):
+        print('synthesis failed', file=sys.stderr); sys.exit(1)
+    answer['answer']='One combined answer'
+    answer['replacement']=control.get('synthesis_replacement', answer['replacement'])
+else:
+    answer['answer']=control.get('answers', {}).get(name, answer['answer'])
+    answer['replacement']=control.get('replacements', {}).get(name, answer['replacement'])
 session=name+'-session'
 if name=='claude': print(json.dumps({'is_error':False,'session_id':session,'structured_output':answer}))
 else:
@@ -72,6 +82,7 @@ class BridgeTests(unittest.TestCase):
         self.lens.stop()
         if self.lens.worker:
             self.lens.worker.join(3)
+        self.lens.cleanup()
         self.environ.stop()
         self.tmp.cleanup()
 
@@ -83,6 +94,168 @@ class BridgeTests(unittest.TestCase):
 
     def calls(self):
         return [json.loads(line) for line in self.record.read_text().splitlines()]
+
+    def image_file(self, name="second image.png"):
+        path = self.root / name
+        # A tiny valid PNG, recognised by both helper and Qt fixtures.
+        import base64
+        path.write_bytes(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1kAAAAASUVORK5CYII="))
+        return path
+
+    def test_three_images_are_numbered_removable_and_reused_by_followups(self):
+        self.assertTrue(callable(getattr(self.lens, "add_image", None)), "multi-image protocol is missing")
+        second = self.image_file()
+        self.lens.add_image(second)
+        self.lens.add_image(self.image_file("third.png"))
+        with self.assertRaisesRegex(ValueError, "three"):
+            self.lens.add_image(second)
+        self.request["provider"] = "codex"
+        self.ask()
+        args = self.calls()[-1]["args"]
+        self.assertEqual(args.count("--image"), 3)
+        self.assertEqual(args[args.index("--image") + 1], str(self.lens.folder / "snip.png"))
+        second.write_bytes(b"changed outside Lens")
+        self.request["question"] = "Compare these three"
+        self.ask()
+        self.assertEqual(self.calls()[-1]["args"].count("--image"), 3)
+        second_id = self.lens.images[1]["id"]
+        self.lens.remove_image(second_id)
+        self.request["provider"] = "claude"
+        self.ask()
+        prompt = self.calls()[-1]["args"][1]
+        self.assertIn("Image 1:", prompt)
+        self.assertIn("Image 2:", prompt)
+        self.assertNotIn("Image 3:", prompt)
+        self.assertEqual(len(self.lens.images), 2)
+        saved = (self.lens.folder / "chat.md").read_text()
+        self.assertIn("snip-2.png", saved)
+        self.assertIn("snip-3.png", saved)
+        self.assertEqual((self.lens.folder / "snip-2.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+
+    def test_image_attachment_rejects_text_symlink_and_overlarge_file(self):
+        self.assertTrue(callable(getattr(self.lens, "add_image", None)), "multi-image protocol is missing")
+        bad = self.root / "not.png"
+        bad.write_text("not an image")
+        with self.assertRaisesRegex(ValueError, "image"):
+            self.lens.add_image(bad)
+        link = self.root / "link.png"
+        link.symlink_to(self.image_file())
+        with self.assertRaisesRegex(ValueError, "symbolic"):
+            self.lens.add_image(link)
+        with bad.open("wb") as output:
+            output.truncate(32 * 1024 * 1024 + 1)
+        with self.assertRaisesRegex(ValueError, "32 MiB"):
+            self.lens.add_image(bad)
+        self.assertEqual(len(self.lens.images), 1)
+
+    def test_ask_both_synthesises_once_and_only_final_replacement_can_apply(self):
+        path = self.attach()
+        self.request["both"] = True
+        self.control.write_text(json.dumps({"answers": {"claude": "Claude source", "codex": "Codex source"},
+            "replacements": {"claude": "first source\n", "codex": "second source\n"}, "synthesis_replacement": "combined\n"}))
+        answer = self.ask()
+        self.assertEqual([call["name"] for call in self.calls()], ["claude", "codex", "claude"])
+        self.assertEqual(answer["answer"], "One combined answer")
+        self.assertTrue(answer["combined"])
+        final_prompt = self.calls()[-1]["args"][1]
+        self.assertIn("Claude source", final_prompt)
+        self.assertIn("Codex source", final_prompt)
+        self.assertIn('"content": "old\\n"', final_prompt)
+        self.assertIn("first source", final_prompt)
+        self.assertNotIn("--resume", self.calls()[-1]["args"])
+        self.assertEqual(path.read_text(), "old\n")
+        self.assertEqual(self.lens.proposal["replacement"], "combined\n")
+        self.lens.review(True)
+        self.assertEqual(path.read_text(), "combined\n")
+        saved = (self.lens.folder / "chat.md").read_text()
+        for text in ("Claude source", "Codex source", "One combined answer", "combined", "Applied"):
+            self.assertIn(text, saved)
+        self.assertEqual(saved.count("## You"), 1)
+
+    def test_combination_failure_never_publishes_source_proposal_or_falls_back(self):
+        path = self.attach()
+        self.request.update(both=True)
+        self.request["claude"]["fallback"] = True
+        self.control.write_text(json.dumps({"replacement": "source edit\n", "fail_synthesis": True}))
+        self.assertEqual(self.ask()["event"], "error")
+        self.assertEqual(len(self.calls()), 3)
+        self.assertIsNone(self.lens.proposal)
+        self.assertEqual(path.read_text(), "old\n")
+        self.assertIn("source edit", (self.lens.folder / "chat.md").read_text())
+        self.assertFalse(any(event["event"] == "answer" for event in self.events))
+
+    def test_both_translation_uses_normal_presets_even_after_coding_consent(self):
+        self.request.update(both=True, coding_enabled=True, purpose="translation", provider="codex")
+        self.control.write_text(json.dumps({"task": "coding"}))
+        result = self.ask()
+        self.assertEqual([call["name"] for call in self.calls()], ["codex", "claude", "codex"])
+        self.assertEqual([call["args"][call["args"].index("--model") + 1] for call in self.calls()],
+                         ["gpt-6-luna", "claude-haiku-5-5", "gpt-6-luna"])
+        self.assertEqual(result["task"], "translation")
+        self.assertFalse(result["offer_coding"])
+
+    def test_both_identical_coding_presets_do_not_add_redundant_requests(self):
+        self.request.update(both=True, coding_enabled=True)
+        self.control.write_text(json.dumps({"task": "coding"}))
+        for provider in ("claude", "codex"):
+            self.request[provider]["coding"] = {key: self.request[provider][key] for key in ("model", "effort")}
+        self.ask()
+        self.assertEqual(len(self.calls()), 3)
+
+    def test_cancelling_synthesis_keeps_sources_and_never_offers_their_replacements(self):
+        path = self.attach()
+        self.request["both"] = True
+        self.control.write_text(json.dumps({"replacement": "source edit\n", "delay_synthesis": 30}))
+        self.lens.ask(self.request)
+        deadline = time.monotonic() + 3
+        while (not self.record.exists() or len(self.calls()) < 3) and time.monotonic() < deadline:
+            time.sleep(.01)
+        self.assertEqual(len(self.calls()), 3)
+        self.lens.stop()
+        self.lens.worker.join(3)
+        self.assertFalse(self.lens.worker.is_alive())
+        self.assertIsNotNone(self.lens.process.poll())
+        self.assertIsNone(self.lens.proposal)
+        self.assertEqual(path.read_text(), "old\n")
+        self.assertFalse(any(event["event"] in ("answer", "fallback", "error") for event in self.events))
+        self.assertEqual(len(self.lens.sources), 2)
+        self.assertIn("source edit", (self.lens.folder / "chat.md").read_text())
+
+    def test_failed_explicit_combined_upgrade_keeps_original_proposal(self):
+        path = self.attach()
+        self.control.write_text(json.dumps({"task": "coding", "replacement": "normal\n"}))
+        self.ask()
+        original = self.lens.proposal
+        self.request.update(both=True, upgrade=True, coding_enabled=True)
+        self.control.write_text(json.dumps({"task": "coding", "replacement": "source\n", "fail_synthesis": True}))
+        self.assertEqual(self.ask()["event"], "upgrade_failed")
+        self.assertIs(self.lens.proposal, original)
+        self.lens.review(True)
+        self.assertEqual(path.read_text(), "normal\n")
+
+    def test_automatic_combined_coding_failure_falls_back_to_same_provider_normal_synthesis(self):
+        self.request.update(both=True, coding_enabled=True)
+        self.control.write_text(json.dumps({"task": "coding", "fail_models": ["sonnet"]}))
+        answer = self.ask()
+        self.assertEqual(answer["event"], "answer")
+        self.assertTrue(answer["combined"])
+        self.assertEqual(answer["model"], "claude-haiku-5-5")
+        self.assertIn("normal", answer["warning"])
+        self.assertEqual([call["name"] for call in self.calls()][-2:], ["claude", "claude"])
+
+    def test_removed_unsent_images_are_not_saved_in_chat(self):
+        second = self.image_file()
+        self.lens.add_image(second)
+        self.lens.remove_image(self.lens.images[-1]["id"])
+        self.ask()
+        self.assertFalse((self.lens.folder / "snip-2.png").exists())
+        third = self.image_file("third.png")
+        self.lens.add_image(third)
+        self.lens.remove_image(self.lens.images[-1]["id"])
+        self.request["question"] = "A follow up"
+        self.ask()
+        self.assertFalse((self.lens.folder / "snip-3.png").exists())
+        self.assertEqual(second.read_bytes(), third.read_bytes())
 
     def test_claude_image_answer_resume_and_save(self):
         self.assertEqual(self.ask()["event"], "answer")
@@ -144,7 +317,10 @@ class BridgeTests(unittest.TestCase):
                 self.request["question"] = question
                 process.stdin.write((json.dumps(self.request) + "\n").encode())
                 process.stdin.flush()
-                self.assertEqual(receive()["event"], "reading")
+                event = receive()
+                while event["event"] == "images":
+                    event = receive()
+                self.assertEqual(event["event"], "reading")
                 self.assertEqual(receive()["event"], "answer")
         finally:
             process.terminate()

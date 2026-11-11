@@ -11,6 +11,26 @@ import QtQuick
 Singleton {
     id: root
 
+    property bool magnifierOpen
+    property real magnifierZoom: 2
+    property point pointerPosition: Qt.point(0,0)
+    Timer {
+        interval: 40; repeat: true; running: root.magnifierOpen; triggeredOnStart: true
+        onTriggered: if (!cursorProbe.running) cursorProbe.running=true
+    }
+    Process {
+        id:cursorProbe
+        command:["hyprctl","-j","cursorpos"]
+        stdout:StdioCollector { onStreamFinished: { try { const p=JSON.parse(text); root.pointerPosition=Qt.point(p.x,p.y); } catch(e) {} } }
+    }
+    IpcHandler {
+        target:"magnifier"
+        function open(): void { root.magnifierOpen=true; root.magnifierZoom=2; }
+        function close(): void { root.magnifierOpen=false; }
+        function zoom(delta: real): void { if (root.magnifierOpen) root.magnifierZoom=Math.max(1.5,Math.min(6,root.magnifierZoom+delta)); }
+        function status(): string { return JSON.stringify({open:root.magnifierOpen,zoom:root.magnifierZoom,x:root.pointerPosition.x,y:root.pointerPosition.y}); }
+    }
+
     // Window addresses, most recently focused first, from Hyprland's activewindowv2 events. Its own
     // focusHistoryID (lastIpcObject) only moves on a refresh, and a switch made while a layer held the
     // keyboard (Alt+Tab) reached the history only after the event, so the next refresh read it stale.
@@ -363,6 +383,14 @@ Singleton {
 
     function toggleFloating(address: string) {
         dispatch(`hl.dsp.window.float({ action = "toggle", window = "address:0x${address}" })`, `togglefloating address:0x${address}`);
+    }
+
+    function floatingPreset(address: string, width: int, height: int) {
+        if (!/^[0-9a-fA-F]+$/.test(address) || !windows.some(w => w.address===address && w.floating)) return;
+        const selector=`address:0x${address}`;
+        if (width>0 && height>0) dispatch(`hl.dsp.window.resize({ window = "${selector}", x = ${width}, y = ${height}, relative = false })`, `resizewindowpixel exact ${width} ${height},${selector}`);
+        if (!Hyprland.usingLua) focus(address);
+        dispatch(`hl.dsp.window.center({ window = "${selector}" })`, "centerwindow");
     }
 
     // FloatingWindow is an xdg toplevel, so Hyprland otherwise tiles it (and can add it to tabs).

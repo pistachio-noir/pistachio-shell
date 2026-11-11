@@ -56,7 +56,7 @@ PanelWindow {
     property bool editBusy
     property string editError
     readonly property string query: field.text
-    readonly property bool inputValid: editing && query.trim() !== "" && !editBusy
+    readonly property bool inputValid: editing && (editing?.allowEmpty || query.trim() !== "") && !editBusy
     // Windows and workspaces as they were when the launcher opened, so the rows only change when you
     // type or switch mode, not under the cursor (window titles change all the time).
     property var windows: []
@@ -280,7 +280,7 @@ PanelWindow {
             if (editing !== asked)
                 return; // cancelled meanwhile: nothing changes
             editBusy = false;
-            if (!value) {
+            if (!value && !(asked.allowEmpty && value === "")) {
                 editError = problem;
                 return;
             }
@@ -315,7 +315,7 @@ PanelWindow {
             key: prefix + h.item.id,
             title: h.item.name,
             indices: h.indices,
-            subtitle: h.item.genericName || h.item.comment,
+            subtitle: LauncherTools.pending[h.item.id] ? "Starting…" : h.item.genericName || h.item.comment,
             icon: Apps.icon(h.item.icon),
             app: h.item
         };
@@ -615,7 +615,28 @@ PanelWindow {
     }
 
     // what a right click on a row (and `col`, a card in a grid row) offers
+    function descriptorFor(row): var {
+        return row.descriptor ?? (row.kind === "app" ? {kind:"app",target:row.app.id} : row.kind === "preset" ? {kind:"preset",target:row.preset.name} : null);
+    }
+    function aliasItem(row) {
+        const d=descriptorFor(row), initial=LauncherTools.aliasFor(d);
+        startEditing({key:row.key,title:"Alias for "+row.title,allowEmpty:true,icon:Icons.pencil,placeholder:"Short name",hint:() => "Exact alias; Enter opens it. Clear to remove.",check:(text,then) => { const error=LauncherTools.checkAlias(text,d); then(error ? null : text,error); },apply:text => LauncherTools.setAlias(text,d)},initial);
+    }
+    function previewFile(row, view) { open=false; LauncherTools.showFile(Files.home+"/"+row.entry.path,view); }
     function menuFor(row, col: int): var {
+        const out=baseMenuFor(row,col), d=descriptorFor(row);
+        if (row.kind === "file" && !row.entry.folder) out.push({text:"Preview · Space",glyph:Icons.image,run:() => previewFile(row,"preview")},{text:"Open with…",glyph:Icons.folderOpen,run:() => previewFile(row,"handlers")});
+        if (row.kind === "window" && Compositor.windows.find(w => w.address===row.address)?.floating) {
+            out.splice(2,0,...[{text:"1280 × 720",size:[1280,720]},{text:"960 × 600",size:[960,600]},{text:"Centre",size:[0,0]}].map(p => ({text:p.text,glyph:Icons.window,run:() => Compositor.floatingPreset(row.address,p.size[0],p.size[1])})));
+        }
+        if (d) {
+            out.push({text:LauncherTools.pinned(d) ? "Unpin from launcher" : "Pin to launcher",glyph:Icons.plus,run:() => LauncherTools.togglePin(d)});
+            if (LauncherTools.pinned(d)) out.push({text:"Move pin up",glyph:Icons.chevronUp,run:() => LauncherTools.movePin(d,-1)},{text:"Move pin down",glyph:Icons.chevronDown,run:() => LauncherTools.movePin(d,1)});
+            if (d.kind!=="preset") out.push({text:LauncherTools.aliasFor(d) ? "Change alias…" : "Set alias…",glyph:Icons.pencil,run:() => aliasItem(row)});
+        }
+        return out;
+    }
+    function baseMenuFor(row, col: int): var {
         switch (row.kind) {
         case "app":
             return [{ text: "Open", glyph: Icons.folderOpen, run: () => activate(row, 0, false) }]
@@ -918,12 +939,23 @@ PanelWindow {
             rows = aboutRows();
         } else if (!q) {
             const w = windowRows("", 5).map(r => Object.assign(r, { compact: true }));
-            rows = [section("Quick controls"), { kind: "controls", key: "controls" }].concat(w.length ? [section("Open windows")].concat(w) : []);
+            const frequent=frequentRows(3);
+            rows = [section("Quick controls"), { kind: "controls", key: "controls" }].concat(frequent.length ? [section("Frequent")].concat(frequent) : []).concat(w.length ? [section("Open windows")].concat(w) : []);
         } else {
             const a = appRows(q, 5), w = windowRows(q, 3), named = namedRows(q), presets = presetRows(q), projects = projectRows(q), games = gameRows(q);
             rows = calcRows(q).concat(a.length ? [section("Applications")].concat(a) : [], games.length ? [section("Games")].concat(games) : [], projects.length ? [section("CLion projects")].concat(projects) : []).concat(w.length ? [section("Windows")].concat(w) : [])
                 .concat(named.length ? [section("Workspaces")].concat(named) : [], presets.length ? [section("Presets")].concat(presets) : [])
                 .concat(powerRows(q), systemRows(q));
+        }
+        if ((mode === "all" || mode === "apps") && !q && !editing && !confirming) {
+            const pins=LauncherTools.pins.map(d => LauncherTools.resolve(d)).filter(r => r);
+            if (pins.length) rows=mode === "all" ? rows.slice(0,2).concat([section("Pinned")],pins,rows.slice(2)) : [section("Pinned")].concat(pins,rows);
+        }
+        if ((mode === "all" || mode === "apps") && q && !/^[\/$:=!@?]/.test(q)) {
+            const alias=LauncherTools.resolve(LauncherTools.aliases[q.trim().toLowerCase()]);
+            const actions=LauncherTools.actions.filter(a => a.available!==false && Fuzzy.match(q,a.name)).map(a => LauncherTools.resolve({kind:"action",target:a.id}));
+            if (actions.length) rows=rows.concat([section("Shell actions")],actions);
+            if (alias) rows=[section("Alias"),Object.assign({},alias,{key:"alias:"+q})].concat(rows);
         }
         if (expandedKey)
             rows = rows.reduce((all, r) => all.concat([r], r.key !== expandedKey ? [] : r.kind === "app" ? actionRows(r) : r.kind === "preset" ? [presetDeleteRow(r)] : []), []); // flatMap isn't there
@@ -985,7 +1017,9 @@ PanelWindow {
     }
 
     function activate(row, col: int, shift: bool) {
-        if (row.kind === "settingslink" || row.kind === "btlink") {
+        if (row.kind === "shellaction") {
+            open=false; LauncherTools.activateAction(row.descriptor);
+        } else if (row.kind === "settingslink" || row.kind === "btlink") {
             open = false;
             settingsRequested(row.kind === "btlink" ? "bluetooth" : "appearance");
         } else if (row.kind === "app") {
@@ -1191,6 +1225,10 @@ PanelWindow {
                 leaveTerminals();
             else
                 open = false;
+            break;
+        case Qt.Key_Space:
+            if (row?.kind!=="file" || row.entry.folder || editing) return;
+            previewFile(row,"preview");
             break;
         case Qt.Key_F2:
             if (row?.kind === "workspaces" && row.cards[column] && !editing) {
@@ -1468,6 +1506,7 @@ PanelWindow {
 
             // search
             Item {
+                id: searchArea
                 width: parent.width
                 height: 68
 
@@ -1517,6 +1556,7 @@ PanelWindow {
 
             // mode tabs
             Item {
+                id: modeTabs
                 width: parent.width
                 height: 36 + 12
 
@@ -1610,7 +1650,7 @@ PanelWindow {
                     x: 8
                     y: 14
                     width: parent.width - 16
-                    height: Math.min(contentHeight, 440)
+                    height: Math.min(contentHeight, 440, Math.max(0, root.height - Math.round(root.height * 0.12) - 24 - searchArea.height - modeTabs.height - 22 - footer.height))
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
 
@@ -1715,7 +1755,7 @@ PanelWindow {
                     property bool quick
                     readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["settingslink", "lenschoice", "lensoption", "app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
+                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["shellaction", "settingslink", "lenschoice", "lensoption", "app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -1907,6 +1947,7 @@ PanelWindow {
                                 tldrman: resultView,
                                 qalc: resultView,
                                 app: resultView,
+                                shellaction: resultView,
                                 appaction: resultView,
                                 window: resultView,
                                 device: resultView,
@@ -2389,7 +2430,7 @@ PanelWindow {
                                 selected: entry.selected
                                 title: row.title
                                 indices: row.indices ?? []
-                                subtitle: row.off ? (current ? "current, nothing plugged in" : "Nothing plugged in")
+                                subtitle: row.kind === "app" && LauncherTools.pending[row.app.id] ? "Starting…" : row.off ? (current ? "current, nothing plugged in" : "Nothing plugged in")
                                     : row.kind === "device" ? (current ? "current" : "")
                                     : row.kind === "btdevice" ? Bluetooth.status(bt)
                                     : row.kind === "btlink" ? (Bluetooth.enabled ? "Pair, connect and forget devices" : "Bluetooth is off")
@@ -2724,79 +2765,13 @@ PanelWindow {
                 }
             }
 
-            // key hints
-            Item {
+            // Wrap hints within the same panel, preserving their click actions.
+            KeyHints {
+                id: footer
                 width: parent.width
-                height: 46
-
-                Rectangle {
-                    width: parent.width
-                    height: 1
-                    color: Theme.overlay
-                }
-
-                Row {
-                    x: 26
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 20
-
-                    Repeater {
-                        model: root.keyHints
-
-                        Row {
-                            id: hint
-                            required property var modelData
-                            readonly property bool clickable: root.hintKeys[modelData[0]] !== undefined
-                            spacing: 8
-
-                            Rectangle {
-                                width: Math.max(22, keyText.implicitWidth + 12)
-                                height: 22
-                                radius: 7
-                                color: hintHover.hovered ? Theme.overlay2 : Theme.overlay
-
-                                Behavior on color {
-                                    ColorAnimation {
-                                        duration: Theme.hoverDuration
-                                        easing.type: Theme.easing
-                                    }
-                                }
-
-                                Text {
-                                    id: keyText
-                                    anchors.centerIn: parent
-                                    text: modelData[0]
-                                    color: Theme.text
-                                    font.family: Theme.fontUi
-                                    font.pixelSize: 12
-                                    font.weight: Font.ExtraBold
-                                }
-                            }
-
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: modelData[1]
-                                color: hintHover.hovered ? Theme.text : Theme.subtext
-                                font.family: Theme.fontUi
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                            }
-
-                            // a click does what the key does (owner's request, 5 November 2026); handlers,
-                            // as a MouseArea would be laid out in the row
-                            HoverHandler {
-                                id: hintHover
-                                enabled: hint.clickable
-                                cursorShape: Qt.PointingHandCursor
-                            }
-
-                            TapHandler {
-                                enabled: hint.clickable
-                                onTapped: root.pressHint(hint.modelData[0])
-                            }
-                        }
-                    }
-                }
+                hints: root.keyHints
+                clickableKeys: root.hintKeys
+                onActivated: key => root.pressHint(key)
             }
         }
     }

@@ -1,5 +1,6 @@
 pragma Singleton
 
+import qs
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -20,12 +21,15 @@ Singleton {
 
     // Screenshot_2026-10-27_22-55-03.png in the folder
     function nextPath(): string {
-        return `${folder}/Screenshot_${Qt.formatDateTime(new Date(), "yyyy-MM-dd_HH-mm-ss")}.png`;
+        return ShellSettings.screenshotOutput === "copy"
+            ? `${Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"}/pistachio-copy-${Date.now()}.png`
+            : `${folder}/Screenshot_${Qt.formatDateTime(new Date(), "yyyy-MM-dd_HH-mm-ss-zzz")}.png`;
     }
 
     // before a picture is taken, so the folder is there when it's saved
     function prepare() {
-        Quickshell.execDetached(["mkdir", "-p", folder]);
+        if (ShellSettings.screenshotOutput !== "copy")
+            Quickshell.execDetached(["mkdir", "-p", folder]);
     }
 
     // A soft camera click as a picture is taken (owner's pick, 31 October 2026), with the notification
@@ -35,8 +39,28 @@ Singleton {
             Quickshell.execDetached(["pw-play", Quickshell.shellPath("sounds/shutter.wav")]);
     }
 
-    function saved(path: string) {
-        notifier.createObject(root, { path: path });
+    function saved(path: string, output: string) {
+        const choice = output || ShellSettings.screenshotOutput;
+        if (choice === "copy" || choice === "both")
+            Clipboard.copyImage(path);
+        if (choice === "copy")
+            copiedNotifier.createObject(root, { path: path });
+        else
+            notifier.createObject(root, { path: path });
+    }
+
+    Component {
+        id: copiedNotifier
+        Process {
+            required property string path
+            running: true
+            command: ["setpriv", "--pdeathsig", "TERM", "notify-send", "--app-name=Screenshot",
+                `--hint=string:x-pistachio-screenshot:${path}`, "--action=default=Copy", "Screenshot copied", "Temporary image · not saved to Pictures"]
+            stdout: SplitParser { onRead: data => { if (data === "default") Clipboard.copyImage(path); } }
+            // Runtime-only image is also available for the notification preview and copy action.
+            // wl-copy reads asynchronously, so leave it until logout rather than racing its stdin.
+            onExited: destroy()
+        }
     }
 
     function nextTextPath(): string {
@@ -84,6 +108,56 @@ Singleton {
     property rect recordingArea: Qt.rect(0, 0, 0, 0)
     property bool recordingWhole: true
     property string recordingMonitor
+    property bool paused
+    property real pausedAt
+    property real pausedTotal
+    property int countdown
+    property bool pendingRecording
+    property rect pendingArea
+    property bool pendingWhole
+    property string pendingMonitor
+    readonly property bool countingDown: pendingRecording
+
+    function elapsedMs(now: real): real {
+        return Math.max(0, (paused ? pausedAt : now) - recordingSince - pausedTotal);
+    }
+
+    function queueRecord(r: rect, whole: bool, monitor: string) {
+        if (recording || pendingRecording) return;
+        pendingArea = r; pendingWhole = whole; pendingMonitor = monitor;
+        countdown = ShellSettings.recordingCountdown;
+        pendingRecording = true;
+        if (countdown > 0) countdownTick.start();
+        else startAfterCountdown.start();
+    }
+
+    function cancelCountdown() {
+        countdownTick.stop(); startAfterCountdown.stop();
+        pendingRecording = false; countdown = 0;
+    }
+
+    Timer {
+        id: countdownTick; interval: 1000; repeat: true
+        onTriggered: {
+            root.countdown--;
+            if (root.countdown <= 0) { stop(); startAfterCountdown.start(); }
+        }
+    }
+    Timer {
+        id: startAfterCountdown; interval: Theme.motionDuration + 80
+        onTriggered: {
+            root.pendingRecording = false;
+            root.record(root.pendingArea, root.pendingWhole, root.pendingMonitor);
+        }
+    }
+
+    function togglePause() {
+        if (!recording) return;
+        recorder.signal(12); // SIGUSR2, documented pause/unpause (not SIGSTOP).
+        if (paused) pausedTotal += Date.now() - pausedAt;
+        else pausedAt = Date.now();
+        paused = !paused;
+    }
 
     function record(r: rect, whole: bool, monitor: string) {
         if (recorder.running)
@@ -96,12 +170,20 @@ Singleton {
         recordingMonitor = monitor;
         recordingPath = `${videos}/Recording_${Qt.formatDateTime(new Date(), "yyyy-MM-dd_HH-mm-ss")}.mp4`;
         recorder.command = ["sh", "-c", 'mkdir -p "$1" && shift && exec "$@"', "sh", videos, "setpriv", "--pdeathsig", "INT", "gpu-screen-recorder",
-            "-w", whole ? monitor : "region"].concat(whole ? [] : ["-region", `${w}x${h}+${x}+${y}`], ["-f", "60", "-a", "default_output", "-o", recordingPath]);
+            "-w", whole ? monitor : "region"].concat(whole ? [] : ["-region", `${w}x${h}+${x}+${y}`], ["-f", "60", "-o", recordingPath]);
+        const audio = ShellSettings.recordingAudio;
+        if (audio !== "off") {
+            const source = audio === "both" ? "default_output|default_input" : audio === "mic" ? "default_input" : "default_output";
+            // Default input follows the Sound page's PipeWire selection; never pick another mic.
+            recorder.command = recorder.command.concat(["-a", source]);
+        }
+        paused = false; pausedAt = 0; pausedTotal = 0;
         recordingSince = Date.now();
         recorder.running = true;
     }
 
     function stopRecording() {
+        if (!recording) return;
         recorder.signal(2); // SIGINT: it finishes the file
     }
 
@@ -114,6 +196,7 @@ Singleton {
             }
         }
         onExited: code => {
+            root.paused = false;
             if (code === 0)
                 recordedNotifier.createObject(root, { path: root.recordingPath });
             else
@@ -128,17 +211,77 @@ Singleton {
             required property string path
 
             running: true
-            command: ["setpriv", "--pdeathsig", "TERM", "notify-send", "--app-name=Recording", "--action=default=Open", "--action=folder=Show in folder",
-                "Recording saved", path.split("/").pop()]
+            command: ["setpriv", "--pdeathsig", "TERM", "notify-send", "--app-name=Recording", "--action=default=Open", "--action=folder=Show in folder"].concat(root.hasTrimmer ? ["--action=trim=Trim"] : [], [
+                "Recording saved", path.split("/").pop()])
             stdout: SplitParser {
                 onRead: data => {
                     if (data === "default")
                         Quickshell.execDetached(["xdg-open", path]);
                     else if (data === "folder")
                         Quickshell.execDetached(["xdg-open", path.slice(0, path.lastIndexOf("/"))]);
+                    else if (data === "trim")
+                        root.openTrim(path);
                 }
             }
             onExited: destroy()
+        }
+    }
+
+    property bool hasTrimmer
+    property bool trimOpen
+    property string trimPath
+    property real trimDuration
+    property string trimError
+    readonly property bool trimBusy: trimmer.running
+    property string trimSavedPath
+    function openTrim(path: string) {
+        if (probe.running || trimmer.running) return;
+        trimPath = path; trimDuration = 0; trimError = ""; trimSavedPath = ""; trimOpen = true;
+        probe.command = ["setpriv", "--pdeathsig", "TERM", "python3", "-I", Quickshell.shellPath("services/capture.py"), "probe", path];
+        probe.running = true;
+    }
+    function saveTrim(start: real, end: real) {
+        if (trimmer.running || trimDuration <= 0) return;
+        if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start || end > trimDuration) {
+            trimError = "Choose a start before the end, within the recording"; return;
+        }
+        trimError = "";
+        trimmer.command = ["setpriv", "--pdeathsig", "TERM", "python3", "-I", Quickshell.shellPath("services/capture.py"), "trim", trimPath, String(start), String(end)];
+        trimmer.running = true;
+    }
+    function closeTrim() {
+        if (trimmer.running) trimmer.signal(15);
+        if (probe.running) probe.signal(15);
+        trimOpen = false;
+    }
+    Process {
+        running: true
+        command: ["sh", "-c", "command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null"]
+        onExited: code => root.hasTrimmer = code === 0
+    }
+    Process {
+        id: probe
+        stdout: StdioCollector { id: probed }
+        onExited: code => {
+            if (!root.trimOpen) return;
+            try {
+                const reply = JSON.parse(probed.text);
+                root.trimDuration = reply.duration || 0;
+                root.trimError = reply.error || "";
+            } catch(e) { root.trimError = "Could not read recording duration"; }
+        }
+    }
+    Process {
+        id: trimmer
+        stdout: StdioCollector { id: trimmed }
+        onExited: code => {
+            if (!root.trimOpen) return;
+            try {
+                const reply = JSON.parse(trimmed.text);
+                root.trimError = reply.error || "";
+                root.trimSavedPath = reply.path || "";
+                if (reply.path) recordedNotifier.createObject(root, { path: reply.path });
+            } catch(e) { root.trimError = "Trim stopped before saving"; }
         }
     }
 

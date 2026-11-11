@@ -18,6 +18,7 @@ with open(os.environ['PISTACHIO_RECORD_TEST_CALLS'],'a') as out: out.write(json.
 if pathlib.Path(os.environ['PISTACHIO_RECORD_TEST_FAIL']).exists():
     print('error: fixture recorder failure',file=sys.stderr);sys.exit(1)
 signal.signal(signal.SIGINT,lambda *_:sys.exit(0))
+signal.signal(signal.SIGUSR2,lambda *_:None)
 while True: time.sleep(.05)
 '''
 
@@ -28,10 +29,15 @@ with tempfile.TemporaryDirectory(prefix="pistachio-recording-test-") as director
     base = Path(directory)
     for name in ("services", "bin", "videos", "pictures"):
         (base / name).mkdir()
-    for name in ("popups", "components", "Theme.qml"):
-        (base / name).symlink_to(ROOT / "src" / name)
+    for name in ("popups", "components", "settings", "Theme.qml"):
+        source = ROOT / "src" / name
+        if source.is_dir(): shutil.copytree(source, base / name)
+        else: shutil.copy(source, base / name)
     shutil.copy(ROOT / "src/services/Screenshots.qml", base / "services/Screenshots.qml")
-    (base / "services/ShellSettings.qml").write_text('pragma Singleton\nimport Quickshell\nSingleton { property bool notificationSound: false }\n')
+    shutil.copy(ROOT / "src/services/capture.py", base / "services/capture.py")
+    (base / "services/Clipboard.qml").write_text('pragma Singleton\nimport Quickshell\nSingleton { property var paths: []; function copyImage(path) {paths=paths.concat([path]);} }\n')
+    subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','color=c=black:s=64x64:r=10:d=2','-c:v','libx264','-y',str(base/'sample.mp4')],check=True)
+    (base / "services/ShellSettings.qml").write_text('pragma Singleton\nimport Quickshell\nSingleton { property bool notificationSound: false; property string recordingAudio: "system"; property int recordingCountdown: 0; property string screenshotOutput: "save"; property bool shadows: true; property bool frosted: false }\n')
     for name, script in {
         "gpu-screen-recorder": FAKE,
         "notify-send": "#!/bin/sh\nexit 0\n",
@@ -65,6 +71,13 @@ with tempfile.TemporaryDirectory(prefix="pistachio-recording-test-") as director
                 except AssertionError: pass
                 time.sleep(.1)
             else: raise AssertionError("recording harness did not load")
+            saved=json.loads(call("copyOutput","copy"))
+            assert str(base/"pictures") not in saved["path"] and saved["copies"]==[saved["path"]],saved
+            time.sleep(.1)
+            assert not (base/"pictures/Screenshots").exists(),"Copy-only must not create Pictures/Screenshots"
+            saved=json.loads(call("copyOutput","both"))
+            assert saved["path"].startswith(str(base/"pictures/Screenshots")) and saved["copies"][-1]==saved["path"],saved
+            saved=json.loads(call("copyOutput","save")); assert saved["path"] not in saved["copies"],saved
             call("start",0)
             state=wait(lambda s:s["recording"] and s["visible"])
             assert {k:state["area"][k] for k in ("x","y","width","height")}=={"x":400,"y":300,"width":640,"height":362},state
@@ -75,6 +88,14 @@ with tempfile.TemporaryDirectory(prefix="pistachio-recording-test-") as director
             assert len(calls())==before and json.loads(call("state"))["area"]==state["area"],"second start must not change a running capture"
             time.sleep(1.1)
             state=json.loads(call("state"));assert state["time"]!="0:00",state
+            call("pause")
+            paused=json.loads(call("state")); assert paused["paused"],paused
+            time.sleep(1.1)
+            assert abs(json.loads(call("state"))["elapsed"]-paused["elapsed"])<80,"elapsed must freeze while paused"
+            call("pause"); assert not json.loads(call("state"))["paused"]
+            call("preferences", "both", 3)
+            call("queue"); assert json.loads(call("state"))["countdown"]==0,"running recorder rejects countdown"
+            call("preferences", "system", 0)
             if os.environ.get("PISTACHIO_RECORDING_TEST_IMAGE"):
                 subprocess.run(["grim",os.environ["PISTACHIO_RECORDING_TEST_IMAGE"]],check=True)
             for which in range(6):
@@ -97,15 +118,45 @@ with tempfile.TemporaryDirectory(prefix="pistachio-recording-test-") as director
             time.sleep(.1);call("stop");wait(lambda s:not s["recording"])
             before=len(calls());call("start",7);time.sleep(.1)
             assert len(calls())==before and not json.loads(call("state"))["recording"],"invalid area must not start a recorder"
+            call("preferences", "both", 3)
+            call("queue"); state=wait(lambda s:s["countdown"]==3)
+            call("pressEscape"); time.sleep(.3)
+            assert not json.loads(call("state"))["recording"] and len(calls())==before,"cancel countdown must never start"
+            call("preferences", "mic", 3)
+            call("queue")
+            state=wait(lambda s:s["recording"])
+            time.sleep(.2)
+            assert calls()[-1][calls()[-1].index("-a")+1]=="default_input",calls()[-1]
+            assert not state["toolsVisible"],"countdown overlay must finish fading before encoding starts"
+            call("stop");wait(lambda s:not s["recording"])
+            call("preferences", "both", 0);call("start",0)
+            wait(lambda s:s["recording"])
+            time.sleep(.2)
+            assert calls()[-1][calls()[-1].index("-a")+1]=="default_output|default_input",calls()[-1]
+            call("stop");wait(lambda s:not s["recording"])
+            call("preferences", "off", 0);call("start",0);wait(lambda s:s["recording"]);time.sleep(.2)
+            assert "-a" not in calls()[-1],calls()[-1]
+            call("stop");wait(lambda s:not s["recording"])
+            call("preferences", "system", 0)
+            before=len(calls())
             fail_file.touch();call("start",0)
             deadline=time.monotonic()+3
             while len(calls())==before and time.monotonic()<deadline: time.sleep(.02)
             wait(lambda s:not s["recording"] and not s["visible"])
+            call("trim")
+            wait(lambda s:s["trimDuration"]>0 and s["toolsVisible"])
+            original=(base/"sample.mp4").read_bytes()
+            call("saveTrim")
+            state=wait(lambda s:bool(s["trimSaved"]))
+            assert Path(state["trimSaved"]).exists() and Path(state["trimSaved"])!=base/"sample.mp4",state
+            assert (base/"sample.mp4").read_bytes()==original
+            assert not state["trimError"],state
+            call("closeTools"); wait(lambda s:not s["toolsVisible"])
             output=(base/"log").read_text()
             assert "ERROR" not in output,output
             warnings=[line for line in output.splitlines() if "WARN scene:" in line and "fixture recorder failure" not in line]
             assert not warnings,warnings
-            print("recording helper: exact encoder bounds, outside-only frame/pill, timer, Stop, screen edges, no-room fallback, whole-screen exclusion, invalid area and failure cleanup passed")
+            print("captures: Save/Copy/Both paths, pause elapsed, audio modes, countdown start/Escape, exact bounds, outside-only helper, edges/fallback, Stop/failure cleanup and real trim UI passed")
         except BaseException:
             print((base/"log").read_text());raise
         finally:

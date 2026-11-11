@@ -15,8 +15,11 @@ if not os.environ.get("WAYLAND_DISPLAY"):
     raise SystemExit
 
 MOCKS = {
-    "ShellSettings": 'property string lensProvider: "codex"; property bool shadows: true; property bool frosted: false;',
-    "Lens": '''id: root; property bool open; property string path; property var area; property var still;
+    "ShellSettings": '''property string lensProvider: "codex"; property bool shadows: true; property bool frosted: false; property string screenshotOutput:"save"; property string recordingAudio:"system"; property int recordingCountdown:0;
+        function setScreenshotOutput(value) {screenshotOutput=value;}
+        function setRecordingAudio(value) {recordingAudio=value;}
+        function setRecordingCountdown(value) {recordingCountdown=value;}''',
+    "Lens": '''id: root; property bool open; property string path; property var area; property var still; property bool capturingImage; signal snipRequested(); function addSnip(file,rect,capture) {begin(file,rect,capture);} function resumeSnips() {open=true;}
         function begin(file,rect,capture) {path=file;area=rect;still=capture;open=true;}
         function close() {open=false;still=null;}''',
     "Compositor": '''property var workspaces: [{id:1,active:true}];
@@ -29,7 +32,7 @@ MOCKS = {
         function nextLensPath() {return OUTPUT+"/lens.png";}
         function saved(path) {lastPath=path;} function readText(path) {lastPath=path;}
         function pickColour() {picked++;}
-        function record(area,whole,monitor) {recorded++;recordWhole=whole;}
+        function queueRecord(area,whole,monitor) {recorded++;recordWhole=whole;}
         function stopRecording() {}'''
 }
 
@@ -37,8 +40,10 @@ with tempfile.TemporaryDirectory(prefix="pistachio-screenshot-test-") as directo
     base = Path(directory)
     (base / "services").mkdir()
     (base / "output").mkdir()
-    for name in ("popups", "components", "Theme.qml"):
-        (base / name).symlink_to(ROOT / "src" / name)
+    for name in ("popups", "components", "settings", "Theme.qml"):
+        source = ROOT / "src" / name
+        if source.is_dir(): shutil.copytree(source, base / name)
+        else: shutil.copy(source, base / name)
     for name, body in MOCKS.items():
         body = body.replace("OUTPUT", json.dumps(str(base / "output")))
         (base / f"services/{name}.qml").write_text("pragma Singleton\nimport Quickshell\nimport QtQuick\nSingleton {\n" + body + "\n}\n")
@@ -76,6 +81,9 @@ with tempfile.TemporaryDirectory(prefix="pistachio-screenshot-test-") as directo
                 with Image.open(capture["path"]) as image:
                     assert image.size == (capture["width"], capture["height"]), capture
                 print(f'screenshot {capture["kind"]}: {capture["width"]} × {capture["height"]} crop passed')
+            if os.environ.get("PISTACHIO_CAPTURE_SETUP_IMAGE"):
+                assert json.loads(call("setupPreview"))["mode"]=="record-setup"
+                subprocess.run(["grim",os.environ["PISTACHIO_CAPTURE_SETUP_IMAGE"]],check=True)
             output = (base / "log").read_text()
             assert "ERROR" not in output and "WARN scene:" not in output, output
             print("screenshots: shortcuts, pointer selection, tooltip, optional tools, outside click, fade and capture routing passed")

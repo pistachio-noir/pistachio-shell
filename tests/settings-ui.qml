@@ -6,6 +6,7 @@ import qs.services
 import qs.settings
 
 ShellRoot {
+    property real fixtureWriteMs
     SettingsWindow { id: win }
     TestCase { id: input; name: "SettingsControls"; when: false }
     function find(item, name) {
@@ -24,7 +25,37 @@ ShellRoot {
     }
     function page(name) { win.navigate(name,""); input.wait(30); }
     function runChecks() {
-        for(const name of ["appearance","display","sound","notifications","bluetooth","network","localsend","lens","apps","system","about"]) page(name);
+        ShellSettings.setShadows(false);Store.fixtureWriteNow();ShellSettings.setShadows(true);input.wait(500);
+        const oldNotifications=Store.saved.notifications;
+        Store.saved.notifications=Array.from({length:200},(_,i)=>({id:i,body:"fixture".repeat(200)}));
+        const began=Date.now();Store.fixtureWriteNow();fixtureWriteMs=Date.now()-began;
+        Store.saved.notifications=oldNotifications;Store.fixtureWriteNow();
+        check(Store.saved.shadows && ShellSettings.shadows,"newer preference must survive completion of an older save");
+        for(const name of ["appearance","display","sound","notifications","bluetooth","network","localsend","lens","apps","system","health","about"]) page(name);
+        page("health");click(need("action-health-check"));input.wait(500);
+        check(SystemHealth.checked && SystemHealth.rows.some(r=>r.id==="shell" && r.status==="Running"),"local shell/helper check returns allowlisted real service status");
+        click(need("action-diagnostics"));check(Clipboard.copied.startsWith("Pistachio Noir diagnostics") && !Clipboard.copied.includes("/home/") && !Clipboard.copied.includes("192.168."),"diagnostics copy excludes identities and network details");
+        page("network"); check(Network.watching,"network refresh only while visible");click(need("action-ipv4"));check(Clipboard.copied==="192.0.2.4/24","network Copy preserves actual address");
+        page("bluetooth");check(!Network.watching && Bluetooth.detailsWatching,"detail watchers follow page");
+        page("appearance");check(!Bluetooth.detailsWatching,"Bluetooth detail watcher stops");
+        ShellSettings.setShadows(false);Store.saved.ciderToken="keep-secret";
+        scrollInto(need("reset-review"));click(need("reset-review"));check(!ShellSettings.shadows,"review does not apply reset");
+        check(SettingsReset.reviewing==="appearance" && SettingsReset.changes("appearance").some(c=>c.key==="shadows"),"review enumerates actual shell preferences");
+        scrollInto(need("reset-cancel"));click(need("reset-cancel"));check(!ShellSettings.shadows,"cancel leaves preferences intact");
+        scrollInto(need("reset-review"));click(need("reset-review"));scrollInto(need("reset-apply"));click(need("reset-apply"));
+        check(ShellSettings.shadows && Store.saved.ciderToken==="keep-secret","explicit reset applies shell preferences only: "+JSON.stringify({shadows:ShellSettings.shadows,storedShadows:Store.saved.shadows,secretKept:Store.saved.ciderToken==="keep-secret",review:SettingsReset.reviewing,ready:Store.ready}));
+        SettingsReset.review("bluetooth");SettingsReset.apply("bluetooth");check(Store.saved.ciderToken==="keep-secret","no Bluetooth reset");
+        Media.players=[{dbusName:"one",identity:"One",isPlaying:true,trackTitle:"A"},{dbusName:"two",identity:"Two",isPlaying:false,trackTitle:"B"}];
+        Media.selectPlayer("two");check(Media.player.dbusName==="two","explicit session player wins");
+        Media.players=Media.players.slice(0,1);check(Media.player.dbusName==="one" && Media.selectedPlayer==="two" && Media.selectionMissing,"missing selected player falls back temporarily");
+        Media.players=Media.players.concat([{dbusName:"two",identity:"Two",isPlaying:false,trackTitle:"B"}]);check(Media.player.dbusName==="two","chosen player returns");
+        Media.selectPlayer("");check(Media.player.dbusName==="one","Auto restores playing player");
+        page("sound");check(MicCheck.state==="idle","opening Sound never accesses microphone");
+        scrollInto(need("mic-meter"));click(need("mic-meter"));input.wait(180);check(MicCheck.state==="metering" && MicCheck.level>0,"explicit meter uses actual service and helper");
+        page("apps");input.wait(100);check(MicCheck.state==="idle" && MicCheck.level===0,"leaving closes microphone");
+        page("sound");scrollInto(need("mic-record"));click(need("mic-record"));input.wait(2000);check(MicCheck.state==="recorded" && MicCheck.seconds===5,"five seconds only, playback requires click");
+        scrollInto(need("mic-play"));click(need("mic-play"));input.wait(100);check(MicCheck.state==="playing","explicit playback");
+        SettingsHub.opened=false;input.wait(100);check(MicCheck.state==="idle","closing discards audio");SettingsHub.opened=true;
         page("appearance");
         check(win.width === 1040 && win.height === 760,"default size");
         const surface=need("settings-surface");
@@ -132,6 +163,7 @@ ShellRoot {
     IpcHandler {
         target:"settingsTest"
         function ready():bool{return Store.ready;}
+        function writeTime():real{return fixtureWriteMs;}
         function codingState():string{return JSON.stringify({ready:Store.ready,suggest:ShellSettings.lensSuggestCoding,claude:ShellSettings.lensClaudeCodingModel,codexEffort:ShellSettings.lensCodexCodingEffort,normalClaude:ShellSettings.lensClaudeModel});}
         function run():string{try{return runChecks();}catch(error){return "FAIL: "+error.message;}}
     }

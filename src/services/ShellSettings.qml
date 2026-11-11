@@ -45,6 +45,13 @@ Singleton {
     }
     function setLensSuggestCoding(on: bool) { Store.saved.lensSuggestCoding = on; }
 
+    readonly property string screenshotOutput: ["save","copy","both"].includes(Store.saved.screenshotOutput) ? Store.saved.screenshotOutput : "save"
+    readonly property string recordingAudio: ["off","system","mic","both"].includes(Store.saved.recordingAudio) ? Store.saved.recordingAudio : "system"
+    readonly property int recordingCountdown: [0,3,5,10].includes(Store.saved.recordingCountdown) ? Store.saved.recordingCountdown : 0
+    function setScreenshotOutput(value: string) { if (["save", "copy", "both"].includes(value)) Store.saved.screenshotOutput = value; }
+    function setRecordingAudio(value: string) { if (["off", "system", "mic", "both"].includes(value)) Store.saved.recordingAudio = value; }
+    function setRecordingCountdown(value: int) { if ([0, 3, 5, 10].includes(value)) Store.saved.recordingCountdown = value; }
+
     // drop shadows under panels and popups (components/Shadow.qml)
     readonly property bool shadows: Store.saved.shadows
 

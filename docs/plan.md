@@ -223,3 +223,8 @@ Questions for you:
 ## Later: the from-scratch version
 
 A full rewrite in C++ or Rust is out of scope now. To keep that door open, keep three things independent of QML: the design tokens (plain values in `Theme.qml`), the adapter's API table above, and the list of components and their data sources. A later Rust shell could reuse all three, and mangowm can come back as a second backend behind the adapter. A small Rust helper for the launcher's app index and fuzzy search is the natural first Rust piece, added only if doing that in QML feels slow or awkward.
+
+
+## Selected feature extension — 11 November 2026
+
+Owner-approved scope: `superpowers/specs/2026-11-11-selected-features-design.md`. Capture setup/countdown/pause/trim and output mode extend Screenshots; Lens adds owned multi-image snapshots and an explicit two-source/single-synthesis request. SystemHealth, MicCheck and SettingsReset back their existing Settings pages. LauncherTools owns saved pin/alias validation, preview/MIME operations, launch feedback and temporary background jobs; LauncherExtras/JobCard draw them. Magnifier paints a click-through live view and reads pointer/zoom state from Compositor. All use current Theme/Reveal motion; no Hyprland configuration is changed. Deferred preferences portability belongs to Claude; launcher multi-selection remains later.

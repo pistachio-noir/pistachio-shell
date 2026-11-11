@@ -10,6 +10,22 @@ import QtQuick
 Singleton {
     id: root
 
+    property bool detailsWatching
+    property var audioDetails: ({})
+    function refreshDetails() { if (!detailReader.running) detailReader.running = true; }
+    onDetailsWatchingChanged: if (detailsWatching) refreshDetails()
+    function audioDetail(device): string {
+        if (!device.connected) return "";
+        const d = audioDetails[device.address.toUpperCase()];
+        return d ? [d.profile, d.codec, d.rate].filter(Boolean).join(" · ") : "";
+    }
+    Timer { running: root.detailsWatching; interval: 5000; repeat: true; onTriggered: root.refreshDetails() }
+    Process {
+        id: detailReader
+        command: ["python3", "-I", Quickshell.shellPath("services/system-tools.py"), "bluetooth"]
+        stdout: StdioCollector { onStreamFinished: { try { root.audioDetails = JSON.parse(text); } catch(e) { root.audioDetails = {}; } } }
+    }
+
     // false until BlueZ reports an adapter
     readonly property bool enabled: Bz.Bluetooth.defaultAdapter?.enabled ?? false
     // powered on and done switching, so it can scan: `enabled` turns true as soon as the shell asks

@@ -15,7 +15,7 @@ PanelWindow {
         && captureArea.width > 0 && captureArea.height > 0
     readonly property var pillPlacement: Layout.place(captureArea, width, height, pill.width, pill.height)
     property real now: Date.now()
-    readonly property int seconds: Math.max(0, Math.floor((now - Screenshots.recordingSince) / 1000))
+    readonly property int seconds: Math.floor(Screenshots.elapsedMs(now) / 1000)
     onAreaRecordingChanged: if (areaRecording) Qt.callLater(() => root.now = Date.now())
 
     visible: reveal.shown
@@ -69,14 +69,14 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 8; height: 8; radius: 4; color: Theme.terracotta
                     SequentialAnimation on opacity {
-                        running: root.areaRecording; loops: Animation.Infinite
+                        running: root.areaRecording && !Screenshots.paused; loops: Animation.Infinite
                         NumberAnimation { to: 0.35; duration: 800; easing.type: Theme.easing }
                         NumberAnimation { to: 1; duration: 800; easing.type: Theme.easing }
                     }
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Recording"; color: Theme.textBright
+                    text: Screenshots.paused ? "Paused" : "Recording"; color: Theme.textBright
                     font.family: Theme.fontUi; font.pixelSize: 13; font.weight: Font.Bold
                 }
                 Text {
@@ -87,6 +87,12 @@ PanelWindow {
                     font.features: { "tnum": 1 }
                 }
                 Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 1; height: 20; color: Theme.overlay2 }
+                GhostButton {
+                    objectName: "recording-region-pause"
+                    icon: Screenshots.paused ? Icons.play : Icons.pause; label: Screenshots.paused ? "Resume recording" : "Pause recording"
+                    enabled: root.areaRecording
+                    onClicked: Screenshots.togglePause()
+                }
                 GhostButton {
                     objectName: "recording-region-stop"
                     icon: Icons.stop; tint: Theme.terracotta; label: "Stop recording"

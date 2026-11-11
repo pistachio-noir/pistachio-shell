@@ -52,11 +52,15 @@ ShellRoot {
         function onWallpapersRequested() { wallpaperSwitcher.show(); }
         function onShowoffRequested() { SettingsHub.opened = false; Showoff.start(); }
     }
+    Connections { target: LauncherTools; function onPresent() { launcher.open = false; } }
     Lock {}
     PolkitDialog {} // and the polkit agent behind it, which starts with the shell
     ScreenshotPicker {}
     RecordingRegion {} // area bounds and an outside Stop pill
     LensCard {}
+    LauncherExtras {}
+    Magnifier {}
+    RecordingTools {}
     AlarmPopup {} // timers done and Clocks' alarms ringing
     PistachioRain {
         id: rain

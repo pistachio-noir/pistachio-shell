@@ -27,11 +27,11 @@ PanelWindow {
         { name: "Text", key: Qt.Key_T, icon: Icons.textScan, description: "Snip text to read and copy it to the clipboard.", command: "psc screenshot text" },
         { name: "Lens", key: Qt.Key_L, icon: Icons.scanSearch, description: "Snip anything on screen and ask " + (ShellSettings.lensProvider === "codex" ? "ChatGPT" : "Claude") + " about it.", command: "psc screenshot lens" }
     ].concat(Screenshots.hasPicker ? [{ name: "Colour", key: Qt.Key_C, icon: Icons.pipette, description: "Pick a colour from the screen and copy its hex value.", command: "psc screenshot colour" }] : [],
-        Screenshots.hasRecorder && !Screenshots.recording ? [{ name: "Record", key: Qt.Key_V, icon: Icons.recordCircle, description: "Drag out an area to record, or click for the whole screen.", command: "psc screenshot record" }] : [])
+        Screenshots.hasRecorder && !Screenshots.recording ? [{ name: "Record", key: Qt.Key_V, icon: Icons.recordCircle, description: "Choose audio and countdown, then an area or the whole screen.", command: "psc screenshot record" }] : [])
     onChoicesChanged: if (current >= choices.length) current = Math.max(0, choices.length - 1)
     // dragging out an area: for a picture, or for its text
-    readonly property bool dragging: mode === "region" || mode === "text" || mode === "record" || mode === "lens"
-    readonly property bool picking: mode === "menu" || mode === "window" || dragging
+    readonly property bool dragging: mode === "region" || mode === "text" || mode === "record" || mode === "lens" || mode === "lens-add"
+    readonly property bool picking: mode === "menu" || mode === "record-setup" || mode === "window" || dragging
     // what stays bright: the area dragged out or the window under the pointer
     readonly property rect hole: dragging ? selection : mode === "window" && hovered ? hovered.bounds : Qt.rect(0, 0, 0, 0)
 
@@ -75,11 +75,24 @@ PanelWindow {
     Timer {
         id: recordAfter
         interval: 250
-        onTriggered: Screenshots.record(root.recordArea, root.recordWhole, root.screen.name)
+        onTriggered: Screenshots.queueRecord(root.recordArea, root.recordWhole, root.screen.name)
     }
 
     function close() {
+        const cancelledSnip = mode === "lens-add" || (mode === "taking" && wanted === "lens-add");
         mode = "";
+        if (cancelledSnip) Lens.resumeSnips();
+    }
+
+    Connections {
+        target: Lens
+        function onSnipRequested() { root.start("lens-add"); }
+    }
+
+    function recordingChoice(whole: bool) {
+        if (!whole) { mode = "record"; return; }
+        recordArea = Qt.rect(0,0,width,height); recordWhole = true;
+        close(); recordAfter.restart();
     }
 
     function choose(i: int) {
@@ -91,7 +104,7 @@ PanelWindow {
             colourAfter.restart();
         }
         else
-            mode = name.toLowerCase();
+            mode = name === "Record" ? "record-setup" : name.toLowerCase();
     }
 
     // The windows on the active workspace, topmost first: the most recently focused one is on top of
@@ -113,7 +126,9 @@ PanelWindow {
         cut = Qt.rect(x, y, w, h);
         Screenshots.shutter();
         const forText = mode === "text";
-        const forLens = mode === "lens";
+        const forLens = mode === "lens" || mode === "lens-add";
+        const addingLens = mode === "lens-add";
+        const output = ShellSettings.screenshotOutput;
         const path = forLens ? Screenshots.nextLensPath() : forText ? Screenshots.nextTextPath() : Screenshots.nextPath();
         const grabbing = crop.grabToImage(result => {
             if (!result.saveToFile(path))
@@ -121,18 +136,18 @@ PanelWindow {
             else if (forLens) {
                 const area = root.cut;
                 if (!shot.grabToImage(still => {
-                    Lens.begin(path, area, still);
-                    root.close();
+                    if (addingLens) Lens.addSnip(path, area, still); else Lens.begin(path, area, still);
+                    root.mode = "";
                 })) {
-                    Lens.begin(path, area, null);
-                    root.close();
+                    if (addingLens) Lens.addSnip(path, area, null); else Lens.begin(path, area, null);
+                    root.mode = "";
                 }
                 return;
             }
             else if (forText)
                 Screenshots.readText(path);
             else
-                Screenshots.saved(path);
+                Screenshots.saved(path, output);
             root.close();
         }, forText ? Qt.size(w * 2, h * 2) : Qt.size(w, h));
         if (!grabbing)
@@ -186,9 +201,13 @@ PanelWindow {
         function record(): void {
             if (Screenshots.recording)
                 Screenshots.stopRecording();
+            else if (Screenshots.countingDown)
+                Screenshots.cancelCountdown();
             else
-                Screenshots.record(Qt.rect(0, 0, root.width, root.height), true, root.screen.name);
+                root.start("record-setup");
         }
+        function pause(): void { Screenshots.togglePause(); }
+        function cancel(): void { Screenshots.cancelCountdown(); root.close(); }
         function colour(): void {
             Screenshots.pickColour();
         }
@@ -256,7 +275,7 @@ PanelWindow {
                 width: modelData.width
                 height: modelData.height
                 color: Theme.bg
-                opacity: root.mode === "menu" ? 0.64 : 0.5
+                opacity: (root.mode === "menu" || root.mode === "record-setup") ? 0.64 : 0.5
                 Behavior on opacity { NumberAnimation { duration: Theme.motionDuration; easing.type: Theme.easing } }
             }
         }
@@ -317,7 +336,7 @@ PanelWindow {
             Text {
                 id: hint
                 anchors.centerIn: parent
-                text: root.mode === "lens" ? "Drag out an area to ask about · Esc cancel" : root.mode === "record" ? "Drag out an area to record, or click for the whole screen · Esc cancel" : root.mode === "region" ? "Drag out an area · Esc cancel" : root.mode === "text" ? "Drag over some text to copy it · Esc cancel" : "Click a window · Esc cancel"
+                text: (root.mode === "lens" || root.mode === "lens-add") ? "Drag out an area to ask about · Esc cancel" : root.mode === "record" ? "Drag out an area to record, or click for the whole screen · Esc cancel" : root.mode === "region" ? "Drag out an area · Esc cancel" : root.mode === "text" ? "Drag over some text to copy it · Esc cancel" : "Click a window · Esc cancel"
                 color: Theme.subtext
                 font.family: Theme.fontUi
                 font.pixelSize: 12
@@ -365,15 +384,25 @@ PanelWindow {
         open: root.mode === "menu"
         choices: root.choices
         current: root.current
+        output: ShellSettings.screenshotOutput
+        onOutputChosen: value => { ShellSettings.setScreenshotOutput(value); Screenshots.prepare(); }
         onHighlighted: index => root.current = index
         onChosen: index => root.choose(index)
+    }
+
+    CaptureSetup {
+        anchors.centerIn: parent
+        visible: root.mode === "record-setup"
+        opacity: reveal.progress
+        onSelectArea: root.recordingChoice(false)
+        onSelectScreen: root.recordingChoice(true)
     }
 
     // a click beside the menu closes it, as with the power menu
     MouseArea {
         anchors.fill: parent
         z: -1
-        enabled: root.mode === "menu"
+        enabled: root.mode === "menu" || root.mode === "record-setup"
         onClicked: root.close()
     }
 

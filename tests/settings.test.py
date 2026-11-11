@@ -16,7 +16,7 @@ MOCKS = {
     "Cider": 'property bool installed: true; property bool usable: false; property string token: ""; property var pending; function check(s,then) {pending=then;} function setToken(s) {token=s;}',
     "LocalSend": 'property bool available:true; property bool wanted:false; property string summary:"Off"; property string name:"Test computer"; property string folderShown:"~/Downloads"; property bool acceptKnown:false; signal openRequested; function setReceive(v){wanted=v;} function setName(v){name=v;} function pickFolder(){} function setAcceptKnown(v){acceptKnown=v;}',
     "Bluetooth": '''property bool enabled:true; property bool ready:true; property bool agent:true; property bool scanning:false;
-        property string summary:"On"; property var paired:[]; property var nearby:[]; property var request:null;
+        property bool detailsWatching; function audioDetail(d){return "aac · 48000 Hz";} property string summary:"On"; property var paired:[]; property var nearby:[]; property var request:null;
         property string requestName:"Test keyboard"; property var answerGiven:null; signal asked;
         function setEnabled(v){enabled=v;} function setScanning(v){scanning=v;}
         function name(d){return d.name;} function status(d){return "Not connected";}
@@ -27,7 +27,8 @@ MOCKS = {
         property real memUsed:12;property real memTotal:32;property bool gpuFound:true;property real gpu:0.05;
         property real gpuTemp:45;property real vramUsed:1;property real shellCpu:0.002;property real shellMem:100;
         property var disks:[{mount:"/",size:512,free:150}];function gigabytes(v){return Math.round(v)+" GB";}function setWatching(v){watching=v;}''',
-    "Network": 'property bool connected:true;property bool hasLink:true;property int speed:1000;',
+    "Network": 'property bool watching; property string interfaceName:"eth0"; property var details:({ipv4:["192.0.2.4/24"],ipv6:[],gateways:["192.0.2.1"],dns:["192.0.2.53"]}); function copyDetail(key){Clipboard.copyText(details[key].join("\\n"));} property bool connected:true;property bool hasLink:true;property int speed:1000;',
+    "Clipboard": 'property string copied; function copyText(value){copied=value;}',
     "Brightness": 'property bool available:true;property real value:0.7;function set(v){value=v;}',
     "NightLight": '''property bool available:true;property bool enabled:false;property int temperature:4000;
         property bool scheduled:false;property int from:1200;property int to:420;
@@ -42,7 +43,7 @@ MOCKS = {
     "Apps": 'property var terminalChoices:["kitty","foot"];property string terminal:"kitty";function terminalName(s){return s;}function setTerminal(s){terminal=s;}',
     "Wallpapers": 'property string current:"";property string folder:"/tmp/wallpapers";function openFolder(){}',
     "Desktop": 'property bool enabled:true;function setEnabled(v){enabled=v;}',
-    "Drives": 'property var mounted:[];function eject(d){}',
+    "Drives": 'property var mounted:[]; property var result:null;property var pending:null;property bool busy;function eject(d){} function canReturn(pid){return false;}function returnToApp(pid){}',
     "Audio": '''property var sinks:[{id:1,name:"Speakers"},{id:2,name:"Headphones"},{id:3,name:"Unplugged"}];
         property var sources:[{id:4,name:"Mic"}];property var sink:sinks[0];property var source:sources[0];
         property real volume:0.6;property real micVolume:0.4;property bool muted:false;property bool micMuted:false;
@@ -59,13 +60,25 @@ with tempfile.TemporaryDirectory(prefix="pistachio-settings-test-") as directory
     for folder in ("settings", "components"):
         shutil.copytree(ROOT / "src" / folder, base / folder)
     shutil.copy(ROOT / "src/Theme.qml", base / "Theme.qml")
-    for name in ("SettingsHub", "Store", "ShellSettings"):
+    for name in ("SettingsHub", "Store", "ShellSettings", "SettingsReset", "SystemHealth", "MicCheck"):
         shutil.copy(ROOT / f"src/services/{name}.qml", base / f"services/{name}.qml")
     for name, body in MOCKS.items():
         (base / f"services/{name}.qml").write_text("pragma Singleton\nimport Quickshell\nimport QtQuick\nSingleton {\n" + body + "\n}\n")
+    for helper in ("system-tools.py", "mic-check.py"):
+        shutil.copy(ROOT / "src/services" / helper, base / "services" / helper)
+    media = (ROOT / "src/services/Media.qml").read_text().replace("import Quickshell.Services.Mpris", "").replace("readonly property var players: Mpris.players.values", "property var players: []")
+    (base / "services/Media.qml").write_text(media)
+    (base / "bin").mkdir()
+    (base / "bin/pw-record").write_text("#!/usr/bin/env python3\nimport sys,time\nwhile True:\n sys.stdout.buffer.write(b'\\x00\\x40'*1600);sys.stdout.buffer.flush();time.sleep(0.03)\n")
+    (base / "bin/pw-record").chmod(0o755)
+    (base / "bin/pw-play").write_text("#!/bin/sh\nsleep 0.3\n")
+    (base / "bin/pw-play").chmod(0o755)
+    # Deterministically race a real adapter write with a newer preference edit.
+    store_fixture=base / "services/Store.qml"
+    store_fixture.write_text(store_fixture.read_text().replace('    FileView {','    function fixtureWriteNow(): void { file.writeAdapter(); }\n    FileView {'))
     shutil.copy(ROOT / "tests/settings-ui.qml", base / "shell.qml")
     (base / "runtime").mkdir(mode=0o700)
-    env = dict(os.environ, QT_QPA_PLATFORM="offscreen", XDG_RUNTIME_DIR=str(base / "runtime"),
+    env = dict(os.environ, PATH=str(base / "bin")+":"+os.environ["PATH"], QT_QPA_PLATFORM="offscreen", XDG_RUNTIME_DIR=str(base / "runtime"),
                XDG_STATE_HOME=str(base / "state"), XDG_CACHE_HOME=str(base / "cache"))
     for key in ("WAYLAND_DISPLAY", "DISPLAY"):
         env.pop(key, None)
@@ -84,6 +97,8 @@ with tempfile.TemporaryDirectory(prefix="pistachio-settings-test-") as directory
             assert result and result.stdout.strip().startswith("all passed"), (result.stdout if result else "No IPC target") + "\n" + output
             assert "WARN scene:" not in output and "ERROR" not in output, output
             print("settings QML: " + result.stdout.strip())
+            timing=subprocess.check_output(["qs","-p",directory,"ipc","call","settingsTest","writeTime"],env=env,text=True).strip()
+            print("settings state save: 200 fixture notifications, "+timing+" ms")
             proc.terminate()
             proc.wait(timeout=5)
             proc = subprocess.Popen(["qs", "-p", directory], env=env, stdout=log, stderr=log)

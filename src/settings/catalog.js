@@ -10,9 +10,16 @@ var pages = [
     ["lens", "Lens", "Choose who answers questions about your screen.", "Shell", "sparkles"],
     ["apps", "Apps & places", "Your terminal, your places and the apps you use.", "Shell", "folder"],
     ["system", "System monitor", "A quiet look at what your desktop is doing.", "Shell", "cpu"],
+    ["health", "Shell health", "Local helpers, dependencies and CLI sign-in status.", "Shell", "info"],
     ["about", "About", "Made for your desktop.", "Shell", "info"]
 ];
 var settings = [
+    ["health","health-check","Shell & helper health","Local checks","dependencies installed diagnose diagnostics"],
+    ["health","health-auth","CLI sign-in status","Local checks","claude codex authentication"],
+    ["health","diagnostics","Copy redacted diagnostics","Local checks","health troubleshoot"],
+    ["sound","mic-check","Microphone check","Devices","test sample record meter playback"],
+    ["sound","player","Media player","Devices","mpris auto selection"],
+    ["network","ipv4","IP addresses","Connection details","ipv4 ipv6 gateway dns ethernet copy"],
     ["appearance", "frost", "Frosted panels", "Surfaces", "solid subtle glassy opacity blur"],
     ["appearance", "shadows", "Drop shadows", "Surfaces", "depth"],
     ["appearance", "wallpaper", "Wallpaper", "Desktop", "background image"],

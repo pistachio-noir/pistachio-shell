@@ -82,7 +82,7 @@ FloatingWindow {
         contentInsideBorder: true
         opacity: reveal.progress
         focus: true
-        Keys.onEscapePressed: { if(searchField.text) searchField.text=""; else SettingsHub.opened=false; }
+        Keys.onEscapePressed: { if(searchField.text) searchField.text=""; else if (SettingsReset.reviewing) SettingsReset.cancel(); else SettingsHub.opened=false; }
         Shortcut { sequence:"Ctrl+F";enabled:SettingsHub.opened;onActivated:{searchField.forceActiveFocus();searchField.selectAll();} }
         Shortcut { sequence:"Ctrl+W";enabled:SettingsHub.opened;onActivated:SettingsHub.opened=false }
         Item {

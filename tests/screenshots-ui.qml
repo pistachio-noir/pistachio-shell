@@ -31,7 +31,7 @@ Scope {
         menu();
         for (let i = 0; i < 4; i++) input.keyClick(Qt.Key_Right);
         input.wait(750);
-        check(picker.current === 4, "keyboard selection must stay on Lens");
+        check(picker.current === 4, "keyboard selection must stay on Lens, current="+picker.current+", mode="+picker.mode);
         const bar = find(picker.contentItem, "screenshot-toolbar");
         const tip = find(picker.contentItem, "screenshot-tooltip");
         check(bar && bar.height === 62 && Math.abs(bar.y - 96) < 1, "board toolbar size and placement");
@@ -41,6 +41,13 @@ Scope {
     }
     function runChecks() {
         const images = [];
+        menu();
+        const copy=find(picker.contentItem,"capture-output-copy");
+        check(copy!==null,"Screenshot output choice is visible");
+        input.mouseClick(copy,copy.width/2,copy.height/2);
+        check(ShellSettings.screenshotOutput==="copy","Copy preference persists through settings service");
+        const save=find(picker.contentItem,"capture-output-save");
+        input.mouseClick(save,save.width/2,save.height/2);
         menu();
         input.keyClick(Qt.Key_Left);
         check(picker.current === 6, "left wraps to Record");
@@ -58,14 +65,19 @@ Scope {
         input.mouseClick(lens, lens.width / 2, lens.height / 2);
         check(picker.mode === "lens", "mouse selects Lens");
         picker.close();
-        for (const action of [[Qt.Key_R,"region"],[Qt.Key_W,"window"],[Qt.Key_T,"text"],[Qt.Key_L,"lens"],[Qt.Key_V,"record"]]) {
+        for (const action of [[Qt.Key_R,"region"],[Qt.Key_W,"window"],[Qt.Key_T,"text"],[Qt.Key_L,"lens"],[Qt.Key_V,"record-setup"]]) {
             menu(); input.keyClick(action[0]); check(picker.mode === action[1], "shortcut " + action[1]);
             input.keyClick(Qt.Key_Escape); check(picker.mode === "", "Esc cancels " + action[1]);
         }
         menu(); input.keyClick(Qt.Key_C); input.wait(300);
         check(picker.mode === "" && Screenshots.picked === 1, "Colour dispatch waits for the menu to close");
         menu(); input.keyClick(Qt.Key_V);
-        input.mouseClick(picker.contentItem, 600, 400); input.wait(300);
+        const mic=find(picker.contentItem,"capture-audio-mic"),timer=find(picker.contentItem,"capture-countdown-5");
+        input.mouseClick(mic,mic.width/2,mic.height/2);input.mouseClick(timer,timer.width/2,timer.height/2);
+        check(ShellSettings.recordingAudio==="mic" && ShellSettings.recordingCountdown===5,"recording setup choices persist through settings");
+        const full=find(picker.contentItem,"capture-full-screen");
+        check(full!==null,"Record opens setup before selection");
+        input.mouseClick(full,full.width/2,full.height/2); input.wait(300);
         check(Screenshots.recorded === 1 && Screenshots.recordWhole, "Record click selects whole screen");
         menu(); input.keyClick(Qt.Key_S); until(() => picker.mode === "");
         images.push({kind:"screen",path:Screenshots.lastPath,width:picker.width,height:picker.height});
@@ -101,6 +113,10 @@ Scope {
         target: "screenshotTest"
         function ready(): bool { return true; }
         function pickerMode(): string { return picker.mode; }
+        function setupPreview(): string {
+            Screenshots.recording=false;fixture.menu();input.keyClick(Qt.Key_V);input.wait(240);
+            return JSON.stringify({mode:picker.mode});
+        }
         function preview(): string { try { return fixture.showPreview(); } catch(e) { return "FAIL: " + e.message; } }
         function run(): string { try { return fixture.runChecks(); } catch(e) { picker.close(); return "FAIL: " + e.message; } }
     }

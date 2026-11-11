@@ -91,6 +91,8 @@ Item {
             selection = Desktop.items.map(i => i.name);
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
             chosen.forEach(i => Desktop.open(i));
+        } else if (event.key === Qt.Key_Space && chosen.length===1) {
+            LauncherTools.showFile(chosen[0].path,"preview");
         } else if (event.key === Qt.Key_Delete) {
             if (chosen.length)
                 Desktop.trash(chosen);
@@ -505,6 +507,8 @@ Item {
             if (m.item)
                 return [
                     { text: m.item.app ? "Launch" : "Open", glyph: Icons.folderOpen, run: () => Desktop.open(m.item) },
+                    { text: "Preview · Space", glyph: Icons.image, run: () => LauncherTools.showFile(m.item.path,"preview") },
+                    { text: "Open with…", glyph: Icons.folderOpen, run: () => LauncherTools.showFile(m.item.path,"handlers") },
                     { text: "Rename…", glyph: Icons.pencil, run: () => root.renameRequested(m.item) },
                     { text: "Move to trash", glyph: Icons.trash, danger: true, run: () => Desktop.trash([m.item]) },
                     { text: "Show in file manager", glyph: Icons.folder, run: () => Desktop.showFolder() }

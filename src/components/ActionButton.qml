@@ -9,12 +9,13 @@ Rectangle {
     property string text
     property list<string> icon: []
     property int horizontalPadding: 16
+    property real maximumWidth: Infinity
     property bool primary
     property color base: Theme.overlay
 
     signal clicked
 
-    width: label.implicitWidth + horizontalPadding * 2 + (icon.length ? 22 : 0)
+    width: Math.min(maximumWidth, label.implicitWidth + horizontalPadding * 2 + (icon.length ? 22 : 0))
     height: 40
     radius: height / 2
     color: primary ? Theme.pistachio : mouse.containsMouse ? Theme.overlay2 : base
@@ -32,6 +33,8 @@ Rectangle {
         id: label
         anchors.centerIn: parent
         anchors.horizontalCenterOffset: button.icon.length ? 11 : 0
+        width: Math.max(0, button.width - button.horizontalPadding * 2 - (button.icon.length ? 22 : 0))
+        elide: Text.ElideRight
         text: button.text
         textFormat: Text.PlainText
         color: button.primary ? Theme.bg : Theme.text

@@ -13,11 +13,21 @@ Column {
     spacing: 14
     readonly property var info: Catalog.page(page)
     readonly property var groups: buildGroups()
-    onPageChanged: { discovering = false; soundTab = SettingsHub.target === "applications" ? "applications" : "devices"; }
+    onPageChanged: { SettingsReset.cancel(); discovering = false; soundTab = SettingsHub.target === "applications" ? "applications" : "devices"; }
     Connections { target: SettingsHub; function onTargetChanged() { if (root.page === "sound") root.soundTab = SettingsHub.target === "applications" ? "applications" : "devices"; } }
     readonly property bool scanWanted: active && page === "bluetooth" && discovering && Bluetooth.ready
     onScanWantedChanged: Bluetooth.setScanning(scanWanted)
     Component.onDestruction: if (scanWanted) Bluetooth.setScanning(false)
+
+    readonly property bool networkWanted: active && page === "network"
+    readonly property bool bluetoothDetailsWanted: active && page === "bluetooth"
+    readonly property bool micWanted: active && page === "sound" && soundTab === "devices"
+    onNetworkWantedChanged: Network.watching = networkWanted
+    onBluetoothDetailsWantedChanged: Bluetooth.detailsWatching = bluetoothDetailsWanted
+    onMicWantedChanged: MicCheck.active = micWanted
+    onActiveChanged: if (!active) SettingsReset.cancel()
+    Component.onCompleted: { Network.watching = networkWanted; Bluetooth.detailsWatching = bluetoothDetailsWanted; MicCheck.active = micWanted; }
+    Connections { target: SettingsHub; function onOpenedChanged() { if (!SettingsHub.opened) { MicCheck.stop(); SettingsReset.cancel(); } } }
 
     Item {
         width: parent.width; height: Math.max(48, heading.height)
@@ -51,6 +61,8 @@ Column {
         SettingsButton { text: "Applications"; selected: root.soundTab === "applications"; quiet: true; onClicked: root.soundTab = "applications" }
     }
     ProviderCards { width: parent.width; visible: root.page === "lens" }
+    HealthSection { width:parent.width;visible:root.page === "health" }
+    DriveResult { width:parent.width;visible:root.page === "system" && Drives.result !== null }
     StatsCards { width: parent.width; visible: root.page === "system" }
     Repeater {
         model: root.groups
@@ -60,7 +72,7 @@ Column {
         visible: root.page === "bluetooth" && root.discovering
         width: parent.width
         title: Bluetooth.scanning ? "Nearby · scanning" : "Nearby"
-        rows: Bluetooth.nearby.map(d => ({ id: d.address, kind: "action", title: Bluetooth.name(d), subtitle: () => Bluetooth.status(d), button: d.pairing ? "Pairing…" : "Pair", enabled: () => !d.pairing && Bluetooth.agent, run: () => Bluetooth.pair(d) }))
+        rows: Bluetooth.nearby.map(d => ({ id: d.address, kind: "action", title: Bluetooth.name(d), subtitle: () => [Bluetooth.status(d), Bluetooth.audioDetail(d)].filter(Boolean).join(" · "), button: d.pairing ? "Pairing…" : "Pair", enabled: () => !d.pairing && Bluetooth.agent, run: () => Bluetooth.pair(d) }))
     }
     Rectangle {
         visible: root.page === "bluetooth" && root.discovering && !Bluetooth.nearby.length
@@ -84,6 +96,9 @@ Column {
         visible: text !== ""
     }
 
+    MicCheckCard { width:parent.width;visible:root.page === "sound" && root.soundTab === "devices" }
+    ResetSection { width:parent.width;page:root.page;visible:SettingsReset.available(root.page) }
+
     function group(title, rows) { return { title: title, rows: rows }; }
     function toggle(id, title, subtitle, get, set) { return { id: id, kind: "toggle", title: title, subtitle: () => subtitle, checked: get, toggle: () => set(!get()) }; }
     function action(id, title, subtitle, button, run) { return { id: id, kind: "action", title: title, subtitle: () => subtitle, button: button, run: run }; }
@@ -106,7 +121,7 @@ Column {
                 return [group("", [action("devices", Audio.sink ? Audio.deviceName(Audio.sink) : "No output device", "Current output", "Devices", () => soundTab = "devices")]), group("Playing applications", streams.map(n => ({ id: "stream:" + n.id, kind: "slider", title: Audio.appName(n), subtitle: () => here(n) ? "On this workspace" : "Playing audio", level: () => n.audio?.volume || 0, adjust: v => Audio.setStreamVolume(n,v), mute: () => Audio.toggleStreamMute(n), muted: () => n.audio?.muted || false })))];
             }
             const audio = (input) => ({ id: input ? "input" : "output", kind: "audio", title: input ? "Input" : "Output", subtitle: () => input ? "Your microphone" : "Where your sound plays", choices: () => (input ? Audio.sources : Audio.sinks).map(n => ({ value: n.id, title: Audio.deviceName(n), subtitle: Audio.isUnplugged(n) ? "Nothing plugged in" : n.id === (input ? Audio.source?.id : Audio.sink?.id) ? "Current " + (input ? "input" : "output") : "Available", disabled: Audio.isUnplugged(n) })), value: () => input ? Audio.source?.id : Audio.sink?.id, set: id => { const n = (input ? Audio.sources : Audio.sinks).find(n => n.id === id); if (n && !Audio.isUnplugged(n)) { if (input) Audio.setSource(n); else Audio.setSink(n); } }, level: () => input ? Audio.micVolume : Audio.volume, adjust: v => input ? Audio.setMicVolume(v) : Audio.setVolume(v), mute: () => input ? Audio.toggleMicMute() : Audio.toggleMute(), muted: () => input ? Audio.micMuted : Audio.muted });
-            return [group("", [audio(false)]), group("", [audio(true)]), group("Behaviour", [toggle("takeover", "Headphones take over", "Move sound to Bluetooth headphones when they connect.", () => ShellSettings.headphonesTakeOver, ShellSettings.setHeadphonesTakeOver), toggle("tick", "Volume tick", "Play a soft click when volume keys change the level.", () => ShellSettings.volumeTick, ShellSettings.setVolumeTick)])];
+            return [group("", [audio(false)]), group("", [audio(true)]), group("Media player", [{id:"player",kind:"choice",title:"Player",subtitle:()=>Media.selectionMissing ? "Chosen player unavailable · using Auto temporarily." : "For the bar and media card · this session only.",choices:()=>Media.choices,value:()=>Media.selectedPlayer,set:Media.selectPlayer}]), group("Behaviour", [toggle("takeover", "Headphones take over", "Move sound to Bluetooth headphones when they connect.", () => ShellSettings.headphonesTakeOver, ShellSettings.setHeadphonesTakeOver), toggle("tick", "Volume tick", "Play a soft click when volume keys change the level.", () => ShellSettings.volumeTick, ShellSettings.setVolumeTick)])];
         }
         if (page === "display") return [
             ...(Brightness.available ? [group("", [{ id: "brightness", kind: "slider", title: "Brightness", subtitle: () => "Your external display", level: () => Brightness.value, adjust: Brightness.set }])] : []),
@@ -118,8 +133,8 @@ Column {
             group("While you are busy", [toggle("fullscreen", "Quiet in fullscreen", "Hold toasts while a game or video fills the screen.", () => ShellSettings.quietFullscreen, ShellSettings.setQuietFullscreen), toggle("calls", "Quiet during calls", "Hold toasts while an app uses your microphone.", () => ShellSettings.quietCalls, ShellSettings.setQuietCalls), toggle("chime", "Notification sound", "A soft chime when a toast arrives.", () => ShellSettings.notificationSound, ShellSettings.setNotificationSound)]),
             group("App rules", Object.keys(Notifs.rules).sort().map(app => action("rule:"+app, app || "Unnamed app", Notifs.ruleText(app), "Restore", () => Notifs.setRule(app,null))))
         ];
-        if (page === "bluetooth") return [group("", [toggle("power", "Bluetooth", Bluetooth.summary, () => Bluetooth.enabled, Bluetooth.setEnabled)]), group("Your devices", Bluetooth.paired.map(d => ({ id: d.address, kind: "action", title: Bluetooth.name(d), subtitle: () => Bluetooth.status(d), button: d.connected ? "Disconnect" : "Connect", enabled: () => Bluetooth.ready && !/Connecting|Disconnecting/.test(Bluetooth.status(d)), run: () => Bluetooth.toggleConnection(d), forget: () => SettingsHub.forgetDevice = d })))];
-        if (page === "network") return [group("", [read("ethernet", "Ethernet", Network.connected ? "Connected" : Network.hasLink ? "Connecting" : "Not connected", Network.connected ? "Connected" : Network.hasLink ? "Cable connected" : "Cable unplugged")]), group("Connection details", [read("type", "Connection", "Wired Ethernet"), read("speed", "Link speed", Network.connected ? Network.speed >= 1000 ? (Network.speed/1000) + " Gbps" : Network.speed + " Mbps" : "—", "Speed reported by the connection.")])];
+        if (page === "bluetooth") return [group("", [toggle("power", "Bluetooth", Bluetooth.summary, () => Bluetooth.enabled, Bluetooth.setEnabled)]), group("Your devices", Bluetooth.paired.map(d => ({ id: d.address, kind: "action", title: Bluetooth.name(d), subtitle: () => [Bluetooth.status(d), Bluetooth.audioDetail(d)].filter(Boolean).join(" · "), button: d.connected ? "Disconnect" : "Connect", enabled: () => Bluetooth.ready && !/Connecting|Disconnecting/.test(Bluetooth.status(d)), run: () => Bluetooth.toggleConnection(d), forget: () => SettingsHub.forgetDevice = d })))];
+        if (page === "network") return [group("", [read("ethernet", "Ethernet", Network.connected ? "Connected" : Network.hasLink ? "Connecting" : "Not connected", Network.connected ? "Connected" : Network.hasLink ? "Cable connected" : "Cable unplugged")]), group("Connection details", [read("type", "Connection", "Wired Ethernet"), read("speed", "Link speed", Network.connected ? Network.speed >= 1000 ? (Network.speed/1000) + " Gbps" : Network.speed + " Mbps" : "—", "Speed reported by the connection.")]), group("Addresses", [read("interface","Interface",Network.interfaceName || "—"), ...[["ipv4","IPv4"],["ipv6","IPv6"],["gateways","Gateway"],["dns","DNS"]].map(pair=>({id:pair[0],kind:"action",title:pair[1],subtitle:()=>(Network.details[pair[0]] || []).join(" · ") || "Not reported",button:"Copy",enabled:()=>(Network.details[pair[0]] || []).length>0,run:()=>Network.copyDetail(pair[0])}))])];
         if (page === "lens") return [group("", [action("chats", "Saved chats", "~/lens-chats · snip and Markdown", "Open folder", SettingsHub.openChats)])];
         if (page === "apps") return [group("Open things with", [{id:"terminal",kind:"choice",title:"Terminal",subtitle:()=>"For commands, terminal apps and showoff.", choices:()=>Apps.terminalChoices.map(v=>({value:v,title:Apps.terminalName(v)})),value:()=>Apps.terminal,set:Apps.setTerminal}]), group("Places", [action("weather","Weather location",Weather.placeName,"Change",()=>SettingsHub.beginEdit("weather")), action("wallpapers","Wallpapers",Wallpapers.folder.replace(/^\/home\/[^/]+/,"~"),"Open folder",Wallpapers.openFolder)]), ...(Cider.installed ? [group("Integrations",[action("cider","Cider token",Cider.usable ? "Set · enables Up next and Apple Music search." : "Not set · for Up next and Apple Music search.","Change",()=>SettingsHub.beginEdit("cider"))])] : [])];
         if (page === "localsend" && LocalSend.available) return [group("",[toggle("receive","Receive files",LocalSend.summary,()=>LocalSend.wanted,LocalSend.setReceive)]),group("This device",[action("name","Device name",LocalSend.name,"Change",()=>SettingsHub.beginEdit("name")),action("folder","Save received files to",LocalSend.folderShown,"Change",LocalSend.pickFolder)]),group("Incoming requests",[toggle("known","Accept known devices","Skip asking for devices you have accepted before.",()=>LocalSend.acceptKnown,LocalSend.setAcceptKnown)])];

@@ -22,6 +22,7 @@ Scope {
         Rectangle { x: 400; y: 300; width: 640; height: 362; color: Theme.bg }
     }
     RecordingRegion { id: overlay }
+    RecordingTools { id: tools }
     TestCase { id: input; when: false }
     function find(item, name) {
         if (item.objectName === name) return item;
@@ -38,6 +39,23 @@ Scope {
                 Qt.rect(0,0,640,h),Qt.rect(w-640,0,640,h),Qt.rect(0,0,w,h)];
             Screenshots.record(which === 7 ? Qt.rect(10,10,1,1) : areas[Math.min(which,5)], which === 6, overlay.screen.name);
         }
+        function copyOutput(choice: string): string {
+            ShellSettings.screenshotOutput=choice;
+            Screenshots.prepare();
+            const path=Screenshots.nextPath();Screenshots.saved(path,choice);
+            return JSON.stringify({path:path,copies:Clipboard.paths});
+        }
+        function trim(): void { Screenshots.openTrim(Quickshell.shellPath("sample.mp4")); }
+        function saveTrim(): void {
+            const start=find(tools.contentItem,"recording-trim-start"),end=find(tools.contentItem,"recording-trim-end"),save=find(tools.contentItem,"recording-trim-save");
+            start.text="0.4";end.text="1.4"; input.mouseClick(save,save.width/2,save.height/2);
+        }
+        function closeTools(): void { Screenshots.closeTrim(); }
+        function pressEscape(): void { input.keyClick(Qt.Key_Escape); }
+        function pause(): void { Screenshots.togglePause(); }
+        function preferences(audio: string, countdown: int): void { ShellSettings.recordingAudio=audio; ShellSettings.recordingCountdown=countdown; }
+        function queue(): void { Screenshots.queueRecord(Qt.rect(400,300,640,360),false,overlay.screen.name); }
+        function cancel(): void { Screenshots.cancelCountdown(); }
         function stop(): void { Screenshots.stopRecording(); }
         function clickStop(): void {
             const stop = find(overlay.contentItem,"recording-region-stop");
@@ -50,7 +68,7 @@ Scope {
                 frame.push({x:strip.x,y:strip.y,width:strip.width,height:strip.height});
             }
             return JSON.stringify({recording:Screenshots.recording,whole:Screenshots.recordingWhole,area:Screenshots.recordingArea,
-                path:Screenshots.recordingPath,visible:overlay.visible,width:overlay.width,height:overlay.height,
+                toolsVisible:tools.visible,trimDuration:Screenshots.trimDuration,trimError:Screenshots.trimError,trimSaved:Screenshots.trimSavedPath,trimBusy:Screenshots.trimBusy,paused:Screenshots.paused,elapsed:Screenshots.elapsedMs(Date.now()),countdown:Screenshots.countdown,path:Screenshots.recordingPath,visible:overlay.visible,width:overlay.width,height:overlay.height,
                 pill:overlay.pillPlacement ? {x:pill.x,y:pill.y,width:pill.width,height:pill.height} : null,frame:frame,
                 masked:overlay.mask.item===pill,keyboard:overlay.WlrLayershell.keyboardFocus===WlrKeyboardFocus.None,
                 time:find(overlay.contentItem,"recording-region-time").text});

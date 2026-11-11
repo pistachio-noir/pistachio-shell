@@ -16,12 +16,31 @@ Singleton {
     // off), its label or device name
     property var mounted: []
 
-    // unmount, then power the drive off, so it's safe to pull out; a notification says how it went
+    property var result: null
+    property var pending: null
+    readonly property bool busy: ejector.running
     function eject(drive) {
-        Quickshell.execDetached(["sh", "-c", 'if udisksctl unmount -b "$1" >/dev/null 2>&1; then udisksctl power-off -b "$2" >/dev/null 2>&1; '
-            + 'notify-send --app-name=Drives --icon=drive-removable-media "$3 can be removed"; '
-            + 'else notify-send --app-name=Drives --icon=drive-removable-media "Couldn\'t eject $3" "A program may still be using it"; fi',
-            "sh", drive.path, drive.disk, drive.name]);
+        if (busy) return;
+        pending = drive;
+        result = null;
+        ejector.command = ["python3", "-I", Quickshell.shellPath("services/system-tools.py"), "eject", drive.path, drive.disk, drive.name, drive.mountpoint];
+        ejector.running = true;
+    }
+    function returnToApp(pid: int) {
+        const window = Compositor.windows.find(w => Number(w.pid) === pid);
+        if (window) { SettingsHub.opened = false; Compositor.focus(window.address); }
+    }
+    function canReturn(pid: int): bool { return Compositor.windows.some(w => Number(w.pid) === pid); }
+    Process {
+        id: ejector
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.result = JSON.parse(text); } catch(e) { root.result = {ok:false,name:root.pending?.name || "Drive",holders:[],message:"Could not read eject result."}; }
+                if (!root.result.ok) SettingsHub.openPage("system", "eject-result");
+                Quickshell.execDetached(["notify-send", "--app-name=Drives", "--icon=drive-removable-media", root.result.name, root.result.message]);
+            }
+        }
+        onExited: code => { if (code !== 0) { root.result = {ok:false,name:root.pending?.name || "Drive",holders:[],message:"Eject helper could not start."}; SettingsHub.openPage("system", "eject-result"); } }
     }
 
     Process {

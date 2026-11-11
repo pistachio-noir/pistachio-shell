@@ -30,6 +30,13 @@ Singleton {
     property string notice
     property string folder
     property string attachment
+    property var images: []
+    property bool combined
+    property bool combinedRequest
+    property bool capturingImage
+    property bool pickingImage
+    property bool synthesising
+    signal snipRequested()
     property string diff
     property bool pickingFile
     property real seconds
@@ -39,6 +46,7 @@ Singleton {
     property bool stoppedRequest
     readonly property bool busy: state === "reading"
     readonly property string providerName: provider === "codex" ? "ChatGPT" : "Claude"
+    readonly property string readingLabel: synthesising ? "Combining both answers…" : providerName + " is reading…"
     readonly property string codingPrefix: provider === "codex" ? "lensCodexCoding" : "lensClaudeCoding"
     readonly property string codingLabel: ShellSettings.lensLabel(codingPrefix + "Model") + " · " + ShellSettings.lensLabel(codingPrefix + "Effort")
     readonly property string modelLabel: (provider === "codex" ? ShellSettings.lensCodexModels : ShellSettings.lensClaudeModels).find(choice => choice.value === model)?.title ?? model
@@ -57,6 +65,11 @@ Singleton {
         folder = "";
         attachment = "";
         diff = "";
+        images = [];
+        combined = false;
+        combinedRequest = false;
+        synthesising = false;
+        capturingImage = false;
         effort = "";
         purpose = "auto";
         codingEnabled = false;
@@ -80,7 +93,13 @@ Singleton {
     }
 
     function ask(text: string) { askTask(text, "auto"); }
-    function askTask(text: string, task: string) { askWithProvider(text, ShellSettings.lensProvider, false, task, false); }
+    function askTask(text: string, task: string) { combinedRequest = false; askWithProvider(text, ShellSettings.lensProvider, false, task, false); }
+    function askBoth(text: string) {
+        if (busy) return;
+        combinedRequest = true;
+        // Repeating a chip question must retain its explicit non-coding intent.
+        askWithProvider(text, ShellSettings.lensProvider, false, text.trim() === question.trim() ? purpose : "auto", false);
+    }
     function askWithProvider(text: string, chosenProvider: string, transfer: bool, task: string, upgrade: bool) {
         if (busy || !ready || beginning || !text.trim())
             return;
@@ -93,9 +112,11 @@ Singleton {
         if (!upgrade) diff = "";
         stoppedRequest = false;
         state = "reading";
+        synthesising = false;
         started = Date.now();
         seconds = 0;
         helper.write(JSON.stringify({ event: "ask", question: question, provider: provider, transfer: transfer,
+            both: combinedRequest,
             purpose: task, upgrade: upgrade, coding_enabled: codingEnabled && ShellSettings.lensSuggestCoding,
             claude: { model: ShellSettings.lensClaudeModel, effort: ShellSettings.lensClaudeEffort, fallback: ShellSettings.lensClaudeFallback,
                 coding: { model: ShellSettings.lensClaudeCodingModel, effort: ShellSettings.lensClaudeCodingEffort } },
@@ -105,21 +126,50 @@ Singleton {
     }
 
     function retry() { askWithProvider(question, provider, false, purpose, false); }
-    function askOther() { askWithProvider(question, provider === "claude" ? "codex" : "claude", true, purpose, false); }
+    function askOther() { combinedRequest = false; askWithProvider(question, provider === "claude" ? "codex" : "claude", true, purpose, false); }
     function respondCodingUpgrade(accept: bool) {
         if (!upgradePrompt) return;
         codingAsked = true;
         upgradePrompt = false;
         if (accept) {
             codingEnabled = true;
+            combinedRequest = combined;
             askWithProvider(question, provider, true, purpose, true);
         }
     }
     function attachFile() {
         if (busy || !ready || pickingFile) return;
         pickingFile = true;
+        pickingImage = false;
         notice = "";
         chooseAfterFade.restart();
+    }
+    function attachImage() {
+        if (busy || !ready || pickingFile || images.length >= 3) return;
+        pickingImage = true;
+        pickingFile = true;
+        notice = "";
+        chooseAfterFade.restart();
+    }
+    function removeImage(imageId: int) {
+        if (!busy && ready) helper.write(JSON.stringify({ event: "remove_image", id: imageId }) + "\n");
+    }
+    function requestSnip() {
+        if (busy || !ready || images.length >= 3) return;
+        capturingImage = true;
+        open = false;
+        // Keep this helper/session alive while ScreenshotPicker owns the keyboard.
+        snipAfterFade.restart();
+    }
+    function addSnip(file: string, rect: rect, capture: var) {
+        if (!capturingImage) return;
+        helper.write(JSON.stringify({ event: "add_image", path: file, snip: true }) + "\n");
+        resumeSnips();
+    }
+    function resumeSnips() {
+        snipAfterFade.stop();
+        capturingImage = false;
+        open = true;
     }
     function detachFile() {
         if (!busy) helper.write('{"event":"attach","path":""}\n');
@@ -141,6 +191,7 @@ Singleton {
             purpose = lastAnswer.purpose || "auto";
             seconds = lastAnswer.seconds;
             question = lastAnswer.question;
+            combined = !!lastAnswer.combined;
         }
         notice = "Request stopped.";
         state = answer ? "answer" : "prompt";
@@ -149,6 +200,8 @@ Singleton {
         showAfterPicker.stop();
         upgradePrompt = false;
         chooseAfterFade.stop();
+        snipAfterFade.stop();
+        capturingImage = false;
         filePicker.running = false;
         pickingFile = false;
         open = false;
@@ -162,6 +215,11 @@ Singleton {
     }
 
     Timer {
+        id: snipAfterFade
+        interval: Theme.motionDuration + 60
+        onTriggered: root.snipRequested()
+    }
+    Timer {
         id: chooseAfterFade
         interval: Theme.motionDuration + 60
         onTriggered: filePicker.running = true
@@ -169,11 +227,13 @@ Singleton {
     Process {
         id: filePicker
         // env exits normally with 127 if zenity is missing, so the card always returns.
-        command: ["env", "zenity", "--file-selection", "--title=Attach a text file to Lens"]
+        command: root.pickingImage
+            ? ["env", "zenity", "--file-selection", "--title=Attach an image to Lens", "--file-filter=Images | *.png *.jpg *.jpeg *.webp *.gif *.bmp *.PNG *.JPG *.JPEG *.WEBP *.GIF *.BMP"]
+            : ["env", "zenity", "--file-selection", "--title=Attach a text file to Lens"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const file = text.replace(/\n$/, "");
-                if (file && root.open) helper.write(JSON.stringify({ event: "attach", path: file }) + "\n");
+                if (file && root.open) helper.write(JSON.stringify({ event: root.pickingImage ? "add_image" : "attach", path: file }) + "\n");
             }
         }
         stderr: SplitParser { onRead: line => console.warn("lens file picker:", line) }
@@ -190,7 +250,7 @@ Singleton {
     Timer {
         id: release
         interval: Theme.motionDuration + 60
-        onTriggered: if (!root.open) { helper.running = false; root.still = null; }
+        onTriggered: if (!root.open && !root.capturingImage) { helper.running = false; root.still = null; }
     }
     Timer {
         running: root.busy
@@ -213,6 +273,8 @@ Singleton {
                         root.provider = m.provider;
                         root.model = m.model;
                         root.effort = m.effort || "";
+                    } else if (m.event === "synthesising") {
+                        root.synthesising = true;
                     } else if (m.event === "fallback") {
                         root.provider = m.provider;
                         root.notice = `Trying ${root.providerName}: the other provider is unavailable.`;
@@ -221,12 +283,13 @@ Singleton {
                         root.model = m.model;
                         root.effort = m.effort || "";
                         root.answer = m.answer;
+                        root.combined = !!m.combined;
                         root.actions = m.actions;
                         root.diff = m.diff || "";
                         root.seconds = m.seconds;
                         root.folder = m.folder;
                         root.notice = m.warning || root.notice;
-                        root.lastAnswer = { provider: m.provider, model: m.model, effort: root.effort, seconds: m.seconds, question: root.question, purpose: root.purpose };
+                        root.lastAnswer = { provider: m.provider, model: m.model, effort: root.effort, seconds: m.seconds, question: root.question, purpose: root.purpose, combined: root.combined };
                         root.upgradePrompt = !!m.offer_coding && ShellSettings.lensSuggestCoding && !root.codingAsked;
                         root.state = "answer";
                     } else if (m.event === "upgrade_failed") {
@@ -234,6 +297,9 @@ Singleton {
                         root.notice = "Couldn't use the coding preset. Your previous answer is kept. " + m.message;
                     } else if (m.event === "attached") {
                         root.attachment = m.name;
+                        root.diff = "";
+                    } else if (m.event === "images") {
+                        root.images = m.images;
                         root.diff = "";
                     } else if (m.event === "reviewed") {
                         root.diff = "";

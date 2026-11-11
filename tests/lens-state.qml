@@ -12,6 +12,7 @@ Scope {
     Window {
         visible: true; width: 480; height: 420
         LensUpgrade { id: upgrade; anchors.fill: parent }
+        LensImages { id: images; width: 440; y: 300 }
     }
     TestCase { id: keys; when: false }
 
@@ -26,6 +27,21 @@ Scope {
     IpcHandler {
         target: "lensTest"
         function beginFixture(file: string): void { Lens.begin(file, Qt.rect(0, 0, 600, 200), null); }
+        function chooseImageFixture(): void { Lens.attachImage(); }
+        function removeImageFixture(imageId: int): void { Lens.removeImage(imageId); }
+        function clickRemoveSecondImageFixture(): void {
+            const target = findNamed(images, "lensRemoveImage_2");
+            if (target) keys.mouseClick(target, 22, 22);
+        }
+        function snipFixture(): void { Lens.requestSnip(); }
+        function resumeSnipsFixture(): void { Lens.resumeSnips(); }
+        function repeatBothFixture(): void { Lens.askBoth(Lens.question); }
+        function bothFixture(): void { Lens.askBoth("Compare these images"); }
+        function imageUiState(): string {
+            return JSON.stringify({ first: !!findNamed(images, "lensImageNumber_1"),
+                second: !!findNamed(images, "lensImageNumber_2"), third: !!findNamed(images, "lensImageNumber_3"),
+                height: images.implicitHeight, width: images.width });
+        }
         function chooseFixture(): void { Lens.attachFile(); }
         function askFixture(): void { Lens.ask("Fix the attached file"); }
         function transferFixture(): void { Lens.askOther(); }
@@ -35,7 +51,7 @@ Scope {
         function acceptFixture(): void { keys.keyClick(Qt.Key_Right); keys.keyClick(Qt.Key_Return); }
         function suggestFixture(on: bool): void { ShellSettings.setLensSuggestCoding(on); }
         function fixtureState(): string {
-            return JSON.stringify({ ready: Lens.ready, state: Lens.state, attachment: Lens.attachment,
+            return JSON.stringify({ images: Lens.images, capturing: Lens.capturingImage, open: Lens.open, combined: Lens.combined, ready: Lens.ready, state: Lens.state, attachment: Lens.attachment,
                 picking: Lens.pickingFile, provider: Lens.provider, preferred: ShellSettings.lensProvider,
                 diff: Lens.diff, notice: Lens.notice, model: Lens.model, effort: Lens.effort,
                 upgrade: Lens.upgradePrompt, enabled: Lens.codingEnabled, asked: Lens.codingAsked,

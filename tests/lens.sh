@@ -29,7 +29,7 @@ for name in ('claude', 'codex'):
     script.write_text(fake)
     script.chmod(0o755)
 script = base / 'bin/zenity'
-script.write_text('#!/bin/sh\nprintf "%s\\n" "$LENS_TEST_ATTACHMENT"\n')
+script.write_text('#!/bin/sh\ncase "$*" in *image*) printf "%s\\n" "$LENS_TEST_IMAGE" ;; *) printf "%s\\n" "$LENS_TEST_ATTACHMENT" ;; esac\n')
 script.chmod(0o755)
 script = base / 'bin/python3'
 script.write_text('''#!/usr/bin/python3
@@ -44,11 +44,16 @@ else:
 script.chmod(0o755)
 (base / 'control.json').write_text(json.dumps({'replacement': 'fixed\\n', 'task': 'coding'}))
 (base / 'example.rs').write_text('broken\\n')
-(base / 'snip.png').write_bytes(b'fake image for fake CLI')
+import base64
+import struct, zlib
+chunk = lambda tag, data: struct.pack('>I', len(data)) + tag + data + struct.pack('>I', zlib.crc32(tag + data))
+png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(b'\x00\x50\x60\x40')) + chunk(b'IEND', b'')
+for name in ('image.png', 'snip.png'): (base / name).write_bytes(png)
 PY
 export LENS_TEST_CONTROL="$LENS_TEST_DIR/control.json"
 export LENS_TEST_RECORD="$LENS_TEST_DIR/calls.jsonl"
 export LENS_TEST_ATTACHMENT="$LENS_TEST_DIR/example.rs"
+export LENS_TEST_IMAGE="$LENS_TEST_DIR/image.png"
 export LENS_TEST_HOME="$LENS_TEST_DIR"
 export PATH="$LENS_TEST_DIR/bin:$PATH"
 export XDG_RUNTIME_DIR="$LENS_TEST_DIR/runtime"
@@ -104,6 +109,16 @@ wait(lambda s: s['attachment'] == 'example.rs' and not s['picking'])
 call('askFixture')
 first = wait(lambda s: s['state'] == 'answer')
 assert first['provider'] == first['preferred'] == 'claude' and first['diff'] and first['upgrade'], first
+(base / 'control.json').write_text(json.dumps({'replacement': 'fixed\\n', 'task': 'coding', 'fail_models': ['sonnet']}))
+call('acceptFixture')
+failed_upgrade = wait(lambda s: s['state'] == 'answer' and 'previous answer is kept' in s['notice'])
+assert failed_upgrade['diff'] and failed_upgrade['model'] == 'claude-haiku-5-5', failed_upgrade
+(base / 'control.json').write_text(json.dumps({'replacement': 'fixed\\n', 'task': 'coding'}))
+call('beginFixture', str(base / 'snip.png'))
+call('chooseFixture')
+wait(lambda s: s['attachment'] == 'example.rs' and not s['picking'])
+call('askFixture')
+wait(lambda s: s['state'] == 'answer' and s['upgrade'])
 call('keepFixture')
 declined = wait(lambda s: not s['upgrade'])
 assert declined['asked'] and not declined['enabled'] and declined['state'] == 'answer', declined
@@ -123,6 +138,13 @@ call('taskFixture', 'translation')
 translated = wait(lambda s: s['state'] == 'answer' and s['model'] == 'claude-haiku-5-5')
 assert not translated['upgrade'] and translated['effort'] == 'medium', translated
 assert len((base / 'calls.jsonl').read_text().splitlines()) == before + 1, 'translation must not invoke a coding model'
+before = len((base / 'calls.jsonl').read_text().splitlines())
+call('repeatBothFixture')
+translated_both = wait(lambda s: s['state'] == 'answer' and s['combined'])
+assert translated_both['model'] == 'claude-haiku-5-5' and not translated_both['upgrade'], translated_both
+repeated_calls = [json.loads(line) for line in (base / 'calls.jsonl').read_text().splitlines()][before:]
+assert len(repeated_calls) == 3, repeated_calls
+assert all(call['args'][call['args'].index('--model') + 1] in ('claude-haiku-5-5', 'gpt-6-luna') for call in repeated_calls)
 call('suggestFixture', 'false')
 call('askFixture')
 disabled = wait(lambda s: s['state'] == 'answer')
@@ -137,6 +159,32 @@ call('applyFixture')
 wait(lambda s: not s['diff'] and 'Applied' in s['notice'])
 assert (base / 'example.rs').read_text() == 'fixed\\n'
 print('lens: QML chooser, confirmation keyboard, once-per-snip choice, coding-only routing, setting off, transfer and Apply passed')
+call('beginFixture', str(base / 'snip.png'))
+wait(lambda s: len(s['images']) == 1)
+for total in (2, 3):
+    call('chooseImageFixture')
+    wait(lambda s: len(s['images']) == total and not s['picking'])
+ui = json.loads(call('imageUiState'))
+assert ui['first'] and ui['second'] and ui['third'] and ui['height'] > 0, ui
+before = len((base / 'calls.jsonl').read_text().splitlines())
+# Turn coding suggestions off here: Ask both has exactly two sources + synthesis.
+call('suggestFixture', 'false')
+call('bothFixture')
+combined = wait(lambda s: s['state'] == 'answer' and s['combined'])
+assert combined['provider'] == combined['preferred'] == 'claude', combined
+calls = [json.loads(line) for line in (base / 'calls.jsonl').read_text().splitlines()][before:]
+assert [c['name'] for c in calls] == ['claude', 'codex', 'claude'], calls
+assert calls[1]['args'].count('--image') == 3
+call('clickRemoveSecondImageFixture')
+reduced = wait(lambda s: len(s['images']) == 2)
+ui = json.loads(call('imageUiState'))
+assert ui['first'] and ui['second'] and not ui['third'], ui
+call('snipFixture')
+suspended = wait(lambda s: s['capturing'] and not s['open'])
+call('resumeSnipsFixture')
+resumed = wait(lambda s: not s['capturing'] and s['open'])
+assert len(resumed['images']) == 2 and resumed['state'] == 'answer'
+print('lens: QML image chooser, numbered thumbnails, removal, snip cancellation and Ask both protocol passed')
 PY
         exit 0
     fi

@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
 
 // Boards 02–06: frozen snip, a prompt below it, then an answer beside it. Outside clicks never close.
 PanelWindow {
@@ -29,6 +30,7 @@ PanelWindow {
         }
         Rectangle { anchors.fill: parent; color: Theme.bg; opacity: 0.64 }
         Image {
+            visible: Lens.images.some(image => image.id === 1)
             x: Lens.area.x; y: Lens.area.y
             width: Lens.area.width; height: Lens.area.height
             source: Lens.path ? "file://" + Lens.path : ""
@@ -36,6 +38,7 @@ PanelWindow {
             fillMode: Image.Stretch
         }
         Rectangle {
+            visible: Lens.images.some(image => image.id === 1)
             x: Lens.area.x; y: Lens.area.y
             width: Lens.area.width; height: Lens.area.height
             color: "transparent"
@@ -44,6 +47,7 @@ PanelWindow {
             border.color: Theme.textBright
         }
         Rectangle {
+            visible: Lens.images.some(image => image.id === 1)
             x: Lens.area.x
             y: Math.max(4, Lens.area.y - 34)
             width: sizeLabel.implicitWidth + 20
@@ -62,7 +66,7 @@ PanelWindow {
             }
         }
         Rectangle {
-            visible: Lens.busy
+            visible: Lens.busy && Lens.images.some(image => image.id === 1)
             x: Lens.area.x; width: Lens.area.width; height: 2
             color: Theme.pistachio
             y: Lens.area.y + (Lens.area.height - 2) * scan.progress
@@ -83,6 +87,15 @@ PanelWindow {
         readonly property real inset: answered || failed ? 20 : 12
         readonly property real maxHeight: height - 48
 
+        // Reserve actual visible controls and their Column gaps, including wrapped actions.
+        function fixedContentHeight(): real {
+            let total=0, count=0;
+            for (const item of content.children) {
+                if (item===response || !item.visible || item.height<=0) continue;
+                total+=item.height; count++;
+            }
+            return total+count*content.spacing;
+        }
         screen: backdrop.screen
         // Map after the frozen backdrop, so its full-screen image cannot cover the card.
         visible: reveal.shown && backdrop.backingWindowVisible
@@ -97,20 +110,27 @@ PanelWindow {
 
         Connections {
             target: Lens
-            function onOpenChanged() { if (Lens.open && !Lens.upgradePrompt) Qt.callLater(() => window.answered ? followup.focusInput() : prompt.focusInput()); }
-            function onUpgradePromptChanged() { if (!Lens.upgradePrompt) Qt.callLater(() => followup.focusInput()); }
-            function onPickingFileChanged() { if (!Lens.pickingFile && Lens.open) Qt.callLater(() => window.answered ? followup.focusInput() : prompt.focusInput()); }
+            function onOpenChanged() { if (Lens.open) Qt.callLater(() => card.focusInput()); }
+            function onUpgradePromptChanged() { if (!Lens.upgradePrompt) Qt.callLater(() => card.focusInput()); }
+            function onPickingFileChanged() { if (!Lens.pickingFile && Lens.open) Qt.callLater(() => card.focusInput()); }
             function onStateChanged() {
                 if (Lens.state === "answer") {
                     if (!Lens.stoppedRequest) followup.text = "";
-                    Qt.callLater(() => { if (!Lens.upgradePrompt) followup.focusInput(); });
+                    Qt.callLater(() => card.focusInput());
                 }
-                else if (Lens.state === "prompt") Qt.callLater(() => prompt.focusInput());
+                else if (Lens.state === "prompt") Qt.callLater(() => card.focusInput());
             }
         }
 
         Item {
             id: card
+            objectName: "lens-card"
+            function focusInput() {
+                // A restored layer must own native focus before enabling Wayland text input.
+                if (Lens.open && !Lens.upgradePrompt && Window.active)
+                    window.answered ? followup.focusInput() : prompt.focusInput();
+            }
+            Window.onActiveChanged: if (Window.active) Qt.callLater(() => card.focusInput())
             width: Math.min(window.answered ? Theme.lensAnswerWidth : Theme.lensPromptWidth, window.width - 32)
             height: content.implicitHeight + window.inset * 2
             x: {
@@ -149,30 +169,31 @@ PanelWindow {
                 width: parent.width - 2 * window.inset
                 spacing: 14
 
-                Row {
+                Item {
+                    objectName: "lens-answer-header"
                     visible: window.answered
                     width: parent.width
                     height: visible ? 44 : 0
-                    spacing: 10
                     Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         width: 36; height: 36; radius: 18
                         color: Theme.overlay2
                         Icon { anchors.centerIn: parent; paths: Icons.sparkles; size: 18; color: Theme.clay }
                     }
                     Column {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width - 46 - 88
-                        Text { text: Lens.providerName; color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: 13; font.weight: Font.Bold }
+                        anchors.left: parent.left; anchors.leftMargin: 46
+                        anchors.right: parent.right; anchors.rightMargin: 106
+                        Text { width: parent.width; elide: Text.ElideRight; text: Lens.combined ? "Claude + ChatGPT" : Lens.providerName; color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: 13; font.weight: Font.Bold }
                         Text {
                             width: parent.width; elide: Text.ElideRight
-                            text: Lens.busy ? "Reading…" : `Answered in ${Math.round(Lens.seconds)} s · ${Lens.modelLabel}${Lens.effort ? " · " + Lens.effort : ""}`
+                            text: Lens.busy ? Lens.readingLabel : `Answered in ${Math.round(Lens.seconds)} s · ${Lens.modelLabel}${Lens.effort ? " · " + Lens.effort : ""}`
                             color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold
                             font.features: { "tnum": 1 }
                         }
                     }
-                    GhostButton { icon: Icons.copy; label: "Copy answer"; onClicked: Clipboard.copyText(Lens.answer) }
-                    GhostButton { icon: Icons.close; label: "Close Lens"; onClicked: Lens.close() }
+                    GhostButton { anchors.right: parent.right; anchors.rightMargin: 52; objectName: "lens-copy"; icon: Icons.copy; label: "Copy answer"; onClicked: Clipboard.copyText(Lens.answer) }
+                    GhostButton { anchors.right: parent.right; objectName: "lens-close"; icon: Icons.close; label: "Close Lens"; onClicked: Lens.close() }
                 }
 
                 Rectangle {
@@ -181,7 +202,7 @@ PanelWindow {
                     radius: Theme.tileRadius; color: Theme.overlay
                     Image {
                         x: 8; y: 8; width: 64; height: 40
-                        source: Lens.path ? "file://" + Lens.path : ""
+                        source: Lens.images.length ? "file://" + Lens.images[0].path : ""
                         fillMode: Image.PreserveAspectCrop
                     }
                     Column {
@@ -191,7 +212,7 @@ PanelWindow {
                             width: parent.width; text: Lens.question; textFormat: Text.PlainText; elide: Text.ElideRight
                             color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: 13; font.weight: Font.Bold
                         }
-                        Text { text: `Region snip · ${Lens.area.width} × ${Lens.area.height}`; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold }
+                        Text { text: `${Lens.images.length} image${Lens.images.length === 1 ? "" : "s"}`; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold }
                     }
                 }
 
@@ -199,7 +220,7 @@ PanelWindow {
                     id: response
                     visible: window.answered
                     width: parent.width
-                    height: visible ? Math.min(body.implicitHeight, Math.max(100, window.maxHeight - 40 - 44 - 56 - attachmentChips.height - answerFooter.height - (statusNotice.visible ? statusNotice.height + 14 : 0) - 56)) : 0
+                    height: visible ? Math.min(body.implicitHeight, Math.max(0, window.maxHeight - 2 * window.inset - window.fixedContentHeight())) : 0
                     contentWidth: width; contentHeight: body.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
@@ -239,12 +260,14 @@ PanelWindow {
                             }
                         }
                         Flow {
+                            objectName: "lens-answer-actions"
                             width: parent.width; spacing: 8
                             Repeater {
                                 model: Lens.actions
                                 ActionButton {
                                     required property var modelData
                                     text: modelData.label
+                                    maximumWidth: parent.width
                                     height: 44
                                     icon: modelData.kind === "search" ? Icons.search : Icons.languages
                                     primary: false
@@ -284,26 +307,67 @@ PanelWindow {
                     }
                 }
 
-                Flow {
+                LensImages {
+                    id: imageAttachments
+                    width: parent.width
+                }
+
+                Column {
                     id: attachmentChips
                     visible: !Lens.busy
                     width: parent.width; spacing: 8
-                    ActionButton {
-                        text: Lens.attachment ? "Change file" : "Attach file"
-                        icon: Icons.fileCode; height: 44; enabled: Lens.ready
-                        onClicked: Lens.attachFile()
+                    Flow {
+                        objectName: "lens-attachment-tools"
+                        width: parent.width; spacing: 8
+                        ActionButton {
+                            text: "Add snip"; icon: Icons.crop; height: 44
+                            enabled: Lens.ready && Lens.images.length < 3
+                            opacity: enabled ? 1 : 0.65
+                            onClicked: Lens.requestSnip()
+                        }
+                        ActionButton {
+                            text: "Add image"; icon: Icons.image; height: 44
+                            enabled: Lens.ready && Lens.images.length < 3
+                            opacity: enabled ? 1 : 0.65
+                            onClicked: Lens.attachImage()
+                        }
+                        ActionButton {
+                            text: Lens.attachment ? "Change file" : "Attach file"
+                            icon: Icons.fileCode; height: 44; enabled: Lens.ready
+                            onClicked: Lens.attachFile()
+                        }
+                        ActionButton {
+                            visible: !window.answered && !window.failed
+                            objectName: "lensAskBothPrompt"
+                            text: "Ask both"; icon: Icons.sparkles; height: 44
+                            enabled: Lens.ready && !!prompt.text.trim()
+                            onClicked: Lens.askBoth(prompt.text.trim())
+                        }
                     }
                     ActionButton {
                         visible: Lens.attachment !== ""
+                        width: parent.width
                         text: "Remove " + (Lens.attachment.length > 24 ? Lens.attachment.slice(0, 21) + "…" : Lens.attachment)
                         icon: Icons.close; height: 44
                         onClicked: Lens.detachFile()
                     }
-                    ActionButton {
-                        visible: (window.answered || window.failed) && Lens.question !== ""
-                        text: Lens.provider === "claude" ? "Ask ChatGPT instead" : "Ask Claude instead"
-                        icon: Icons.sparkles; height: 44; enabled: Lens.ready
-                        onClicked: Lens.askOther()
+                    Flow {
+                        objectName: "lens-agent-tools"
+                        visible: window.answered || window.failed
+                        width: parent.width; spacing: 8
+                        ActionButton {
+                            visible: Lens.question !== ""
+                            text: Lens.provider === "claude" ? "Ask ChatGPT instead" : "Ask Claude instead"
+                            icon: Icons.sparkles; height: 44; enabled: Lens.ready
+                            onClicked: Lens.askOther()
+                        }
+                        ActionButton {
+                            visible: !window.failed
+                            objectName: "lensAskBoth"
+                            text: "Ask both"; icon: Icons.sparkles; height: 44
+                            enabled: Lens.ready && !!(followup.text.trim() || Lens.question)
+                            onClicked: Lens.askBoth(followup.text.trim() || Lens.question)
+                        }
                     }
                 }
 
@@ -355,7 +419,7 @@ PanelWindow {
                             }
                         }
                     }
-                    Text { text: `${Lens.providerName} is reading…`; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold }
+                    Text { text: Lens.readingLabel; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold }
                     Text { text: `${Math.floor(Lens.seconds)} s`; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11; font.features: { "tnum": 1 } }
                 }
                 Text {

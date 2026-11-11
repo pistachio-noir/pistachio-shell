@@ -11,7 +11,13 @@ Singleton {
 
     property var last: null // the player that played most recently
     readonly property var players: Mpris.players.values
-    readonly property var player: players.find(p => p.isPlaying) ?? (players.includes(last) ? last : players.find(p => p.trackTitle)) ?? null
+    // Session-only selection: retain the id during a temporary disappearance, then prefer it again.
+    property string selectedPlayer: ""
+    readonly property var automaticPlayer: players.find(p => p.isPlaying) ?? (players.includes(last) ? last : players.find(p => p.trackTitle)) ?? null
+    readonly property var player: players.find(p => p.dbusName === selectedPlayer) ?? automaticPlayer
+    readonly property var choices: [{value: "", title: "Auto"}].concat(players.map(p => ({value:p.dbusName,title:p.identity || p.dbusName})))
+    function selectPlayer(id: string) { if (!id || players.some(p => p.dbusName === id)) selectedPlayer = id; }
+    readonly property bool selectionMissing: selectedPlayer !== "" && !players.some(p => p.dbusName === selectedPlayer)
 
     onPlayerChanged: if (player?.isPlaying) last = player
 

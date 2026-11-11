@@ -32,6 +32,19 @@ Singleton {
         property bool volumeTick: true // a short click as the volume changes
         property bool workspaceOsd: true // the OSD names the workspace on a switch
         property bool tabbedOsd: true // the OSD says when a workspace's tabs go on or off
+        property var integrationsOff: [] // ids of other apps' integrations switched off (Settings → Integrations)
+        property bool calendarEvents: true // GNOME Calendar's events in the month calendar (Settings → Integrations)
+        property bool zenPomodoro // Zen mode also runs a Pomodoro timer
+        property bool focusPomodoro // a Focus session is Pomodoro rounds rather than one stretch
+        property int focusMinutes: 25 // a single Focus session
+        property bool focusZen // Focus also turns Zen mode on
+        property var focusAllowed: [] // app names whose notifications still toast during Focus
+        property int pomodoroWork: 25 // minutes
+        property int pomodoroBreak: 5
+        property int pomodoroLongBreak: 15
+        property int pomodoroRounds: 4 // work rounds before the long break
+        property var focusState: ({}) // FocusMode: Zen on, its session, carried over a reload or restart
+        property var zenGaps: null // Hyprland's gaps and border before Zen, to put back (Compositor)
         property string ciderToken // Cider's local API (Up next, Apple Music search); "" until pasted
         property string lensProvider: "claude"
         property string lensClaudeModel: "claude-haiku-5-5"

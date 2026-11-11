@@ -17,6 +17,7 @@ PanelWindow {
 
     property string kind: "volume" // or "brightness", "output", "mic", "screen" or "desktop"
     property bool suppressed // set by the bar while quick settings (which has the same sliders) is open
+    property bool overviewOpen // no workspace OSD while the Overview shows the workspaces itself
     property int lift // the pill's distance from the screen's bottom edge; the bar sets it
     // room around the pill for its shadow; below, at most what's left down to the screen edge
     readonly property int side: Theme.shadowSmall.blur
@@ -35,7 +36,12 @@ PanelWindow {
     readonly property bool tabs: kind === "tabs"
     property bool tabsOn
     property int tabsWorkspace
-    readonly property bool notice: cue || desktop || workspace || tabs
+    // Zen, Focus and their Pomodoro phases (FocusMode, owner's request, 11 November 2026)
+    readonly property bool mode: kind === "mode"
+    property string modeTitle
+    property string modeDetail
+    property bool modeOn
+    readonly property bool notice: cue || desktop || workspace || tabs || mode
     readonly property bool muted: (kind === "volume" || output) && Audio.muted
     readonly property real value: kind === "brightness" ? Brightness.value : Audio.volume
     // The bar and number ease to a new value; they start at it while hidden and on a switch between
@@ -131,6 +137,17 @@ PanelWindow {
         onStopped: names => root.showCue("screen", false, names)
     }
 
+    Connections {
+        target: FocusMode
+
+        function onAnnounce(title, detail, on) {
+            root.modeTitle = title;
+            root.modeDetail = detail;
+            root.modeOn = on;
+            root.show("mode");
+        }
+    }
+
     // (not as the setting is read at startup: settling covers that)
     Connections {
         target: Compositor
@@ -144,7 +161,7 @@ PanelWindow {
         }
 
         function onActiveWorkspaceChanged() {
-            if (!root.settling && ShellSettings.workspaceOsd && Compositor.activeWorkspace > 0 && !Compositor.fullscreen)
+            if (!root.settling && ShellSettings.workspaceOsd && Compositor.activeWorkspace > 0 && !Compositor.fullscreen && !root.overviewOpen)
                 root.show("workspace");
         }
     }
@@ -228,7 +245,8 @@ PanelWindow {
             x: 22
             anchors.verticalCenter: parent.verticalCenter
             size: 20
-            paths: root.tabs ? Icons.layers
+            paths: root.mode ? (root.modeOn ? Icons.lightbulb : Icons.moon)
+                : root.tabs ? Icons.layers
                 : root.workspace ? Icons.layers
                 : root.desktop ? (Desktop.enabled ? Icons.folder : Icons.folder.concat(Icons.slash))
                 : root.kind === "brightness" ? Icons.sun
@@ -237,7 +255,8 @@ PanelWindow {
                 : root.kind === "screen" ? Icons.screenShare
                 : root.muted ? Icons.volumeMuted : Icons.volume
             // as the bar shows them: clay while in use, subtext when muted or let go
-            color: root.tabs ? (root.tabsOn ? Theme.pistachio : Theme.subtext)
+            color: root.mode ? (root.modeOn ? Theme.pistachio : Theme.teal)
+                : root.tabs ? (root.tabsOn ? Theme.pistachio : Theme.subtext)
                 : root.workspace ? Theme.textBright
                 : root.desktop ? (Desktop.enabled ? Theme.textBright : Theme.subtext)
                 : root.cue ? (root.cueOn && !(root.kind === "mic" && Audio.micMuted) ? Theme.clay : Theme.subtext)
@@ -289,6 +308,39 @@ PanelWindow {
                 font.family: Theme.fontUi
                 font.pixelSize: 12
                 font.weight: Font.Medium
+            }
+        }
+
+        // Zen or Focus on or off, a Pomodoro phase
+        Column {
+            visible: root.mode
+            anchors.left: icon.right
+            anchors.leftMargin: 14
+            anchors.right: parent.right
+            anchors.rightMargin: 22
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 1
+
+            Text {
+                width: parent.width
+                text: root.modeTitle
+                elide: Text.ElideRight
+                color: Theme.textBright
+                font.family: Theme.fontUi
+                font.pixelSize: 14
+                font.weight: Font.Bold
+                font.features: { "tnum": 1 }
+            }
+
+            Text {
+                width: parent.width
+                text: root.modeDetail
+                elide: Text.ElideRight
+                color: Theme.subtext
+                font.family: Theme.fontUi
+                font.pixelSize: 12
+                font.weight: Font.Medium
+                font.features: { "tnum": 1 }
             }
         }
 

@@ -111,6 +111,14 @@ PanelWindow {
             return;
         Notifs.markSeen();
         calendar.showToday(false); // every opening starts at this month, without a slide
+        calendar.selectToday();
+        Events.refresh();
+    }
+
+    Binding {
+        target: Events
+        property: "watching"
+        value: root.open
     }
 
     Reveal {
@@ -571,7 +579,7 @@ PanelWindow {
         // (it has faded out by then): a blank record keeps the bindings from reading null
         readonly property var n: modelData ?? ({ saved: true, summary: "", body: "", appIcon: "", image: "", urgency: 0, time: 0 })
         readonly property bool fresh: Notifs.received(n) > Notifs.seenBefore
-        readonly property string group: n.appName ?? ""
+        readonly property string group: n?.appName ?? ""
         readonly property var members: root.groups.by[group] ?? []
         readonly property bool lead: members.length > 1 && members[0] === modelData // carries the header
         readonly property bool groupOpen: root.openGroups[group] ?? false
@@ -582,7 +590,7 @@ PanelWindow {
         // none, and the default action is the click on the card. A right click shows the app's rule
         // choices there instead (Notifs.ruleChoices), until one is picked or the pointer leaves.
         property bool ruling
-        readonly property var buttons: ruling ? Notifs.ruleChoices(group) : n.saved ? [] : n.actions.filter(a => a.identifier !== "default")
+        readonly property var buttons: ruling ? Notifs.ruleChoices(group) : !n || n.saved ? [] : (n.actions ?? []).filter(a => a.identifier !== "default")
         readonly property bool expanded: (ruling || hover.hovered && buttons.length > 0) && !leaving.running
         property real reveal: expanded ? 1 : 0
         readonly property int body: Math.max(36, text.implicitHeight + 1) // the icon or the text, whichever is taller
@@ -835,7 +843,7 @@ PanelWindow {
                 id: swipe
             }
             Accessible.role: Accessible.ListItem
-            Accessible.name: entry.n.summary + ". " + entry.n.body
+            Accessible.name: (entry.n?.summary ?? "") + ". " + (entry.n?.body ?? "")
 
             Behavior on color {
                 ColorAnimation {
@@ -900,7 +908,7 @@ PanelWindow {
                         id: title
                         x: entry.fresh ? 14 : 0
                         width: when.x - x - 8
-                        text: entry.n.summary
+                        text: entry.n?.summary ?? ""
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
                         color: Theme.textBright
@@ -924,7 +932,7 @@ PanelWindow {
                 Text {
                     width: parent.width
                     visible: text !== ""
-                    text: entry.n.body
+                    text: entry.n?.body ?? ""
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     maximumLineCount: 3

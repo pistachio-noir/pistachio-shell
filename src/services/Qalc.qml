@@ -11,7 +11,7 @@ import QtQuick
 Singleton {
     id: root
 
-    readonly property bool installed: found
+    readonly property bool installed: found && ShellSettings.integration("qalc") // or switched off in Settings → Integrations
     property bool found
     property string wanted // the expression asked for last
     property string asked // the one qalc is working on

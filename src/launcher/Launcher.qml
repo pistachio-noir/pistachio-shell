@@ -95,6 +95,7 @@ PanelWindow {
         : rows[current]?.kind === "process" ? [["↑↓", "navigate"], ["↵", "end it"], ["Esc", "close"]]
         : rows[current]?.kind === "tldr" ? [["↑↓", "navigate"], ["↵", "copy"], ["Esc", "close"]]
         : rows[current]?.kind === "app" && rows[current].app.actions.length > 0 ? [["↑↓", "navigate"], ["↵", "open"], ["→", "more actions"], ["Tab", "switch mode"], ["Esc", "close"]]
+        : rows[current]?.kind === "file" && !rows[current].entry.folder ? [["↑↓", "navigate"], ["↵", "open"], ["Space", "preview"], ["Shift ↵", "show in folder"], ["Esc", "close"]]
         : filesWanted ? [["↑↓", "navigate"], ["↵", "open"], ["Shift ↵", "show in folder"], ["Esc", "close"]]
         : (mode === "all" || mode === "apps") && query.startsWith("!") ? [["↑↓", "navigate"], ["↵", "show in centre"], ["Esc", "close"]]
         : cheatWanted ? [["↑↓", "navigate"], ["↵", "use a prefix"], ["Esc", "close"]]
@@ -334,9 +335,9 @@ PanelWindow {
             ["?", "This cheat sheet"],
             ["12*3", "A calculation: the answer shows at the top"]
         ].concat(Apps.claudeApp ? [["claude", "Ask Claude: a new chat in Claude Desktop"]] : [],
-            Cider.installed ? [["m", "Apple Music in Cider: Enter plays, Shift+Enter plays next"]] : [],
+            Cider.installed && Cider.enabled ? [["m", "Apple Music in Cider: Enter plays, Shift+Enter plays next"]] : [],
             Qalc.installed ? [["=", "libqalculate: equations, units, currencies, bases; Enter copies"]] : [],
-            [["kill", "Your running programs; Enter ends one"], ["tldr", "Examples for a command; Enter copies one"]])
+            [["kill", "Your running programs; Enter ends one"]], ShellSettings.integration("tldr") ? [["tldr", "Examples for a command; Enter copies one"]] : [])
             .map(([k, t], i) => row("prefix", i, [k], t, { prefix: k === "12*3" ? "" : ["claude", "m", "kill", "tldr"].includes(k) ? k + " " : k }));
         const keys = [
             [["Tab"], "Next mode; Shift+Tab goes back"],
@@ -482,7 +483,11 @@ PanelWindow {
         quick.push(bluetoothSwitch(),
             { kind: "btlink", key: "btlink", title: "Bluetooth devices" },
             { kind: "switch", key: "nightlight", title: "Night light", icon: Icons.moon, on: () => NightLight.enabled, status: () => NightLight.status, toggle: () => NightLight.setEnabled(!NightLight.enabled) },
-            { kind: "switch", key: "dnd", title: "Do not disturb", icon: Icons.bellOff, on: () => Notifs.dnd, status: () => Notifs.dndStatus, toggle: () => Notifs.setDnd(!Notifs.dnd) });
+            { kind: "switch", key: "dnd", title: "Do not disturb", icon: Icons.bellOff, on: () => Notifs.dnd, status: () => Notifs.dndStatus, toggle: () => Notifs.setDnd(!Notifs.dnd) },
+            // Zen and Focus (FocusMode, owner's request, 11 November 2026): their launcher entries, no IPC
+            { kind: "switch", key: "zen", title: "Zen mode", icon: Icons.moon, on: () => FocusMode.zen, status: () => FocusMode.zen ? (FocusMode.session?.owner === "zen" ? `${FocusMode.phaseName()} · ${FocusMode.clock(FocusMode.left())}` : "Bar hidden · toasts wait") : Store.saved.zenPomodoro ? "Off · with a Pomodoro" : "Off", toggle: () => FocusMode.toggleZen() },
+            { kind: "switch", key: "pomodoro", title: "Pomodoro", icon: Icons.clock, on: () => FocusMode.pomodoring, status: () => FocusMode.pomodoring ? `${FocusMode.phaseName()} · ${FocusMode.clock(FocusMode.left())} left` : `Off · ${Store.saved.pomodoroWork}/${Store.saved.pomodoroBreak} min`, toggle: () => FocusMode.togglePomodoro() },
+            { kind: "switch", key: "focus", title: "Focus session", icon: Icons.lightbulb, on: () => FocusMode.focusing, status: () => FocusMode.focusing ? `${FocusMode.phaseName()} · ${FocusMode.clock(FocusMode.left())} left` : Store.saved.focusPomodoro ? `Off · Pomodoro ${Store.saved.pomodoroWork}/${Store.saved.pomodoroBreak} min` : `Off · ${Store.saved.focusMinutes} min`, toggle: () => FocusMode.toggleFocus() });
         return card("Quick controls", q, quick).concat(card("Settings", q, [
             { kind: "settingslink", key: "settings", title: "Settings", subtitle: "Sound, Bluetooth, appearance, Lens and more", glyph: Icons.sliders }
         ]));
@@ -526,9 +531,22 @@ PanelWindow {
     // Other apps' things (owner's picks, 8 November 2026): CLion's recent projects and the games, found
     // by name in All and Apps ("clion" lists every project, "games" every game)
     function projectRows(q: string): var {
+        if (!Library.clion)
+            return [];
         const all = Fuzzy.match(q, "clion") && q.length >= 3;
         return Library.projects.filter(p => all || Fuzzy.match(q, p.name)).slice(0, all ? 12 : 4).map(p => ({
             kind: "project", key: "project:" + p.path, title: p.name, subtitle: "CLion · " + p.path.replace(Quickshell.env("HOME"), "~"), icon: Apps.icon(Library.clion?.icon ?? "clion"), glyph: Icons.fileCode, project: p
+        }));
+    }
+
+    // VS Code's recent folders and workspaces (owner's request, 11 November 2026), as CLion's: "vscode"
+    // or "code" lists them all; only while VS Code is installed
+    function codeProjectRows(q: string): var {
+        if (!Library.vscode)
+            return [];
+        const all = (Fuzzy.match(q, "vscode") && q.length >= 3) || Fuzzy.fold(q) === "code";
+        return Library.codeProjects.filter(p => all || Fuzzy.match(q, p.name)).slice(0, all ? 12 : 4).map(p => ({
+            kind: "project", key: "code:" + p.path, title: p.name, subtitle: "VS Code · " + p.path.replace(Quickshell.env("HOME"), "~"), icon: Apps.icon(Library.vscode?.icon ?? "vscode"), glyph: Icons.fileCode, project: p
         }));
     }
 
@@ -678,7 +696,7 @@ PanelWindow {
             return [{ text: row.device.connected ? "Disconnect" : row.device.paired ? "Connect" : "Pair", glyph: Icons.bluetooth, run: () => activate(row, 0, false) }]
                 .concat(row.device.paired ? [{ text: "Forget device", glyph: Icons.trash, danger: true, run: () => Bluetooth.forget(row.device) }] : []);
         case "project":
-            return [{ text: "Open in CLion", glyph: Icons.fileCode, run: () => activate(row, 0, false) }, { text: "Show in file manager", glyph: Icons.folder, run: () => Quickshell.execDetached(["xdg-open", row.project.path]) }];
+            return [{ text: row.project.ide === "code" ? "Open in VS Code" : "Open in CLion", glyph: Icons.fileCode, run: () => activate(row, 0, false) }, { text: "Show in file manager", glyph: Icons.folder, run: () => Quickshell.execDetached(["xdg-open", row.project.path]) }];
         case "game":
             return [{ text: "Play", glyph: Icons.play, run: () => activate(row, 0, false) }];
         case "process":
@@ -720,6 +738,7 @@ PanelWindow {
         "Shift ↵": [Qt.Key_Return, Qt.ShiftModifier],
         "Esc": [Qt.Key_Escape, 0],
         "Tab": [Qt.Key_Tab, 0],
+        "Space": [Qt.Key_Space, 0],
         "→": [Qt.Key_Right, 0],
         "←": [Qt.Key_Left, 0],
         "Ctrl W": [Qt.Key_W, Qt.ControlModifier],
@@ -910,9 +929,9 @@ PanelWindow {
             rows = [section("libqalculate")].concat(e ? qalcRows(e) : [], e && Qalc.expression === e && Qalc.failed ? [{ kind: "empty", key: "qalcfail", title: "qalc couldn't read that" }] : [], e ? [] : [{ kind: "empty", key: "qalchint", title: "Equations, units, currencies, bases: = solve(x^2 = 4), = 5 km to mi" }]);
         } else if (/^kill(\s|$)/i.test(q) && (mode === "all" || mode === "apps")) {
             rows = processRows(q.slice(4).trim());
-        } else if (/^tldr(\s|$)/i.test(q) && (mode === "all" || mode === "apps")) {
+        } else if (/^tldr(\s|$)/i.test(q) && ShellSettings.integration("tldr") && (mode === "all" || mode === "apps")) {
             rows = tldrRows(q.slice(4).trim());
-        } else if (/^m\s/i.test(q) && Cider.installed && (mode === "all" || mode === "apps")) {
+        } else if (/^m\s/i.test(q) && Cider.installed && Cider.enabled && (mode === "all" || mode === "apps")) {
             rows = musicRows(q.slice(2).trim());
         } else if (q.startsWith("?") && (mode === "all" || mode === "apps")) {
             rows = cheatRows(q.slice(1).trim());
@@ -942,8 +961,8 @@ PanelWindow {
             const frequent=frequentRows(3);
             rows = [section("Quick controls"), { kind: "controls", key: "controls" }].concat(frequent.length ? [section("Frequent")].concat(frequent) : []).concat(w.length ? [section("Open windows")].concat(w) : []);
         } else {
-            const a = appRows(q, 5), w = windowRows(q, 3), named = namedRows(q), presets = presetRows(q), projects = projectRows(q), games = gameRows(q);
-            rows = calcRows(q).concat(a.length ? [section("Applications")].concat(a) : [], games.length ? [section("Games")].concat(games) : [], projects.length ? [section("CLion projects")].concat(projects) : []).concat(w.length ? [section("Windows")].concat(w) : [])
+            const a = appRows(q, 5), w = windowRows(q, 3), named = namedRows(q), presets = presetRows(q), projects = projectRows(q), codeProjects = codeProjectRows(q), games = gameRows(q);
+            rows = calcRows(q).concat(a.length ? [section("Applications")].concat(a) : [], games.length ? [section("Games")].concat(games) : [], projects.length ? [section("CLion projects")].concat(projects) : [], codeProjects.length ? [section("VS Code")].concat(codeProjects) : []).concat(w.length ? [section("Windows")].concat(w) : [])
                 .concat(named.length ? [section("Workspaces")].concat(named) : [], presets.length ? [section("Presets")].concat(presets) : [])
                 .concat(powerRows(q), systemRows(q));
         }

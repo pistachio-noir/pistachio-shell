@@ -27,8 +27,13 @@ ShellRoot {
         onNewFolderRequested: cell => launcher.newDesktopFolder(cell)
         onWallpapersRequested: wallpaperSwitcher.show()
     }
+    Overview { // before the bar: mapped first on the same level, so the bar stays above it
+        id: overview
+        onLauncherRequested: mode => launcher.show(mode)
+    }
     Bar {
         id: bar
+        overviewOpen: overview.open
         onLauncherRequested: mode => launcher.show(mode)
         onTimerRequested: launcher.askTimer()
         onAlarmRequested: launcher.askAlarm()
@@ -59,9 +64,9 @@ ShellRoot {
     RecordingRegion {} // area bounds and an outside Stop pill
     LensCard {}
     LauncherExtras {}
-    Magnifier {}
     RecordingTools {}
     AlarmPopup {} // timers done and Clocks' alarms ringing
+    SessionPill {} // a Pomodoro's time while Zen hides the bar
     PistachioRain {
         id: rain
     }

@@ -26,7 +26,15 @@ PanelWindow {
     readonly property int ws: Compositor.activeWorkspace
     readonly property var entries: kind === "clock" ? clockEntries : workspaceEntries
     readonly property var clockEntries: {
-        const out = [{ text: "Timer…", glyph: Icons.clock, run: () => root.timerRequested() }];
+        const out = [];
+        // a Focus or Zen session (FocusMode)
+        if (FocusMode.session) {
+            out.push({ text: FocusMode.paused ? "Resume the session" : "Pause the session", glyph: FocusMode.working ? Icons.lightbulb : Icons.moon, run: () => FocusMode.pause() });
+            if (FocusMode.session.pomodoro)
+                out.push({ text: FocusMode.working ? "Skip to the break" : "Skip to work", glyph: Icons.skipForward, run: () => FocusMode.skip() });
+            out.push({ text: FocusMode.session.owner === "focus" ? "End the session" : "End the Pomodoro", glyph: Icons.close, danger: true, run: () => FocusMode.endSession() });
+        }
+        out.push({ text: "Timer…", glyph: Icons.clock, run: () => root.timerRequested() });
         for (const t of Clocks.timers) {
             const name = t.label || `Timer ${Clocks.clock(t.duration)}`;
             out.push({ text: `${t.endsAt ? "Pause" : "Resume"} ${name}`, glyph: Icons.clock, run: () => Clocks.pauseTimer(t.id) });
@@ -38,7 +46,8 @@ PanelWindow {
             out.push({ text: Clocks.stopwatch.since ? "Pause the stopwatch" : "Resume the stopwatch", glyph: Icons.stopwatch, run: () => Clocks.pauseStopwatch() },
                 { text: `Lap (${Clocks.stopwatch.laps.length} so far)`, glyph: Icons.plus, run: () => Clocks.lap() },
                 { text: "Stop the stopwatch", glyph: Icons.close, danger: true, run: () => Clocks.stopStopwatch() });
-        out.push({ text: "Alarm…", glyph: Icons.bell, run: () => root.alarmRequested() });
+        if (Clocks.enabled)
+            out.push({ text: "Alarm…", glyph: Icons.bell, run: () => root.alarmRequested() });
         for (const a of Clocks.alarms)
             out.push({ text: `${a.active ? "On" : "Off"} · ${a.hour}:${String(a.minute).padStart(2, "0")} ${a.name}`, glyph: a.active ? Icons.check : Icons.bellOff, run: () => Clocks.setAlarm(a.id, !a.active) });
         if (Clocks.clocksInstalled)

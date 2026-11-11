@@ -116,10 +116,10 @@ FloatingWindow {
             x:0;y:64;width:216;height:parent.height-64
             Rectangle{anchors.right:parent.right;width:1;height:parent.height;color:Theme.overlay}
             Basic.ScrollView {
-                x:12;y:18;width:192;height:parent.height-64;clip:true
+                x:12;y:18;width:192;height:parent.height-30;clip:true // all fifteen pages fit at 1040 × 760 (12 November 2026)
                 contentWidth:availableWidth
                 Column{
-                    width:192;spacing:4
+                    width:192;spacing:2
                     Repeater {
                         model:Catalog.pages.filter(p=>p[0]!=="localsend"||LocalSend.available)
                         Column{
@@ -127,10 +127,10 @@ FloatingWindow {
                             required property int index
                             width:192
                             readonly property bool first:index===0||Catalog.pages.filter(p=>p[0]!=="localsend"||LocalSend.available)[index-1][3]!==modelData[3]
-                            Item { width:1;height:index>0&&parent.first?12:0 }
+                            Item { width:1;height:index>0&&parent.first?10:0 }
                             SettingsText{x:12;height:parent.first?22:0;visible:parent.first;text:modelData[3].toUpperCase();secondary:true;font.pixelSize:10;font.weight:Font.Bold;font.letterSpacing:0.6}
                             SettingsButton {
-                                objectName:"settings-nav-"+modelData[0];width:192;text:modelData[1];active:!searchField.text.trim()&&SettingsHub.page===modelData[0];quiet:true;animateSelection:true
+                                objectName:"settings-nav-"+modelData[0];width:192;height:36;text:modelData[1];active:!searchField.text.trim()&&SettingsHub.page===modelData[0];quiet:true;animateSelection:true
                                 leftPadding:39;rightPadding:8
                                 contentItem:Text{text:parent.text;font:parent.font;color:parent.active?Theme.bg:Theme.subtext;verticalAlignment:Text.AlignVCenter;elide:Text.ElideRight;Behavior on color { ColorAnimation { duration: Theme.hoverDuration; easing.type: Theme.easing } }}
                                 Icon{x:12;anchors.verticalCenter:parent.verticalCenter;size:17;paths:Icons[modelData[4]]||Icons.sliders;color:parent.active?Theme.bg:Theme.subtext;Behavior on color { ColorAnimation { duration: Theme.hoverDuration; easing.type: Theme.easing } }}
@@ -140,7 +140,6 @@ FloatingWindow {
                     }
                 }
             }
-            SettingsText{x:24;anchors.bottom:parent.bottom;anchors.bottomMargin:18;text:"Pistachio Noir";secondary:true;font.pixelSize:11}
         }
         Basic.ScrollView {
             id:scroller

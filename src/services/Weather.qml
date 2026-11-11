@@ -18,7 +18,9 @@ Singleton {
     property var today: null // { max, min, sunset }
     property var days: [] // the next five: { name, code, max, min }
     property var hours: [] // now and the next seven: { label, code, day, temp, rain }
-    readonly property bool available: now !== null
+    readonly property bool enabled: ShellSettings.integration("weather") // Settings → Integrations
+    readonly property bool available: enabled && now !== null
+    onEnabledChanged: if (enabled) refresh()
 
     function setCity(name: string) {
         Store.saved.weatherCity = name;
@@ -130,7 +132,7 @@ Singleton {
     }
 
     Timer {
-        running: true
+        running: root.enabled
         interval: 1800000 // 30 min
         repeat: true
         triggeredOnStart: true

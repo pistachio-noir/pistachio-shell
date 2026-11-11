@@ -24,9 +24,12 @@ PanelWindow {
     // A fullscreen window (a game, a video; not a maximized one) has the screen to itself: no reveal
     // strip, so a stray pointer at the bottom edge doesn't bring the bar up over it (owner's request,
     // after phase 8). A panel opened by keybind still shows it.
-    readonly property bool fullscreen: Compositor.fullscreen
+    // Zen mode (FocusMode) hides it the same way: no strip, no handle; a panel opened by key still shows it.
+    // So does the Overview while it's open (owner's call, 12 November, superseding the boards' bar under it).
+    readonly property bool fullscreen: Compositor.fullscreen || FocusMode.zen || overviewOpen
     // Stays up while pointed (even if a window moves under it), for a moment after, long enough to
     // cross the gap to the tray pill, and while a panel or a tray menu is open.
+    property bool overviewOpen // the Overview hides the bar, and the workspace OSD stays quiet
     readonly property bool shown: !held && (!fullscreen && (!overlapped || pointed || linger.running || peekTimer.running) || tray.menuOpen || media.cardOpen || quickSettings.open || centre.open || Showoff.active)
 
     // The startup animation (owner's request, after phase 8; shell.qml): as the shell starts, the bar
@@ -294,30 +297,32 @@ PanelWindow {
         Row {
             id: clockPills
 
-            visible: Clocks.timers.length > 0 || Clocks.stopwatch !== null
+            visible: Clocks.timers.length > 0 || Clocks.stopwatch !== null || FocusMode.session !== null
             anchors.right: recordingChip.visible ? recordingChip.left : clock.left
             anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
             spacing: 8
 
             Repeater {
-                model: Clocks.timers.slice(0, 2).map(t => ({ kind: "timer", t: t })).concat(Clocks.stopwatch ? [{ kind: "stopwatch" }] : []).slice(0, 2)
+                // a Focus or Zen session first (FocusMode, owner's request, 11 November 2026): its phase and time left
+                model: (FocusMode.session ? [{ kind: "session" }] : []).concat(Clocks.timers.slice(0, 2).map(t => ({ kind: "timer", t: t })), Clocks.stopwatch ? [{ kind: "stopwatch" }] : []).slice(0, 2)
 
                 Rectangle {
                     id: pill
 
                     required property var modelData
                     readonly property bool timer: modelData.kind === "timer"
-                    readonly property bool running: timer ? !!modelData.t.endsAt : !!Clocks.stopwatch?.since
-                    readonly property string time: timer ? Clocks.clock(Clocks.left(modelData.t)) : Clocks.clock(Clocks.elapsed())
-                    readonly property string label: timer ? modelData.t.label : ""
+                    readonly property bool session: modelData.kind === "session"
+                    readonly property bool running: session ? !FocusMode.paused : timer ? !!modelData.t.endsAt : !!Clocks.stopwatch?.since
+                    readonly property string time: session ? FocusMode.clock(FocusMode.left()) : timer ? Clocks.clock(Clocks.left(modelData.t)) : Clocks.clock(Clocks.elapsed())
+                    readonly property string label: session ? FocusMode.phaseName() : timer ? modelData.t.label : ""
 
                     width: pillRow.implicitWidth + 28
                     height: Theme.chipHeight
                     radius: Theme.chipRadius
                     color: pillMouse.containsMouse ? Theme.overlay2 : Theme.overlay
                     Accessible.role: Accessible.Button
-                    Accessible.name: `${timer ? "Timer" : "Stopwatch"} ${time}${label ? ", " + label : ""}. ${running ? "Pause" : "Resume"}`
+                    Accessible.name: `${session ? "Session" : timer ? "Timer" : "Stopwatch"} ${time}${label ? ", " + label : ""}. ${running ? "Pause" : "Resume"}`
 
                     Row {
                         id: pillRow
@@ -327,8 +332,9 @@ PanelWindow {
                         Icon {
                             anchors.verticalCenter: parent.verticalCenter
                             size: 16
-                            paths: pill.timer ? Icons.clock : Icons.stopwatch
-                            color: pill.running ? Theme.pistachio : Theme.subtext
+                            paths: pill.session ? (FocusMode.working ? Icons.lightbulb : Icons.moon) : pill.timer ? Icons.clock : Icons.stopwatch
+                            // a break is calmer: teal, not the active pistachio
+                            color: !pill.running ? Theme.subtext : pill.session && !FocusMode.working ? Theme.teal : Theme.pistachio
                         }
 
                         Text {
@@ -360,7 +366,7 @@ PanelWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: pill.timer ? Clocks.pauseTimer(pill.modelData.t.id) : Clocks.pauseStopwatch()
+                        onClicked: pill.session ? FocusMode.pause() : pill.timer ? Clocks.pauseTimer(pill.modelData.t.id) : Clocks.pauseStopwatch()
                     }
                 }
             }
@@ -529,6 +535,7 @@ PanelWindow {
         anchors.bottom: true
         lift: root.shown ? root.height + 16 : Theme.barMargin
         suppressed: quickSettings.open
+        overviewOpen: root.overviewOpen
     }
 
     // A click outside the panels and the bar closes the panels; the bar stays clickable.

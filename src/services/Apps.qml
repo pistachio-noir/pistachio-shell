@@ -64,7 +64,7 @@ Singleton {
 
     // Claude Desktop, if it's installed (its desktop entry), for the launcher's "claude …" (owner's
     // request, 1 November 2026)
-    readonly property var claudeApp: list.find(a => a.id === "com.anthropic.Claude") ?? null
+    readonly property var claudeApp: ShellSettings.integration("claude") ? list.find(a => a.id === "com.anthropic.Claude") ?? null : null // or off in Settings → Integrations
 
     // A question for Claude: a new chat in Claude Desktop with it, through the app's own claude:// link,
     // which it turns into claude.ai/new?q=… (read in its app.asar, version 3.6556)

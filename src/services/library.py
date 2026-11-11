@@ -1,21 +1,54 @@
 #!/usr/bin/env python3
 """What the launcher offers from other apps, as one JSON line on stdout (services/Library.qml runs it
-each time the launcher opens): CLion's recent projects, newest first, from CLion's own list, and the
+each time the launcher opens): CLion's recent projects, newest first, from CLion's own list, VS Code's
+recent folders and workspaces (newest first, from the per-project folders VS Code keeps in
+workspaceStorage: 1.145 keeps no recently-opened list in its database), and the
 Steam games installed in every library folder, with their covers from Steam's cache (runtimes,
 Proton and redistributables left out).
 
-  {"clion": [{"name", "path", "opened"}], "steam": [{"appid", "name", "cover"}]}
+  {"clion": [{"name", "path", "opened"}], "vscode": [{"name", "path", "opened"}],
+   "steam": [{"appid", "name", "cover"}]}
 """
 
 import glob
 import json
 import os
 import re
+import urllib.parse
 import xml.etree.ElementTree as ET
 
 HOME = os.path.expanduser("~")
 STEAM = os.path.join(HOME, ".local/share/Steam")
 NOT_GAMES = re.compile(r"Steam Linux Runtime|Steamworks|Proton|Redistributable|SteamVR", re.I)
+
+
+def vscode():
+    """Local folders and .code-workspace files VS Code opened, newest first; VS Code's own files (its
+    agent-sessions workspace) and paths that are gone are left out."""
+    storage = f"{HOME}/.config/Code/User/workspaceStorage"
+    own = f"{HOME}/.config/Code/"
+    found = {}
+    for meta in glob.glob(f"{storage}/*/workspace.json"):
+        try:
+            with open(meta) as f:
+                d = json.load(f)
+        except (OSError, ValueError):
+            continue
+        uri = d.get("folder") or d.get("workspace") or ""
+        if not uri.startswith("file://"):
+            continue  # remote, WSL and untitled workspaces
+        path = urllib.parse.unquote(urllib.parse.urlparse(uri).path)
+        if path.startswith(own) or not os.path.exists(path):
+            continue
+        folder = os.path.dirname(meta)
+        state = os.path.join(folder, "state.vscdb")
+        opened = int(os.path.getmtime(state if os.path.exists(state) else folder) * 1000)
+        name = os.path.basename(path.rstrip("/"))
+        if name.endswith(".code-workspace"):
+            name = name[: -len(".code-workspace")]
+        if path not in found or found[path]["opened"] < opened:
+            found[path] = {"name": name, "path": path, "opened": opened}
+    return sorted(found.values(), key=lambda p: -p["opened"])[:30]
 
 
 def clion():
@@ -65,4 +98,4 @@ def steam():
     return sorted(games, key=lambda g: g["name"].lower())
 
 
-print(json.dumps({"clion": clion(), "steam": steam()}))
+print(json.dumps({"clion": clion(), "vscode": vscode(), "steam": steam()}))

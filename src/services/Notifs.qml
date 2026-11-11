@@ -55,8 +55,10 @@ Singleton {
     // how many, for the lock screen (owner's request, after phase 8: the count only, no content)
     readonly property int unreadCount: notifications.filter(n => received(n) > seenAt).length
 
+    // A card that is fading out can still hold its notification after the app or a timeout destroyed
+    // it, and the reference then reads null: these helpers answer as for a blank one.
     function isCritical(n): bool {
-        return n.urgency === NotificationUrgency.Critical;
+        return !!n && n.urgency === NotificationUrgency.Critical;
     }
 
     // Per-app rules (owner's request, after phase 8), by app name, set from a card's right click:
@@ -115,10 +117,14 @@ Singleton {
 
     // the screenshot's file, for a preview in the toast and the centre; "" for other notifications
     function preview(n): string {
+        if (!n)
+            return "";
         return (n.saved ? n.preview : n.hints?.["x-pistachio-screenshot"]) ?? "";
     }
 
     function received(n): real {
+        if (!n)
+            return 0;
         return n.saved ? n.time : receivedAt[n.id] ?? 0;
     }
 
@@ -177,7 +183,7 @@ Singleton {
     // a new toast, folding the app's recent ones into it if this makes three or more
     function showPopup(n) {
         const app = n.appName ?? "";
-        if (app === "Clocks")
+        if (app === "Clocks" && Clocks.enabled)
             return; // the shell rings Clocks' alarms itself, with its own popup (Clocks.qml)
         const foldable = p => !isCritical(p) && !own(p);
         const recent = foldable(n) ? popups.filter(p => p !== n && (p.appName ?? "") === app && foldable(p) && Date.now() - (receivedAt[p.id] ?? 0) < 5000) : [];
@@ -304,6 +310,8 @@ Singleton {
     // as the image (notify-send -i does) arrives as an unchecked "image://icon/…", which draws
     // Quickshell's magenta checkerboard when the theme lacks it, so it only counts if the theme has it.
     function iconSource(n): string {
+        if (!n)
+            return "";
         const themed = n.image.startsWith("image://icon/") ? Quickshell.iconPath(n.image.slice(13), true) : n.image;
         if (themed)
             return themed;
@@ -330,7 +338,8 @@ Singleton {
             // a toast unless something keeps it quiet: Do not disturb, fullscreen, a call or the app's rule;
             // critical ones and the shell's own always show, except in showoff mode, where a toast could
             // end up in the screenshot (they reach the centre all the same)
-            const shows = !Showoff.active && (root.isCritical(n) || root.own(n) || !root.quiet && !root.quietFor(n.appName ?? ""));
+            // (Zen and a Focus session's work time hold them too, but for the apps Focus allows)
+            const shows = !Showoff.active && (root.isCritical(n) || root.own(n) || !root.quiet && !(FocusMode.quiet && !FocusMode.allows(n.appName ?? "")) && !root.quietFor(n.appName ?? ""));
             if (shows && !n.lastGeneration)
                 root.showPopup(n);
         }

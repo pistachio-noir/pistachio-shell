@@ -91,6 +91,27 @@ Singleton {
         Store.saved.quietFullscreen = on;
     }
 
+    readonly property bool calendarEvents: Store.saved.calendarEvents
+    // Other apps' integrations (owner's request, 12 November 2026), each with a switch in Settings →
+    // Integrations: off, the service acts as if the app weren't installed. JsonAdapter hands lists back
+    // as QVariant sequences, hence Array.from.
+    readonly property var integrationsOff: Array.from(Store.saved.integrationsOff ?? [])
+
+    function integration(id: string): bool {
+        return !integrationsOff.includes(id);
+    }
+
+    function setIntegration(id: string, on: bool) {
+        const list = integrationsOff.filter(x => x !== id);
+        if (!on)
+            list.push(id);
+        Store.saved.integrationsOff = list;
+    }
+
+    function setCalendarEvents(on: bool) {
+        Store.saved.calendarEvents = on;
+    }
+
     function setTabbedOsd(on: bool) {
         Store.saved.tabbedOsd = on;
     }

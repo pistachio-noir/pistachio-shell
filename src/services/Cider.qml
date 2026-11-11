@@ -12,7 +12,8 @@ Singleton {
 
     readonly property bool installed: Apps.list.some(a => a.id === "cider")
     readonly property string token: Store.saved.ciderToken ?? ""
-    readonly property bool usable: installed && token !== ""
+    readonly property bool enabled: ShellSettings.integration("cider") // Settings → Integrations
+    readonly property bool usable: installed && enabled && token !== ""
     property bool reachable // the last call got an answer
     property var queue: [] // after the current track: { index, name, artist, art }
     property var results: [] // { type, id, name, detail, art }

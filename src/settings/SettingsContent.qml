@@ -13,7 +13,10 @@ Column {
     spacing: 14
     readonly property var info: Catalog.page(page)
     readonly property var groups: buildGroups()
-    onPageChanged: { SettingsReset.cancel(); discovering = false; soundTab = SettingsHub.target === "applications" ? "applications" : "devices"; }
+    onPageChanged: { SettingsReset.cancel(); discovering = false; soundTab = SettingsHub.target === "applications" ? "applications" : "devices"; Qt.callLater(() => arrival++); }
+    // bumped once a new page's groups are built: they rise in one after another (not on the rebuilds
+    // a live page makes every second)
+    property int arrival
     Connections { target: SettingsHub; function onTargetChanged() { if (root.page === "sound") root.soundTab = SettingsHub.target === "applications" ? "applications" : "devices"; } }
     readonly property bool scanWanted: active && page === "bluetooth" && discovering && Bluetooth.ready
     onScanWantedChanged: Bluetooth.setScanning(scanWanted)
@@ -66,7 +69,7 @@ Column {
     StatsCards { width: parent.width; visible: root.page === "system" }
     Repeater {
         model: root.groups
-        SettingsGroup { required property var modelData; width: root.width; title: modelData.title || ""; rows: modelData.rows }
+        SettingsGroup { required property var modelData; required property int index; width: root.width; title: modelData.title || ""; rows: modelData.rows; order: index; arrival: root.arrival }
     }
     SettingsGroup {
         visible: root.page === "bluetooth" && root.discovering
@@ -135,6 +138,56 @@ Column {
         ];
         if (page === "bluetooth") return [group("", [toggle("power", "Bluetooth", Bluetooth.summary, () => Bluetooth.enabled, Bluetooth.setEnabled)]), group("Your devices", Bluetooth.paired.map(d => ({ id: d.address, kind: "action", title: Bluetooth.name(d), subtitle: () => [Bluetooth.status(d), Bluetooth.audioDetail(d)].filter(Boolean).join(" · "), button: d.connected ? "Disconnect" : "Connect", enabled: () => Bluetooth.ready && !/Connecting|Disconnecting/.test(Bluetooth.status(d)), run: () => Bluetooth.toggleConnection(d), forget: () => SettingsHub.forgetDevice = d })))];
         if (page === "network") return [group("", [read("ethernet", "Ethernet", Network.connected ? "Connected" : Network.hasLink ? "Connecting" : "Not connected", Network.connected ? "Connected" : Network.hasLink ? "Cable connected" : "Cable unplugged")]), group("Connection details", [read("type", "Connection", "Wired Ethernet"), read("speed", "Link speed", Network.connected ? Network.speed >= 1000 ? (Network.speed/1000) + " Gbps" : Network.speed + " Mbps" : "—", "Speed reported by the connection.")]), group("Addresses", [read("interface","Interface",Network.interfaceName || "—"), ...[["ipv4","IPv4"],["ipv6","IPv6"],["gateways","Gateway"],["dns","DNS"]].map(pair=>({id:pair[0],kind:"action",title:pair[1],subtitle:()=>(Network.details[pair[0]] || []).join(" · ") || "Not reported",button:"Copy",enabled:()=>(Network.details[pair[0]] || []).length>0,run:()=>Network.copyDetail(pair[0])}))])];
+        if (page === "focus") {
+            const choose = (id, title, subtitle, values, unit) => ({ id: id, kind: "choice", title: title, subtitle: () => subtitle, choices: () => values.map(v => ({ value: String(v), title: `${v}${unit}` })), value: () => String(Store.saved[id]), set: v => FocusMode.setOption(id, parseInt(v)) });
+            const opt = (id, title, subtitle) => toggle(id, title, subtitle, () => Store.saved[id] === true, on => FocusMode.setOption(id, on));
+            // apps that sent notifications, and those already allowed
+            const apps = [...new Set(Notifs.notifications.map(n => n.appName ?? "").concat(FocusMode.allowed))].filter(a => a).sort((a, b) => a.localeCompare(b));
+            return [
+                group("Zen mode", [
+                    toggle("zen", "Zen mode", "No bar, pills or desktop icons, no gaps or borders; toasts wait.", () => FocusMode.zen, on => on ? FocusMode.startZen(false) : FocusMode.stopZen()),
+                    opt("zenPomodoro", "Pomodoro in Zen", "A Pomodoro runs while Zen is on, its time where the bar would be.")
+                ]),
+                group("Focus", [
+                    toggle("focus", "Focus session", FocusMode.focusing ? `${FocusMode.phaseName()} · ${FocusMode.clock(FocusMode.left())} left` : "Toasts wait until it ends, but from the apps you allow.", () => FocusMode.focusing, () => FocusMode.toggleFocus()),
+                    { id: "focusPomodoro", kind: "choice", title: "Session", subtitle: () => "One stretch, or Pomodoro rounds with breaks.", choices: () => [{ value: "single", title: "One stretch" }, { value: "pomodoro", title: "Pomodoro" }], value: () => Store.saved.focusPomodoro ? "pomodoro" : "single", set: v => FocusMode.setOption("focusPomodoro", v === "pomodoro") },
+                    choose("focusMinutes", "Length", "A single stretch.", [15, 25, 30, 45, 50, 60, 90, 120], " min"),
+                    opt("focusZen", "Zen during Focus", "Zen mode turns on with the session and off with it.")
+                ]),
+                group("Pomodoro", [
+                    toggle("pomodoro", "Pomodoro", FocusMode.pomodoring ? `${FocusMode.phaseName()} · ${FocusMode.clock(FocusMode.left())} left` : "On its own: the rounds and the pill, nothing held back.", () => FocusMode.pomodoring, () => FocusMode.togglePomodoro()),
+                    choose("pomodoroWork", "Work", "Each round of work.", [15, 20, 25, 30, 45, 50], " min"),
+                    choose("pomodoroBreak", "Break", "After each round.", [3, 5, 10, 15], " min"),
+                    choose("pomodoroLongBreak", "Long break", "After the last round.", [10, 15, 20, 30], " min"),
+                    choose("pomodoroRounds", "Rounds", "Work rounds before the long break.", [2, 3, 4, 5, 6], "")
+                ]),
+                group("Allowed during Focus", apps.length ? apps.map(a => toggle("allow:" + a, a, "Its toasts still show during Focus (not in Zen).", () => FocusMode.allowed.includes(a), on => FocusMode.setAllowed(a, on)))
+                    : [read("allowed", "No apps yet", "", "Apps appear here once they have sent a notification.")])
+            ];
+        }
+        if (page === "integrations") {
+            // other apps the shell works with (owner's request, 12 November 2026): each can be switched
+            // off; off, the shell acts as if the app weren't there
+            const has = id => Apps.list.some(a => a.id === id);
+            const one = (id, title, what, installed) => toggle(id, title, installed ? what : "Not installed · " + what, () => ShellSettings.integration(id), on => ShellSettings.setIntegration(id, on));
+            return [
+                group("Calendar and clock", [
+                    toggle("calendar", "GNOME Calendar events", Events.available ? `Dots and the chosen day's events in the month calendar${Events.calendars.length ? ` · ${Events.calendars.length} calendars` : ""}. Read-only.` : "Not installed · events in the month calendar", () => ShellSettings.calendarEvents, ShellSettings.setCalendarEvents),
+                    one("clocks", "GNOME Clocks alarms", "The shell rings Clocks' alarms with its own card; off, Clocks rings them itself while it runs.", Clocks.clocksInstalled)
+                ]),
+                group("Panels", [one("weather", "Weather", "Open-Meteo, above the calendar and on the lock screen.", true)]),
+                group("Launcher", [
+                    one("vscode", "VS Code", "Recent folders and workspaces: type vscode, code or a folder's name.", has("com.microsoft.VSCode") || has("code")),
+                    one("clion", "CLion", "Recent projects: type clion or a project's name.", has("jetbrains-clion")),
+                    one("steam", "Steam games", "Your installed games, with covers, as you type their names.", has("steam")),
+                    one("sober", "Sober (Roblox)", "Among the games.", has("org.vinegarhq.Sober")),
+                    one("cider", "Cider", "m and a song plays from Apple Music; Up next in the media card.", Cider.installed),
+                    one("claude", "Claude Desktop", "claude and a question opens a new chat.", has("com.anthropic.Claude")),
+                    one("qalc", "libqalculate", "Harder maths after = or when the calculator can't read it.", Qalc.found),
+                    one("tldr", "tldr", "tldr and a command shows its examples.", true)
+                ])
+            ];
+        }
         if (page === "lens") return [group("", [action("chats", "Saved chats", "~/lens-chats · snip and Markdown", "Open folder", SettingsHub.openChats)])];
         if (page === "apps") return [group("Open things with", [{id:"terminal",kind:"choice",title:"Terminal",subtitle:()=>"For commands, terminal apps and showoff.", choices:()=>Apps.terminalChoices.map(v=>({value:v,title:Apps.terminalName(v)})),value:()=>Apps.terminal,set:Apps.setTerminal}]), group("Places", [action("weather","Weather location",Weather.placeName,"Change",()=>SettingsHub.beginEdit("weather")), action("wallpapers","Wallpapers",Wallpapers.folder.replace(/^\/home\/[^/]+/,"~"),"Open folder",Wallpapers.openFolder)]), ...(Cider.installed ? [group("Integrations",[action("cider","Cider token",Cider.usable ? "Set · enables Up next and Apple Music search." : "Not set · for Up next and Apple Music search.","Change",()=>SettingsHub.beginEdit("cider"))])] : [])];
         if (page === "localsend" && LocalSend.available) return [group("",[toggle("receive","Receive files",LocalSend.summary,()=>LocalSend.wanted,LocalSend.setReceive)]),group("This device",[action("name","Device name",LocalSend.name,"Change",()=>SettingsHub.beginEdit("name")),action("folder","Save received files to",LocalSend.folderShown,"Change",LocalSend.pickFolder)]),group("Incoming requests",[toggle("known","Accept known devices","Skip asking for devices you have accepted before.",()=>LocalSend.acceptKnown,LocalSend.setAcceptKnown)])];

@@ -11,26 +11,6 @@ import QtQuick
 Singleton {
     id: root
 
-    property bool magnifierOpen
-    property real magnifierZoom: 2
-    property point pointerPosition: Qt.point(0,0)
-    Timer {
-        interval: 40; repeat: true; running: root.magnifierOpen; triggeredOnStart: true
-        onTriggered: if (!cursorProbe.running) cursorProbe.running=true
-    }
-    Process {
-        id:cursorProbe
-        command:["hyprctl","-j","cursorpos"]
-        stdout:StdioCollector { onStreamFinished: { try { const p=JSON.parse(text); root.pointerPosition=Qt.point(p.x,p.y); } catch(e) {} } }
-    }
-    IpcHandler {
-        target:"magnifier"
-        function open(): void { root.magnifierOpen=true; root.magnifierZoom=2; }
-        function close(): void { root.magnifierOpen=false; }
-        function zoom(delta: real): void { if (root.magnifierOpen) root.magnifierZoom=Math.max(1.5,Math.min(6,root.magnifierZoom+delta)); }
-        function status(): string { return JSON.stringify({open:root.magnifierOpen,zoom:root.magnifierZoom,x:root.pointerPosition.x,y:root.pointerPosition.y}); }
-    }
-
     // Window addresses, most recently focused first, from Hyprland's activewindowv2 events. Its own
     // focusHistoryID (lastIpcObject) only moves on a refresh, and a switch made while a layer held the
     // keyboard (Alt+Tab) reached the history only after the event, so the next refresh read it stale.
@@ -240,6 +220,46 @@ Singleton {
         onTriggered: root.styleGroups()
     }
 
+    // Zen mode (FocusMode): gaps and border at 0 while on, then back as they were. Runtime settings
+    // only, never the config files. The values before Zen are kept in Store, read once: Zen again
+    // after a restart (the gaps already 0) keeps the saved ones. Gaps are numbers or
+    // { top, right, bottom, left } tables: Hyprland's Lua refuses the "5 5 5 5" getoption prints.
+    function zenLayout(on: bool) {
+        if (!Hyprland.usingLua)
+            return;
+        if (on && !Store.saved.zenGaps)
+            zenReader.running = true;
+        else if (on)
+            hl(`hl.config({ general = { gaps_in = 0, gaps_out = 0, border_size = 0 } })`);
+        else if (Store.saved.zenGaps) {
+            const g = Store.saved.zenGaps;
+            const gap = v => `{ top = ${v[0]}, right = ${v[1]}, bottom = ${v[2]}, left = ${v[3]} }`;
+            hl(`hl.config({ general = { gaps_in = ${gap(g.gapsIn)}, gaps_out = ${gap(g.gapsOut)}, border_size = ${g.border} } })`);
+            Store.saved.zenGaps = null;
+        }
+    }
+
+    Process {
+        id: zenReader
+        command: ["sh", "-c", "hyprctl getoption general:gaps_in -j; hyprctl getoption general:gaps_out -j; hyprctl getoption general:border_size -j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const parts = text.trim().split(/\n(?=\{)/).map(t => JSON.parse(t));
+                    const css = p => {
+                        const v = String(p.css ?? p.int ?? 0).trim().split(/\s+/).map(Number);
+                        return v.length === 4 ? v : [v[0], v[1] ?? v[0], v[2] ?? v[0], v[3] ?? v[1] ?? v[0]];
+                    };
+                    Store.saved.zenGaps = { gapsIn: css(parts[0]), gapsOut: css(parts[1]), border: parts[2].int ?? 0 };
+                    if (FocusMode.zen)
+                        root.zenLayout(true);
+                } catch (e) {
+                    console.warn("zen layout:", e, text);
+                }
+            }
+        }
+    }
+
     function hl(lua: string) {
         Quickshell.execDetached(["hyprctl", "eval", lua]);
     }
@@ -301,6 +321,7 @@ Singleton {
         workspace: t.workspace?.id ?? 0,
         urgent: t.urgent,
         floating: t.lastIpcObject.floating ?? false,
+        hidden: t.lastIpcObject.hidden ?? false, // a tab of a group that isn't the one showing
         pinned: t.lastIpcObject.pinned ?? false,
         group: (t.lastIpcObject.grouped ?? []).map(a => a.replace(/^0x/, "")), // its tab group's windows, or []
         focused: t.wayland !== null && t.wayland === ToplevelManager.activeToplevel,
@@ -446,6 +467,8 @@ Singleton {
         function onRawEvent(event) {
             if (event.name === "configreloaded") {
                 root.styleGroups();
+                if (FocusMode.zen) // a config reload brings the gaps back
+                    root.zenLayout(true);
                 const settings = root.windows.find(w => w.title === "Pistachio Settings" && w.pid === Quickshell.processId);
                 if (settings) root.styleSettingsWindow(settings.address);
             }

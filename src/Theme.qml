@@ -20,6 +20,7 @@ Singleton {
     readonly property color teal: "#7FC9A8"
     readonly property color lavender: "#AC8ED0"
     readonly property color clay: "#D9975A"
+    readonly property color deep: "#0D0F09" // under bg: the Overview's backdrop tint and workspace cards (Overview boards)
 
     // Frosted panels (owner's request, 31 October 2026): how opaque the bar's and the panels' own
     // background is, 1 unless the Shell setting is on (shell.qml binds it to ShellSettings.frost);

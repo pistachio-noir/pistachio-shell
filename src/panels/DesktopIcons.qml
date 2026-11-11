@@ -195,8 +195,8 @@ Item {
     }
 
     visible: Desktop.enabled && opacity > 0
-    enabled: !Showoff.active
-    opacity: Showoff.active ? 0 : 1
+    enabled: !Showoff.active && !FocusMode.zen
+    opacity: Showoff.active || FocusMode.zen ? 0 : 1 // Zen mode hides them too
 
     Behavior on opacity {
         NumberAnimation {

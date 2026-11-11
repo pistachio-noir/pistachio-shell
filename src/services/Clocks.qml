@@ -13,6 +13,9 @@ Singleton {
     id: root
 
     readonly property bool clocksInstalled: Apps.list.some(a => a.id === "org.gnome.clocks")
+    // its alarms rung by the shell; off in Settings → Integrations, and Clocks rings them itself again
+    readonly property bool enabled: ShellSettings.integration("clocks")
+    onEnabledChanged: run(["list"])
     property var alarms: [] // { id, name, hour, minute, days, active }
     property var timers: [] // { id, label, duration (ms), endsAt (ms, while running), left (ms, while paused) }
     property var stopwatch: null // { since (ms, while running), elapsed (ms before it), laps: [ms] }
@@ -125,7 +128,7 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    root.alarms = JSON.parse(text);
+                    root.alarms = root.enabled ? JSON.parse(text) : [];
                 } catch (e) {
                     console.warn("clocks:", text);
                 }

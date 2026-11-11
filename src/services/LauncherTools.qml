@@ -28,6 +28,7 @@ Singleton {
         { id: "lens", name: "Pistachio Lens", target: ["screenshot", "lens"] },
         { id: "record", name: "Record screen", available:Screenshots.hasRecorder, target: ["screenshot", "record"] },
         { id: "jobs", name: "Background jobs", target: [] },
+        { id: "overview", name: "Overview", target: ["overview", "toggle"] },
         { id: "sound", name: "Sound settings", target: ["settings", "section", "sound"] },
         { id: "network", name: "Network settings", target: ["settings", "section", "network"] }
     ].concat([
@@ -155,6 +156,7 @@ Singleton {
     IpcHandler {
         target:"jobs"
         function open(): void { root.showJobs(); }
+        function close(): void { root.close(); }
         function status(): string { return JSON.stringify(root.jobs); }
         function cancel(id: string): void { root.cancel(id); }
     }

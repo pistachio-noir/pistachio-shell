@@ -57,6 +57,10 @@ wallpaper.set(path: string): void
 wallpaper.toggle(): void
 weather.city(name: string): void
 weather.refresh(): void
+window.minimize(): void
+window.restoreAll(): void
+window.restore(): void
+window.status(): string
 workspace.name(text: string): void
 workspace.preset(name: string): void
 workspace.tabbed(): void

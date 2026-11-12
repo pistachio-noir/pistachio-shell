@@ -38,7 +38,8 @@ PanelWindow {
             return;
         }
         tabsOnly = tabs;
-        let list = Compositor.windows.slice().sort((a, b) => a.recency - b.recency);
+        // minimised windows wait in the bar's pill, not here
+        let list = Compositor.windows.filter(w => !w.minimized).sort((a, b) => a.recency - b.recency);
         if (tabs) {
             const group = list[0]?.group ?? [];
             list = list.filter(w => group.includes(w.address));

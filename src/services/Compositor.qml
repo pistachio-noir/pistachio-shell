@@ -277,6 +277,30 @@ Singleton {
         }
     }
 
+    // For keybinds: qs -c pistachio ipc call window minimize (the focused window), window restore (the
+    // last one minimised), window restoreAll
+    IpcHandler {
+        target: "window"
+
+        function minimize(): void {
+            const w = root.windows.find(w => w.focused && !w.minimized);
+            if (w)
+                root.minimize(w.address);
+        }
+        function restore(): void {
+            const last = root.minimized[root.minimized.length - 1];
+            if (last)
+                root.restore(last.address);
+        }
+        function restoreAll(): void {
+            for (const w of root.minimized)
+                root.sendWindow(w.address, root.activeWorkspace);
+        }
+        function status(): string {
+            return JSON.stringify({ minimized: root.minimized.map(w => ({ address: w.address, appId: w.appId, title: w.title })) });
+        }
+    }
+
     // For keybinds: qs -c pistachio ipc call workspace name "music" (empty clears it), workspace preset Work
     IpcHandler {
         target: "workspace"
@@ -319,6 +343,8 @@ Singleton {
         appId: t.wayland?.appId ?? "",
         pid: t.lastIpcObject.pid ?? -1,
         workspace: t.workspace?.id ?? 0,
+        // in the hidden workspace minimize() sends it to (Quickshell gives special workspaces negative ids)
+        minimized: t.workspace?.name === root.minimizedSpace,
         urgent: t.urgent,
         floating: t.lastIpcObject.floating ?? false,
         hidden: t.lastIpcObject.hidden ?? false, // a tab of a group that isn't the one showing
@@ -382,6 +408,29 @@ Singleton {
 
     function focus(address: string) {
         dispatch(`hl.dsp.focus({ window = "address:0x${address}" })`, `focuswindow address:0x${address}`);
+    }
+
+    // Minimising (owner's request, 12 November 2026): Hyprland has no minimise, so a window goes to a
+    // special workspace the shell never shows; the bar's minimised pill lists them, and a click brings
+    // one back onto the workspace on screen. They stay there across a reload (Hyprland keeps them).
+    readonly property string minimizedSpace: "special:minimized"
+    // in the order they were minimised (those minimised before a reload first), so the pill's icons
+    // don't move about and restore() brings back the latest
+    property var minimizeOrder: []
+    readonly property var minimized: windows.filter(w => w.minimized).sort((a, b) => minimizeOrder.indexOf(a.address) - minimizeOrder.indexOf(b.address))
+
+    function minimize(address: string) {
+        if (!address)
+            return;
+        minimizeOrder = minimizeOrder.filter(a => a !== address && windows.some(w => w.address === a)).concat([address]);
+        dispatch(`hl.dsp.window.move({ workspace = "${minimizedSpace}", follow = false, window = "address:0x${address}" })`, `movetoworkspacesilent ${minimizedSpace},address:0x${address}`);
+    }
+
+    function restore(address: string) {
+        if (!address)
+            return;
+        sendWindow(address, activeWorkspace);
+        focus(address);
     }
 
     function moveWindow(address: string, workspace: int) {

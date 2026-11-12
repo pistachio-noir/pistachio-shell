@@ -17,10 +17,11 @@ PanelWindow {
     // grown by a small margin.
     readonly property int trayGap: 12
     readonly property real mediaSpace: media.visible ? trayGap + media.width : 0
-    readonly property rect zone: Qt.rect((screen.width - width) / 2 - 8 - mediaSpace, screen.height - height - 8, width + 16 + mediaSpace + (tray.visible ? trayGap + tray.width : 0), height + 8)
+    readonly property real rightSpace: (tray.visible ? trayGap + tray.width : 0) + (minimizedPill.visible ? trayGap + minimizedPill.width : 0)
+    readonly property rect zone: Qt.rect((screen.width - width) / 2 - 8 - mediaSpace, screen.height - height - 8, width + 16 + mediaSpace + rightSpace, height + 8)
     readonly property bool overlapped: Compositor.windowBounds.some(r => r.x < zone.x + zone.width && r.x + r.width > zone.x && r.y + r.height > zone.y)
     // the pointer is on the bar or a pill beside it, or a tray menu or the media card is open
-    readonly property bool pointed: hover.hovered || tray.hovered || tray.menuOpen || media.hovered || media.cardOpen
+    readonly property bool pointed: hover.hovered || tray.hovered || tray.menuOpen || media.hovered || media.cardOpen || minimizedPill.hovered
     // A fullscreen window (a game, a video; not a maximized one) has the screen to itself: no reveal
     // strip, so a stray pointer at the bottom edge doesn't bring the bar up over it (owner's request,
     // after phase 8). A panel opened by keybind still shows it.
@@ -30,6 +31,7 @@ PanelWindow {
     // Stays up while pointed (even if a window moves under it), for a moment after, long enough to
     // cross the gap to the tray pill, and while a panel or a tray menu is open.
     property bool overviewOpen // the Overview hides the bar, and the workspace OSD stays quiet
+    property real sessionPillWidth // Zen's session pill, while it shows: the minimised pill sits beside it
     readonly property bool shown: !held && (!fullscreen && (!overlapped || pointed || linger.running || peekTimer.running) || tray.menuOpen || media.cardOpen || quickSettings.open || centre.open || Showoff.active)
 
     // The startup animation (owner's request, after phase 8; shell.qml): as the shell starts, the bar
@@ -58,6 +60,7 @@ PanelWindow {
         : status.hovered ? { lines: status.tooltip, x: centreOf(status) }
         : workspaces.hoveredSlot ? { lines: workspaces.tooltip, x: centreOf(workspaces.hoveredSlot) }
         : tray.tipIcon ? { lines: tray.tipLines, x: tray.tipCentre }
+        : minimizedPill.tipIcon ? { lines: minimizedPill.tipLines, x: minimizedPill.tipCentre }
         : null
 
     function centreOf(item: Item): real {
@@ -476,6 +479,20 @@ PanelWindow {
         anchors.left: true
         margins.left: (screen.width + root.width) / 2 + root.trayGap
         shown: root.shown
+        instant: root.instant
+    }
+
+    // the minimised windows, right of the tray pill (or of the bar, without one) while there are any
+    MinimizedPill {
+        id: minimizedPill
+        anchors.bottom: true
+        anchors.left: true
+        // in Zen, which hides the bar, it stays: right of the session pill, or centred without one
+        // (not over a fullscreen game or video, nor the Overview: the bar's own reasons to stay away)
+        compact: FocusMode.zen && !root.shown && !Compositor.fullscreen && !root.overviewOpen
+        margins.left: compact ? (root.sessionPillWidth > 0 ? (screen.width + root.sessionPillWidth) / 2 + root.trayGap : (screen.width - width) / 2)
+            : (screen.width + root.width) / 2 + root.trayGap + (tray.visible ? tray.width + root.trayGap : 0)
+        shown: root.shown || compact
         instant: root.instant
     }
 

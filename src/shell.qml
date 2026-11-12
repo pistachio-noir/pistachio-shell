@@ -34,6 +34,7 @@ ShellRoot {
     Bar {
         id: bar
         overviewOpen: overview.open
+        sessionPillWidth: sessionPill.visible ? sessionPill.width : 0
         onLauncherRequested: mode => launcher.show(mode)
         onTimerRequested: launcher.askTimer()
         onAlarmRequested: launcher.askAlarm()
@@ -66,7 +67,7 @@ ShellRoot {
     LauncherExtras {}
     RecordingTools {}
     AlarmPopup {} // timers done and Clocks' alarms ringing
-    SessionPill {} // a Pomodoro's time while Zen hides the bar
+    SessionPill { id: sessionPill } // a Pomodoro's time while Zen hides the bar
     PistachioRain {
         id: rain
     }

@@ -415,9 +415,9 @@ PanelWindow {
             key: "window:" + h.item.address,
             title: h.item.title || h.item.appId,
             indices: h.indices,
-            subtitle: h.item.appId + (h.item.recency === 0 ? " · focused" : h.item.urgent ? " · needs attention" : "") + (h.item.floating ? " · floating" : ""),
+            subtitle: h.item.appId + (h.item.minimized ? " · minimised" : h.item.recency === 0 ? " · focused" : h.item.urgent ? " · needs attention" : "") + (h.item.floating ? " · floating" : ""),
             icon: Apps.iconFor(h.item.appId),
-            badge: String(h.item.workspace),
+            badge: h.item.minimized ? "" : String(h.item.workspace), // a minimised one is on no workspace
             badgeActive: h.item.workspace === active,
             address: h.item.address
         }));
@@ -1063,7 +1063,10 @@ PanelWindow {
             Apps.launchAction(row.app, row.action);
             open = false;
         } else if (row.kind === "window") {
-            Compositor.focus(row.address);
+            if (Compositor.windows.find(w => w.address === row.address)?.minimized)
+                Compositor.restore(row.address); // onto the workspace on screen, as the bar's pill does
+            else
+                Compositor.focus(row.address);
             open = false;
         } else if (row.kind === "workspaces") {
             const card = row.cards[col];
@@ -2474,7 +2477,7 @@ PanelWindow {
                                 badgeActive: row.badgeActive ?? false
                                 action: row.kind === "power" ? (row.action.confirm ? `${row.title}…` : row.title)
                                     : row.kind === "appaction" ? "Open"
-                                    : row.kind === "window" ? "Switch"
+                                    : row.kind === "window" ? (row.subtitle.includes(" · minimised") ? "Bring back" : "Switch")
                                     : row.kind === "device" && !current ? "Use"
                                     : row.kind === "emoji" ? "Copy"
                                     : row.kind === "wplink" ? "Open"

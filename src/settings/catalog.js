@@ -79,6 +79,8 @@ var settings = [
     ["apps", "cider", "Cider token", "Integrations", "music apple"],
     ["system", "stats", "CPU, memory and graphics", "System monitor", "gpu temperature ram vram load"],
     ["system", "storage", "Storage and removable drives", "System monitor", "disk eject free space"],
+    ["system", "hyprland", "Hyprland", "System monitor", "compositor cpu memory usage resources"],
+    ["about", "branch", "Branch", "About", "git main experimental stable unstable"],
     ["about", "build", "Build and source code", "About", "version quickshell hyprland qt"],
     ["about", "showoff", "Showoff mode", "About", "screenshot"]
 ];

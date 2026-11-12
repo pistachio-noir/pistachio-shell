@@ -93,6 +93,10 @@ Item {
             height: 40
             sourceSize: Qt.size(80, 80)
             source: Apps.iconFor(root.w?.appId ?? "")
+            // like every other app icon in the shell: loaded here on the main thread while the chips'
+            // copy of the same icon loaded on the image thread, the shell aborted ("pure virtual
+            // method called" in QPixmap::load), at startup or as the Overview opened (12 November)
+            asynchronous: true
             visible: status === Image.Ready
             opacity: 0.5
             z: -1

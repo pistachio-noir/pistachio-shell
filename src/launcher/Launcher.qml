@@ -316,7 +316,7 @@ PanelWindow {
             key: prefix + h.item.id,
             title: h.item.name,
             indices: h.indices,
-            subtitle: LauncherTools.pending[h.item.id] ? "Starting…" : h.item.genericName || h.item.comment,
+            subtitle: LauncherTools.pending[h.item.id] ? "Starting…" : h.program ? [h.program, h.item.genericName || h.item.comment].filter(t => t).join(" · ") : h.item.genericName || h.item.comment,
             icon: Apps.icon(h.item.icon),
             app: h.item
         };
@@ -387,6 +387,16 @@ PanelWindow {
             hits.sort((a, b) => b.score - a.score || a.length - b.length);
         }
         hits = hits.slice(0, limit);
+        // and by the program they run, as typed in a terminal ("baobab" finds Disk Usage Analyzer):
+        // a program named exactly that comes first, one whose name starts with it after the name
+        // matches; the row says which program it is
+        if (q.length >= 2) {
+            const ql = Fuzzy.fold(q).trim();
+            const runs = byName.filter(a => !hits.some(h => h.item === a)).map(a => ({ item: a, indices: [], program: Apps.programOf(a) }))
+                .filter(h => h.program.startsWith(ql) && !Fuzzy.fold(h.item.name).includes(ql));
+            const exact = runs.filter(h => h.program === ql);
+            hits = exact.concat(hits, runs.filter(h => h.program !== ql)).slice(0, limit);
+        }
         // also find apps by what they are ("browser" finds Firefox), below name matches, unhighlighted;
         // this needs the whole query in the description, not scattered letters
         if (q && hits.length < limit) {
@@ -777,6 +787,7 @@ PanelWindow {
         return [section("Pistachio Noir Shell")].concat([
             line("version", "Version", version + (About.changed ? ` · ${About.changed} files changed since` : ""), Icons.sparkles),
             line("commit", "Last change", About.subject || "…", Icons.pencil),
+            line("branch", "Branch", About.branch ? `${About.branch} · ${About.stable ? "stable" : "experimental, may be unstable"}` : "…", About.stable ? Icons.shieldCheck : Icons.flask),
             line("quickshell", "Quickshell", About.quickshell || "…", Icons.layers),
             line("hyprland", "Hyprland", About.hyprland || "…", Icons.monitor),
             line("qt", "Qt", About.qt || "…", Icons.cpu),

@@ -4,13 +4,14 @@
 # an agent, so this runs it with --session (on the session bus, without BlueZ) and asks it with gdbus.
 # Touches no Bluetooth state; can run while the shell runs.
 set -euo pipefail
-AGENT="$(cd "$(dirname "$0")/.." && pwd)/src/services/bluetooth-agent.py"
+# HELPER="<command>" tests another build of the agent (default: the one the shell runs).
+HELPER=${HELPER:-$HOME/.local/bin/pistachio-devices bluetooth}
 DEVICE=/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF
 TMP=$(mktemp -d)
 trap 'kill "$PID" 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
 mkfifo "$TMP/in"
-python3 -I "$AGENT" --session < "$TMP/in" > "$TMP/out" 2> "$TMP/err" &
+$HELPER --session < "$TMP/in" > "$TMP/out" 2> "$TMP/err" &
 PID=$!
 exec 3> "$TMP/in"
 
@@ -83,10 +84,12 @@ check_line 9 "m['kind'] == 'display-passkey' and m['code'] == '000007' and m['en
 ask AuthorizeService "$DEVICE" 0000110b-0000-1000-8000-00805f9b34fb
 check_line 10 "m['kind'] == 'service' and m['uuid'].startswith('0000110b') and m['id'] == 7" "service use asked"
 answer 'not json'
-answer '{"id": 99, "accept": true}'
+answer '{"id": 99, "accept": true, "value": "4711-must-not-be-logged"}'
 answer '{"id": 7, "accept": true}'
 check_reply "()" "service allowed, after ignoring a garbled and an unknown answer"
 grep -q "ignored answer" "$TMP/err" || { echo "FAIL: bad answers not logged"; exit 1; }
+! grep -q "4711" "$TMP/err" || { echo "FAIL: a PIN reached the log"; exit 1; }
+echo "ok: an answer nobody waits for is logged without its code"
 
 exec 3>&-
 for _ in $(seq 20); do kill -0 "$PID" 2>/dev/null || break; sleep 0.1; done

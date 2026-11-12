@@ -85,7 +85,7 @@ Singleton {
             display: { separator: "  ", color: { keys: color(Theme.pistachio), title: color(Theme.textBright) }, key: { width: 13 } },
             modules: [
                 { type: "custom", format: "pistachio noir", outputColor: color(Theme.pistachio) },
-                { type: "custom", format: "a quickshell rice for hyprland", outputColor: color(Theme.subtext) },
+                { type: "custom", format: "a shell for hyprland", outputColor: color(Theme.subtext) },
                 "break",
                 row("os", 0xF303, "os"),
                 row("kernel", 0xF033D, "kernel"),

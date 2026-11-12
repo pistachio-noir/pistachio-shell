@@ -56,7 +56,22 @@ Column {
     Row {
         width: parent.width; height: 82; spacing: 16; visible: root.page === "about"
         Rectangle { width:60;height:60;radius:30;color:Theme.overlay;Icon{anchors.centerIn:parent;size:28;paths:Icons.sliders;color:Theme.clay} }
-        Column { anchors.verticalCenter:parent.verticalCenter;spacing:4;SettingsText{text:"Pistachio Noir Shell";font.pixelSize:17;font.weight:Font.ExtraBold}SettingsText{text:"Quickshell for Hyprland.";secondary:true} }
+        Column { anchors.verticalCenter:parent.verticalCenter;spacing:4;SettingsText{text:"Pistachio Shell";font.pixelSize:17;font.weight:Font.ExtraBold}SettingsText{text:"A shell for Hyprland.";secondary:true} }
+        // the branch it runs from: main is stable, any other may not be (owner's request, 12 November 2026)
+        Rectangle {
+            objectName: "setting-branch-chip"
+            visible: About.branch !== ""
+            anchors.verticalCenter: parent.verticalCenter
+            height: 40; radius: 20; color: Theme.overlay
+            width: branchRow.implicitWidth + 32
+            Row {
+                id: branchRow
+                anchors.centerIn: parent; spacing: 10
+                Icon { anchors.verticalCenter: parent.verticalCenter; size: 18; paths: About.stable ? Icons.shieldCheck : Icons.flask; color: About.stable ? Theme.teal : Theme.gold }
+                SettingsText { anchors.verticalCenter: parent.verticalCenter; text: About.branch; font.weight: Font.ExtraBold }
+                SettingsText { anchors.verticalCenter: parent.verticalCenter; text: About.stable ? "stable" : "may be unstable"; secondary: true }
+            }
+        }
     }
     Row {
         visible: root.page === "sound"; spacing: 4
@@ -105,7 +120,11 @@ Column {
     function group(title, rows) { return { title: title, rows: rows }; }
     function toggle(id, title, subtitle, get, set) { return { id: id, kind: "toggle", title: title, subtitle: () => subtitle, checked: get, toggle: () => set(!get()) }; }
     function action(id, title, subtitle, button, run) { return { id: id, kind: "action", title: title, subtitle: () => subtitle, button: button, run: run }; }
-    function read(id, title, value, subtitle) { return { id: id, title: title, value: () => value, subtitle: () => subtitle || "" }; }
+    // value and subtitle may be functions, read live by the row: a page whose readings change (System
+    // monitor) must not rebuild its groups for it, or they're made anew and rise in again each time
+    // "1.2% · 620 MB" for a share of the CPU (0–1, -1 while unknown) and memory in MB
+    function usage(cpu, mb) { return `${cpu < 0 ? "—" : (cpu*100).toFixed(1)+"%"} · ${Math.round(mb)} MB`; }
+    function read(id, title, value, subtitle) { return { id: id, title: title, value: typeof value === "function" ? value : () => value, subtitle: typeof subtitle === "function" ? subtitle : () => subtitle || "" }; }
     function time(id, title, get, set) { return { id: id, kind: "time", title: title, value: get, set: set }; }
     function buildGroups() {
         if (page === "appearance") return [
@@ -191,8 +210,9 @@ Column {
         if (page === "lens") return [group("", [action("chats", "Saved chats", "~/lens-chats · snip and Markdown", "Open folder", SettingsHub.openChats)])];
         if (page === "apps") return [group("Open things with", [{id:"terminal",kind:"choice",title:"Terminal",subtitle:()=>"For commands, terminal apps and showoff.", choices:()=>Apps.terminalChoices.map(v=>({value:v,title:Apps.terminalName(v)})),value:()=>Apps.terminal,set:Apps.setTerminal}]), group("Places", [action("weather","Weather location",Weather.placeName,"Change",()=>SettingsHub.beginEdit("weather")), action("wallpapers","Wallpapers",Wallpapers.folder.replace(/^\/home\/[^/]+/,"~"),"Open folder",Wallpapers.openFolder)]), ...(Cider.installed ? [group("Integrations",[action("cider","Cider token",Cider.usable ? "Set · enables Up next and Apple Music search." : "Not set · for Up next and Apple Music search.","Change",()=>SettingsHub.beginEdit("cider"))])] : [])];
         if (page === "localsend" && LocalSend.available) return [group("",[toggle("receive","Receive files",LocalSend.summary,()=>LocalSend.wanted,LocalSend.setReceive)]),group("This device",[action("name","Device name",LocalSend.name,"Change",()=>SettingsHub.beginEdit("name")),action("folder","Save received files to",LocalSend.folderShown,"Change",LocalSend.pickFolder)]),group("Incoming requests",[toggle("known","Accept known devices","Skip asking for devices you have accepted before.",()=>LocalSend.acceptKnown,LocalSend.setAcceptKnown)])];
-        if (page === "system") return [group("Storage",SystemStats.disks.map(d=>read("storage",d.mount === "/" ? "System disk" : "Home",`${SystemStats.gigabytes(d.free)} free of ${SystemStats.gigabytes(d.size)}`,d.mount))),group("Shell",[read("shell","Pistachio Noir",`${SystemStats.shellCpu < 0 ? "—" : (SystemStats.shellCpu*100).toFixed(1)+"%"} · ${Math.round(SystemStats.shellMem)} MB`,"CPU and memory, including its helpers.")]),group("Removable drives",Drives.mounted.map(d=>action("drive:"+d.path,d.name,`${d.mountpoint} · ${d.size}`,"Eject",()=>Drives.eject(d))))];
-        if (page === "about") return [group("",[read("build","Build",About.commit || "Reading…",[About.date,About.subject,About.changed ? `${About.changed} changed files` : ""].filter(Boolean).join(" · ")),read("quickshell","Quickshell",About.quickshell || "—"),read("hyprland","Hyprland",About.hyprland || "—"),read("qt","Qt",About.qt || "—"),action("source","Source code","The shell and its design boards.","View source",SettingsHub.openSource)]),group("",[action("showoff","Showoff mode","Arrange the desktop for a setup screenshot.","Start showoff",()=>SettingsHub.showoffRequested())])];
+        // only which disks there are shapes the page; the readings are read by the rows themselves
+        if (page === "system") return [group("Storage",SystemStats.diskMounts.map(m=>read("storage",m === "/" ? "System disk" : "Home",()=>{ const d=SystemStats.disks.find(x=>x.mount===m); return d ? `${SystemStats.gigabytes(d.free)} free of ${SystemStats.gigabytes(d.size)}` : "—"; },m))),group("Shell",[read("shell","Pistachio Noir",()=>root.usage(SystemStats.shellCpu,SystemStats.shellMem),"CPU and memory, including its helpers."),read("hyprland","Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.hyprCpu,SystemStats.hyprMem) : "—","The compositor."),read("desktop","Shell and Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.shellCpu < 0 || SystemStats.hyprCpu < 0 ? -1 : SystemStats.shellCpu+SystemStats.hyprCpu,SystemStats.shellMem+SystemStats.hyprMem) : "—","Both together.")]),group("Removable drives",Drives.mounted.map(d=>action("drive:"+d.path,d.name,`${d.mountpoint} · ${d.size}`,"Eject",()=>Drives.eject(d))))];
+        if (page === "about") return [group("",[read("branch","Branch",About.branch || "—",About.branch ? (About.stable ? "Stable: the shell's main line" : "Experimental: may be unstable; main is the stable one") : ""),read("build","Build",About.commit || "Reading…",[About.date,About.subject,About.changed ? `${About.changed} changed files` : ""].filter(Boolean).join(" · ")),read("quickshell","Quickshell",About.quickshell || "—"),read("hyprland","Hyprland",About.hyprland || "—"),read("qt","Qt",About.qt || "—"),action("source","Source code","The shell and its design boards.","View source",SettingsHub.openSource)]),group("",[action("showoff","Showoff mode","Arrange the desktop for a setup screenshot.","Start showoff",()=>SettingsHub.showoffRequested())])];
         return [];
     }
 }

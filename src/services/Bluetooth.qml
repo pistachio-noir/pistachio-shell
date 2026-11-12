@@ -174,13 +174,13 @@ Singleton {
     }
 
     // ---- pairing agent -------------------------------------------------------------------------
-    // Quickshell has none, so services/bluetooth-agent.py registers one with BlueZ and passes its
+    // Quickshell has none, so the shell's own (pistachio-devices bluetooth, built from rust/devices) registers one with BlueZ and passes its
     // questions here. BlueZ asks one at a time; the launcher shows it (and opens for it).
 
     readonly property bool agent: agentReady && agentProcess.running // registered as BlueZ's default agent
     property bool agentReady
     // the question waiting for an answer, or null: { id, kind, path, code, entered, uuid }; kinds
-    // as in bluetooth-agent.py. Display kinds (a code to type on the device) need no answer: id 0.
+    // as in rust/devices/src/bluetooth.rs. Display kinds (a code to type on the device) need no answer: id 0.
     property var request: null
     readonly property var requestDevice: request ? devices.find(d => d.dbusPath === request.path) ?? null : null
     // the device's name, or its address while Quickshell hasn't listed it yet
@@ -262,7 +262,7 @@ Singleton {
     Process {
         id: agentProcess
         running: !!Bz.Bluetooth.defaultAdapter
-        command: ["python3", "-I", Quickshell.shellPath("services/bluetooth-agent.py")]
+        command: [Quickshell.env("HOME") + "/.local/bin/pistachio-devices", "bluetooth"]
         stdinEnabled: true
         stdout: SplitParser {
             onRead: data => root.heard(data)
@@ -272,7 +272,7 @@ Singleton {
         }
         onExited: code => {
             if (code !== 0 && !root.agentReady)
-                console.warn("bluetooth agent exited with code", code, "before registering (is python-gobject installed?)");
+                console.warn("bluetooth agent exited with code", code, "before registering (run install.sh to build it)");
             root.agentReady = false;
             root.request = null;
         }

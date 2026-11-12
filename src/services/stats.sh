@@ -6,7 +6,8 @@
 #   temp <the CPU package temperature in millidegrees>        (coretemp, k10temp or zenpower)
 #   gpu <name>, <load %>, <°C>, <MiB used>, <MiB total>      (an NVIDIA card, through nvidia-smi)
 #   shell <CPU ticks> <memory in KiB> <cores>                 (the shell, this script's parent, and its
-#                                                             helpers: agents, localsend.py)
+#                                                             helpers: the agents and LocalSend, from rust/)
+#   hypr <CPU ticks> <memory in KiB>                          (Hyprland, the compositor; none when it isn't found)
 #   disk <device> <KiB in all> <KiB free> <mount point>     (for / and /home; the same device twice
 #                                                             when /home is on the root filesystem)
 head -n 1 /proc/stat | sed 's/^/stat /'
@@ -33,4 +34,9 @@ for p in $PPID $(cat /proc/$PPID/task/*/children 2>/dev/null); do
     rss=$((rss + $(awk '/^VmRSS:/ { print $2 }' "/proc/$p/status" 2>/dev/null || echo 0)))
 done
 echo "shell $ticks $rss $(nproc)"
+hypr=$(pidof -s Hyprland || pidof -s hyprland)
+if [ -n "$hypr" ] && [ -r "/proc/$hypr/stat" ]; then
+    set -- $(sed 's/^.*) //' "/proc/$hypr/stat")
+    echo "hypr $((${12} + ${13})) $(awk '/^VmRSS:/ { print $2 }' "/proc/$hypr/status")"
+fi
 df -P -k / /home 2>/dev/null | awk 'NR > 1 { print "disk", $1, $2, $4, $6 }'

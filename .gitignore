@@ -2,5 +2,7 @@
 /todos/
 /pistachio-shell.zip
 /.superpowers/
-/archive/
+/.archive/
 /CLAUDE-HANDOFF.md
+/rust/target/
+/.backup/

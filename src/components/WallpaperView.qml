@@ -10,15 +10,24 @@ Item {
 
     property string path // "" fades to nothing
     property int fadeDuration: Theme.growDuration
+    // The size to decode pictures at, in device pixels (the screen's): a 3840 × 2160 picture on a
+    // 1920 × 1080 screen otherwise sits in memory four times as large as anything it can show
+    // (measured 12 November: about 50 MiB for the desktop alone). Only for the fits that scale the
+    // picture ("fill" and "fit"); "center" and "tile" need its own size. Unset: never scaled.
+    property size loadSize
     property var layers: [] // the pictures, bottom first
     property bool ready // the first picture is made once, as it's created
-    // the newest picture's own size (it isn't scaled when loaded), once it's in
+    // the newest picture's own size, once it's in (only without a loadSize, as in the switcher's preview)
     readonly property size imageSize: layers.length > 0 ? layers[layers.length - 1].sourceSize : Qt.size(0, 0)
 
     signal faded(string path) // a picture has fully faded in
 
     function fillMode(fit: string): int {
         return fit === "fit" ? Image.PreserveAspectFit : fit === "center" ? Image.Pad : fit === "tile" ? Image.Tile : Image.PreserveAspectCrop;
+    }
+
+    function scales(fit: string): bool {
+        return fit !== "center" && fit !== "tile";
     }
 
     function covered(top) {
@@ -53,6 +62,7 @@ Item {
             anchors.fill: parent
             source: path ? `file://${path}` : ""
             fillMode: root.fillMode(Wallpapers.fitOf(path))
+            sourceSize: root.loadSize.width > 0 && root.scales(Wallpapers.fitOf(path)) ? root.loadSize : undefined
             asynchronous: true
             opacity: 0
             onStatusChanged: appear()

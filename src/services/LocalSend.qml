@@ -6,7 +6,7 @@ import Quickshell.Io
 import QtQuick
 
 // LocalSend (owner's request, 2 November 2026; boards design/*localsend*.html): the shell is a LocalSend
-// device itself, through services/localsend.py, which speaks the protocol. All of it exists only while
+// device itself, through pistachio-localsend (built from rust/localsend), which speaks the protocol. All of it exists only while
 // the LocalSend app is installed (owner's call); the app itself mustn't run meanwhile, as both need the
 // port. Receiving is off until switched on, and remembered.
 Singleton {
@@ -309,7 +309,7 @@ Singleton {
     Process {
         id: helper
         running: root.available
-        command: ["setpriv", "--pdeathsig", "TERM", "python3", "-I", Quickshell.shellPath("services/localsend.py")]
+        command: [Quickshell.env("HOME") + "/.local/bin/pistachio-localsend"] // it ends itself when the shell dies
         stdinEnabled: true
         stdout: SplitParser {
             onRead: data => root.heard(data)

@@ -69,6 +69,7 @@ PanelWindow {
         id: view
         anchors.fill: parent
         path: Wallpapers.current
+        loadSize: Qt.size(root.screen.width * root.screen.devicePixelRatio, root.screen.height * root.screen.devicePixelRatio)
         fadeDuration: root.intro ? Theme.introDuration : Theme.growDuration
         onFaded: path => {
             if (path)

@@ -1,0 +1,13 @@
+[package]
+name = "pistachio-localsend"
+description = "The shell as a LocalSend device: finds devices, receives and sends files"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[dependencies]
+pistachio-lines.workspace = true
+serde_json.workspace = true
+libc.workspace = true
+# the system's OpenSSL, which the certificate is made with already
+openssl = "0.10"

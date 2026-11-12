@@ -21,6 +21,11 @@ Singleton {
     property real shellCpu: -1
     property real shellMem
     property var lastShell: null // [ticks, ms]
+    // Hyprland, the same way (owner's request, 12 November 2026); hyprMem 0 while it isn't found
+    property real hyprCpu: -1
+    property real hyprMem
+    property var lastHypr: null
+    property int cores: 1
     property real memTotal
     property bool gpuFound
     property string gpuName // e.g. "GeForce GTX 1660"
@@ -66,6 +71,13 @@ Singleton {
                     shellCpu = Math.min(1, (ticks - lastShell[0]) / 100 / ((now - lastShell[1]) / 1000) / Math.max(1, Number(f[3])));
                 lastShell = [ticks, now];
                 shellMem = Number(f[2]) / 1024;
+                cores = Math.max(1, Number(f[3]));
+            } else if (f[0] === "hypr") {
+                const ticks = Number(f[1]), now = Date.now();
+                if (lastHypr && now > lastHypr[1])
+                    hyprCpu = Math.min(1, (ticks - lastHypr[0]) / 100 / ((now - lastHypr[1]) / 1000) / cores);
+                lastHypr = [ticks, now];
+                hyprMem = Number(f[2]) / 1024;
             } else if (f[0] === "mem") {
                 memTotal = Number(f[1]) / 1048576;
                 memUsed = (Number(f[1]) - Number(f[2])) / 1048576;

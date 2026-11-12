@@ -1,0 +1,62 @@
+bar.peek(): void
+brightness.down(): void
+brightness.up(): void
+clocks.stop(): void
+clocks.stopwatch(): void
+clocks.timer(text: string): void
+desktop.off(): void
+desktop.on(): void
+desktop.toggle(): void
+jobs.cancel(id: string): void
+jobs.close(): void
+jobs.open(): void
+jobs.status(): string
+launcher.apps(): void
+launcher.bluetooth(): void
+launcher.open(mode: string): void
+launcher.search(mode: string, text: string): void
+launcher.system(): void
+launcher.toggle(): void
+launcher.windows(): void
+launcher.workspaces(): void
+localsend.add(path: string): void
+localsend.open(): void
+lock.lock(): void
+notifications.toggleDnd(): void
+notifications.toggle(): void
+overview.close(): void
+overview.open(): void
+overview.status(): string
+overview.toggle(): void
+power.toggle(): void
+quicksettings.mixer(): void
+quicksettings.toggle(): void
+screenshot.cancel(): void
+screenshot.colour(): void
+screenshot.lens(): void
+screenshot.menu(): void
+screenshot.pause(): void
+screenshot.record(): void
+screenshot.region(): void
+screenshot.text(): void
+settings.close(): void
+settings.open(): void
+settings.search(text: string): void
+settings.section(name: string): void
+settings.status(): string
+settings.toggle(): void
+showoff.toggle(): void
+switcher.cancel(): void
+switcher.commit(): void
+switcher.next(): void
+switcher.prev(): void
+switcher.tabsPrev(): void
+switcher.tabs(): void
+wallpaper.random(): void
+wallpaper.set(path: string): void
+wallpaper.toggle(): void
+weather.city(name: string): void
+weather.refresh(): void
+workspace.name(text: string): void
+workspace.preset(name: string): void
+workspace.tabbed(): void

@@ -4,13 +4,14 @@
 # polkitd may call the real agent, so this runs it with --session (on the session bus, where it never
 # starts PAM) and plays polkit with gdbus. Never asks for a password, so it costs no pam_faillock
 # strike; can run while the shell runs.
+# HELPER="<command>" tests another build of the agent (default: the one the shell runs).
 set -euo pipefail
-AGENT="$(cd "$(dirname "$0")/.." && pwd)/src/services/polkit-agent.py"
+HELPER=${HELPER:-$HOME/.local/bin/pistachio-auth}
 TMP=$(mktemp -d)
 trap 'kill "$PID" "$SLEEPER" 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
 mkfifo "$TMP/in"
-python3 -I "$AGENT" --session < "$TMP/in" > "$TMP/out" 2> "$TMP/err" &
+$HELPER --session < "$TMP/in" > "$TMP/out" 2> "$TMP/err" &
 PID=$!
 exec 3> "$TMP/in"
 # the app asking: a name longer than the 15 characters the kernel keeps in comm
@@ -75,9 +76,15 @@ begin c3 "[('unix-user', {'uid': <uint32 0>})]"
 check_line 6 "m['cookie'] == 'c3' and m['user'] == 'root'" "another user when polkit names only that one"
 answer 'not json'
 answer '{"cookie": "nope", "cancel": true}'
+answer '{"cookie": "nope", "response": "hunter2-must-not-be-logged"}'
+answer '{"cookie": "c3"}'
 answer '{"cookie": "c3", "cancel": true}'
 check_reply "org.freedesktop.PolicyKit1.Error.Cancelled" "dismissed, after ignoring a garbled and an unknown answer"
 grep -q "ignored answer" "$TMP/err" || { echo "FAIL: bad answers not logged"; exit 1; }
+! grep -q "hunter2" "$TMP/err" "$TMP/out" || { echo "FAIL: a password reached the log"; exit 1; }
+echo "ok: an answer nobody waits for is logged without its password"
+[ "$(wc -l < "$TMP/out")" -eq 6 ] || { echo "FAIL: an answer without a response did something"; exit 1; }
+echo "ok: an answer without a response starts nothing"
 
 begin c4 "[('unix-group', {'gid': <uint32 998>})]"
 check_reply "No user to authenticate as" "no user named: refused, nothing asked"
@@ -87,5 +94,31 @@ exec 3>&-
 for _ in $(seq 20); do kill -0 "$PID" 2>/dev/null || break; sleep 0.1; done
 ! kill -0 "$PID" 2>/dev/null || { echo "FAIL: agent still running after stdin closed"; exit 1; }
 echo "ok: agent exits when the shell goes"
+
+# polkitd going away and coming back: a second agent watches a stand-in name on the session bus
+own_name() { # holds the stand-in name until killed
+    python3 -I -c "
+from gi.repository import Gio, GLib
+Gio.bus_own_name(Gio.BusType.SESSION, 'org.pistachio.TestPolkit', Gio.BusNameOwnerFlags.NONE, None, None, None)
+GLib.MainLoop().run()" &
+    OWNER=$!
+}
+: > "$TMP/out"
+mkfifo "$TMP/in2"
+$HELPER --session --watch org.pistachio.TestPolkit < "$TMP/in2" >> "$TMP/out" 2>> "$TMP/err" &
+PID=$!
+exec 3> "$TMP/in2"
+NAME=$(line 1 | python3 -I -c "import json, sys; print(json.load(sys.stdin)['name'])")
+own_name
+check_line 2 "m == {'event': 'ready'}" "polkit appearing: registered"
+begin c5 "$ME"
+check_line 3 "m['cookie'] == 'c5'" "a request while polkit runs"
+kill "$OWNER"
+check_line 4 "m == {'event': 'lost'}" "polkit going away is told to the shell"
+check_reply "The agent went away" "and the open request is ended"
+own_name
+check_line 5 "m == {'event': 'ready'}" "polkit coming back: registered again"
+kill "$OWNER"
+exec 3>&-
 
 echo "all passed"

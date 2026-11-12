@@ -60,7 +60,7 @@ DEPENDENCIES = [
     ('slurp','Region selection','Optional'), ('gpu-screen-recorder','Recording','Optional'),
     ('ffmpeg','Recording trim','Optional'), ('pw-record','Microphone check','Optional'),
     ('pw-play','Audio playback','Optional'), ('nmcli','Ethernet details','Optional'),
-    ('udisksctl','Drive eject','Optional'), ('udiskie','Drive automount','Optional'),
+    ('udisksctl','Drive eject','Optional'),
     ('hyprsunset','Night light','Optional'), ('ddcutil','Display brightness','Optional'),
     ('pdftoppm','PDF preview','Optional'), ('claude','Claude Code','Optional'),
     ('codex','Codex','Optional')]
@@ -76,9 +76,12 @@ def health(auth=False, pid=None):
     rows = [dict(id=tool, title=title, detail=kind, status='Installed' if shutil.which(tool) else 'Missing') for tool,title,kind in DEPENDENCIES]
     if pid is not None: rows.insert(0,shell_errors(pid))
     rows.insert(0,dict(id='shell',title='Shell',detail='Settings service active',status='Running'))
-    for filename,title in [('lens.py','Lens helper'),('localsend.py','LocalSend helper'),('bluetooth-agent.py','Bluetooth agent'),('polkit-agent.py','Polkit agent'),('mic-check.py','Microphone helper')]:
+    for filename,title in [('lens.py','Lens helper'),('mic-check.py','Microphone helper')]:
         rows.append(dict(id=filename,title=title,detail='Installed helper source',status='Present' if Path(__file__).with_name(filename).is_file() else 'Missing'))
-    rows.append(dict(id='python-gi',title='Python D-Bus / GLib',detail='Required by authentication agents',status='Installed' if importlib.util.find_spec('gi') else 'Missing'))
+    # the helpers install.sh builds from rust/ into ~/.local/bin
+    for binary,title in [('pistachio-auth','Polkit agent'),('pistachio-devices','Bluetooth agent and drive automount'),('pistachio-localsend','LocalSend helper')]:
+        rows.append(dict(id=binary,title=title,detail='Built by install.sh',status='Present' if os.access(Path.home()/'.local/bin'/binary, os.X_OK) else 'Missing'))
+    rows.append(dict(id='python-gi',title='Python D-Bus / GLib',detail='Required by the launcher and calendar helpers',status='Installed' if importlib.util.find_spec('gi') else 'Missing'))
     for tool, args in [('claude',['auth','status','--json']), ('codex',['login','status'])]:
         status = 'Not checked'
         if not shutil.which(tool): status = 'Not installed'

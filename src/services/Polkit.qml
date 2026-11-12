@@ -6,7 +6,7 @@ import QtQuick
 
 // The polkit agent: apps asking for admin rights (pkexec, GParted, an app managing system services).
 // Quickshell's own agent starts PAM as soon as a request comes in, so even Cancel counted as a failed
-// login for pam_faillock; services/polkit-agent.py starts it only when a password is submitted, and
+// login for pam_faillock; the shell's own agent (pistachio-auth, built from rust/auth) starts it only when a password is submitted, and
 // also tells which app asked. Requests queue; the dialog shows the oldest.
 Singleton {
     id: root
@@ -91,7 +91,7 @@ Singleton {
     Process {
         id: agentProcess
         running: true
-        command: ["python3", "-I", Quickshell.shellPath("services/polkit-agent.py")]
+        command: [Quickshell.env("HOME") + "/.local/bin/pistachio-auth"]
         stdinEnabled: true
         stdout: SplitParser {
             onRead: data => root.heard(data)
@@ -101,7 +101,7 @@ Singleton {
         }
         onExited: code => {
             if (code !== 0 && !root.agentReady)
-                console.warn("polkit agent exited with code", code, "before registering (is python-gobject installed?)");
+                console.warn("polkit agent exited with code", code, "before registering (run install.sh to build it)");
             root.agentReady = false;
             root.forget();
         }

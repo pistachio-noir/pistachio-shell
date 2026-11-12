@@ -4,11 +4,14 @@
 # and a folder accepted, a request declined, a text message, a request the sender cancels, and sending
 # to a device that doesn't receive. Touches nothing outside a temporary folder; can run while the shell
 # runs (the shell's own helper may show up as a third device, which the checks ignore).
+# HELPER_A and HELPER_B: the command for each copy (default: the one the shell runs), so two builds
+# can be tested against each other.
 set -euo pipefail
-exec python3 -I - "$(cd "$(dirname "$0")/.." && pwd)/src/services/localsend.py" <<'PYEND'
-import json, os, queue, subprocess, sys, tempfile, threading, time
+exec python3 -I - <<'PYEND'
+import json, os, queue, shlex, subprocess, sys, tempfile, threading, time
 
-HELPER = sys.argv[1]
+DEFAULT = os.path.expanduser("~/.local/bin/pistachio-localsend")
+HELPERS = {"test-a": os.environ.get("HELPER_A", DEFAULT), "test-b": os.environ.get("HELPER_B", DEFAULT)}
 tmp = tempfile.mkdtemp()
 
 
@@ -16,7 +19,7 @@ class Peer:
     def __init__(self, name, port):
         self.name, self.folder, self.events = name, os.path.join(tmp, name + "-in"), queue.Queue()
         os.makedirs(self.folder)
-        self.p = subprocess.Popen(["python3", "-I", HELPER, "--port", str(port), "--data", os.path.join(tmp, name + "-data")],
+        self.p = subprocess.Popen(shlex.split(HELPERS[name]) + ["--port", str(port), "--data", os.path.join(tmp, name + "-data")],
                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=sys.stderr, text=True)
         threading.Thread(target=self.read, daemon=True).start()
         self.fingerprint = self.wait("ready")["fingerprint"]
@@ -101,6 +104,109 @@ a.cmd(cmd="cancelSend")
 a.wait("send", lambda m: m["state"] == "cancelled")
 b.wait("requestGone")
 ok("cancelled while asking: b's question goes")
+
+# a device that doesn't play fair, straight at b's server
+import http.client, ssl, urllib.parse
+loose = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+loose.check_hostname, loose.verify_mode = False, ssl.CERT_NONE
+API = "/api/localsend/v2"
+
+
+def raw():
+    return http.client.HTTPSConnection("127.0.0.1", 53319, timeout=10, context=loose)
+
+
+def post(path, body=None, **query):
+    c = raw()
+    c.request("POST", API + path + ("?" + urllib.parse.urlencode(query) if query else ""), body=json.dumps(body) if body is not None else b"",
+              headers={"Content-Type": "application/json"})
+    r = c.getresponse()
+    data = r.read()
+    c.close()
+    return r.status, data
+
+
+def offer(*names):
+    info = {"alias": "stranger", "version": "2.1", "deviceModel": "Test", "deviceType": "desktop", "fingerprint": "F" * 64, "port": 53320, "protocol": "https"}
+    files = {f"id{i}": {"id": f"id{i}", "fileName": name, "size": 1000, "fileType": "application/octet-stream"} for i, name in enumerate(names)}
+    return {"info": info, "files": files}
+
+
+answers = queue.Queue()
+threading.Thread(target=lambda: answers.put(post("/prepare-upload", offer("../../escape.bin", "second.bin"))), daemon=True).start()
+r = b.wait("request", lambda m: m["from"]["alias"] == "stranger")
+assert [f["name"] for f in r["files"]] == ["../../escape.bin", "second.bin"], r
+assert post("/prepare-upload", offer("other.bin"))[0] == 409
+ok("a second sender is told b is busy")
+b.cmd(cmd="answer", session=r["session"], accept=True)
+status, data = answers.get(timeout=10)
+tokens = json.loads(data)["files"]
+assert status == 200 and set(tokens) == {"id0", "id1"}, (status, data)
+
+c = raw()
+c.request("POST", API + "/upload?" + urllib.parse.urlencode({"sessionId": r["session"], "fileId": "id0", "token": "wrong"}), body=b"x" * 1000)
+assert c.getresponse().status == 403
+c.close()
+assert post("/upload", sessionId="wrong", fileId="id0", token=tokens["id0"])[0] == 403
+ok("a wrong token or session is refused")
+
+c = raw()
+c.request("POST", API + "/upload?" + urllib.parse.urlencode({"sessionId": r["session"], "fileId": "id0", "token": tokens["id0"]}), body=b"e" * 1000)
+assert c.getresponse().status == 200
+c.close()
+assert open(os.path.join(b.folder, "escape.bin"), "rb").read() == b"e" * 1000
+assert not os.path.exists(os.path.join(tmp, "escape.bin")) and not os.path.exists(os.path.join(os.path.dirname(tmp), "escape.bin"))
+ok("a name with ../ lands inside the folder")
+assert post("/upload", sessionId=r["session"], fileId="id0", token=tokens["id0"])[0] == 403
+ok("a file can't be sent twice")
+
+c = raw()
+c.putrequest("POST", API + "/upload?" + urllib.parse.urlencode({"sessionId": r["session"], "fileId": "id1", "token": tokens["id1"]}))
+c.putheader("Content-Length", "1000")
+c.endheaders()
+c.send(b"h" * 100)
+time.sleep(0.3)
+c.sock.shutdown(2)
+c.close()
+lost = b.wait("receiveFailed")
+assert lost["reason"] == "lost" and lost["from"]["alias"] == "stranger", lost
+time.sleep(0.2)
+left = [n for _, _, names in os.walk(b.folder) for n in names if n.endswith(".part") or n.startswith("second")]
+assert not left, left
+ok("a sender that vanishes mid-file: told as lost, no half file kept")
+
+threading.Thread(target=lambda: answers.put(post("/prepare-upload", offer("again.bin"))), daemon=True).start()
+r = b.wait("request", lambda m: m["from"]["alias"] == "stranger")
+b.cmd(cmd="answer", session=r["session"], accept=False)
+assert answers.get(timeout=10)[0] == 403
+ok("and b takes requests again afterwards")
+
+assert post("/prepare-upload", {"info": "nonsense", "files": 3})[0] == 400
+assert post("/prepare-upload", offer())[0] == 400
+assert post("/nowhere")[0] == 404
+c = raw()
+c.request("GET", API + "/info")
+assert json.loads(c.getresponse().read())["alias"] == "test-b"
+c.close()
+ok("garbled requests are answered 400, unknown ones 404, info is given")
+
+import socket
+idle = []
+for _ in range(100):  # connections that never say anything
+    try:
+        idle.append(socket.create_connection(("127.0.0.1", 53319), timeout=2))
+    except OSError:
+        break
+time.sleep(0.3)
+assert b.p.poll() is None
+for s in idle:
+    s.close()
+time.sleep(0.5)
+c = raw()
+c.request("GET", API + "/info")
+assert json.loads(c.getresponse().read())["alias"] == "test-b"
+c.close()
+ok("a hundred idle connections: b lives, and serves again once they're gone")
 
 b.cmd(cmd="receive", on=False)
 assert not b.wait("receive")["on"]

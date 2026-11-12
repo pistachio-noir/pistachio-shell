@@ -9,7 +9,7 @@ Two singletons, `services/Audio.qml` and `services/Bluetooth.qml`, own all the s
 | Service | Built on | Used by |
 | --- | --- | --- |
 | `Audio.qml` | `Quickshell.Services.Pipewire` | Bar status chip, quick settings, OSD, launcher System mode |
-| `Bluetooth.qml` | `Quickshell.Bluetooth` (BlueZ over DBus), and `bluetooth-agent.py` for pairing codes | Bar status chip, quick settings, launcher Bluetooth mode and pairing questions |
+| `Bluetooth.qml` | `Quickshell.Bluetooth` (BlueZ over DBus), and `pistachio-devices bluetooth` (from `rust/`) for pairing codes | Bar status chip, quick settings, launcher Bluetooth mode and pairing questions |
 | Brightness | `ddcutil` through `Process` (DDC/CI to the monitor) | Quick settings, OSD, launcher System mode |
 
 ## Audio: Quickshell.Services.Pipewire
@@ -39,7 +39,7 @@ Scanning only runs while the launcher's Bluetooth view is open (built in phase 6
 
 Quickshell 0.3.2 has no pairing agent (checked: no agent, PIN or passkey type in `Quickshell.Bluetooth`, and nothing on `BluetoothDevice` beyond `pair()` and `cancelPair()`). Without one, BlueZ can't ask for or show a code, so keyboards and phones would not pair. The shell brings its own:
 
-- **`services/bluetooth-agent.py`** registers an `org.bluez.Agent1` object with `AgentManager1.RegisterAgent` (capability `KeyboardDisplay`, so BlueZ can use every method) and makes it the default with `RequestDefaultAgent`. It is Python on GLib's D-Bus (`python-gobject`), because QML has no way to serve a D-Bus object. It watches `org.bluez` and registers again when bluetoothd restarts, answers only calls from bluetoothd, and exits when its stdin closes, so it never outlives the shell.
+- **`pistachio-devices bluetooth`** (`rust/devices/src/bluetooth.rs`; Python until 12 November 2026, same protocol) registers an `org.bluez.Agent1` object with `AgentManager1.RegisterAgent` (capability `KeyboardDisplay`, so BlueZ can use every method) and makes it the default with `RequestDefaultAgent`. It is a helper process, because QML has no way to serve a D-Bus object. It watches `org.bluez` and registers again when bluetoothd restarts, answers only calls from bluetoothd, and exits when its stdin closes, so it never outlives the shell.
 - **`Bluetooth.qml`** runs it while an adapter exists and talks JSON lines with it: questions come out on stdout, answers go back on stdin (the protocol is at the top of the script). It holds the question waiting for an answer as `request`, and `answer(accept, value)` replies. Accepting a pairing also trusts the device, as `pair()` does. Questions that arrive while the screen is locked are declined at once, and locking declines one that waits.
 - **The launcher** shows the question in place of the results, as it does a power question, and opens in the Bluetooth view for it. Cancel is chosen first. Closing the launcher declines.
 
@@ -69,7 +69,7 @@ Night light has no Quickshell module either. It uses `hyprsunset` (checked again
 | Area | Packages | Also needed |
 | --- | --- | --- |
 | Audio | `pipewire`, `wireplumber`, `pipewire-pulse` | `pipewire-pulse` keeps apps that still use PulseAudio working |
-| Bluetooth | `bluez`, `bluez-utils`, `python-gobject` (the pairing agent) | `bluetooth.service` enabled and running |
+| Bluetooth | `bluez`, `bluez-utils`; the pairing agent is built by `install.sh` | `bluetooth.service` enabled and running |
 | Brightness | `ddcutil` | the `i2c-dev` kernel module loaded; the monitor's DDC/CI setting on |
 | Night light | `hyprsunset` | None: the shell starts it |
 

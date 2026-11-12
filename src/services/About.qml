@@ -16,6 +16,8 @@ Singleton {
     property int commits
     property int changed // files changed since the commit
     property string repo // the GitHub page
+    property string branch // the git branch the shell runs from; "" while unknown or detached
+    readonly property bool stable: branch === "main" // anything else may be unstable (owner's call)
     property string quickshell
     property string hyprland
     property string qt
@@ -33,7 +35,8 @@ Singleton {
             git -C "$1" remote get-url origin
             qs --version | head -1
             hyprctl version -j | grep -m1 '"version"'
-            qtpaths6 --qt-version 2>/dev/null || /usr/lib/qt6/bin/qtpaths6 --qt-version`, "sh", Quickshell.shellPath("")]
+            qtpaths6 --qt-version 2>/dev/null || /usr/lib/qt6/bin/qtpaths6 --qt-version
+            git -C "$1" branch --show-current`, "sh", Quickshell.shellPath("")]
         stdout: StdioCollector {
             onStreamFinished: {
                 const l = text.split("\n");
@@ -47,6 +50,7 @@ Singleton {
                 root.quickshell = ((l[4] ?? "").match(/[0-9][0-9.]*/) ?? [""])[0];
                 root.hyprland = ((l[5] ?? "").match(/[0-9][0-9.]*/) ?? [""])[0];
                 root.qt = (l[6] ?? "").trim();
+                root.branch = (l[7] ?? "").trim();
             }
         }
     }

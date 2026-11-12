@@ -41,20 +41,19 @@ One config folder, split by what each file is for: a theme singleton, services t
 │  ├─ Compositor.qml    singleton: the adapter (next section)
 │  ├─ (backend files, once a second compositor exists; Hyprland code lives in Compositor.qml until then)
 │  ├─ Audio.qml  Bluetooth.qml  Network.qml  Brightness.qml  NightLight.qml  Notifs.qml
-│  ├─ bluetooth-agent.py  the pairing agent Bluetooth.qml runs (Quickshell has none)
 │  ├─ ScreenShare.qml  apps sharing the screen through the portal (its PipeWire video nodes)
 │  ├─ Screenshots.qml  where screenshots go, and the notification after one (notify-send)
 │  ├─ Lens.qml  lens.py  Claude/Codex CLI requests, follow-ups, fallback and saved snip chats
 │  ├─ Clipboard.qml  copying text and pictures (wl-copy), and the emoji copied lately
 │  ├─ Wallpapers.qml  the images in ~/Pictures/Wallpapers, the one in use and each one's fit
 │  ├─ Weather.qml  Open-Meteo: now, the next hours and days, for the city in Store
-│  ├─ Polkit.qml  polkit-agent.py  the polkit agent (Quickshell's own counts Cancel as a failed login)
+│  ├─ Polkit.qml  the polkit agent, through pistachio-auth from rust/ (Quickshell's own counts Cancel as a failed login)
 │  ├─ SystemStats.qml  stats.sh  CPU, memory, GPU and disk readings for Settings → System monitor, and the warnings
 │  ├─ Files.qml  files.py  the launcher's "/" search through the home folder
 │  ├─ Showoff.qml  showoff mode: the stage workspace, fastfetch's config and its terminal
 │  ├─ Desktop.qml  the Desktop folder's files and folders for the desktop icons, where each sits, and acting on them
-│  ├─ Drives.qml  removable drives: udiskie mounts them, lsblk lists the mounted ones, eject
-│  ├─ LocalSend.qml  LocalSend, through localsend.py: devices nearby, sending, receiving (only while the app is installed)
+│  ├─ Drives.qml  removable drives: pistachio-devices (rust/) mounts them, lsblk lists the mounted ones, eject
+│  ├─ LocalSend.qml  LocalSend, through pistachio-localsend (rust/): devices nearby, sending, receiving (only while the app is installed)
 │  ├─ SettingsHub.qml  settings-window navigation, validated text edits and folder/source actions
 ├─ bar/                 Bar, Workspaces, WindowTitle, ClockChip, StatusChip, TrayPill (+ TrayMenu), MediaPill
 ├─ panels/              QuickSettings, NotificationCentre, Calendar (+ calendar.js, MonthPage), PowerMenu, PolkitDialog, WindowSwitcher, Wallpaper (the desktop) and DesktopIcons, WallpaperSwitcher, WeatherPanel

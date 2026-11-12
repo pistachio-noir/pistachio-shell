@@ -113,6 +113,29 @@ Singleton {
         return appId ? icon(DesktopEntries.heuristicLookup(appId)?.icon ?? "") : "";
     }
 
+    // The program an app runs, lower case, for finding it by that name ("baobab" finds Disk Usage
+    // Analyzer; owner's request, 12 November 2026): the command's own name, past `env` and its
+    // settings; for a Flatpak its --command, else the last part of its id. "" when there's none.
+    function programOf(app): string {
+        const words = (app?.command ?? []).slice();
+        const base = w => String(w).split("/").pop().toLowerCase();
+        while (words.length && base(words[0]) === "env") {
+            words.shift();
+            while (words.length && (String(words[0]).startsWith("-") || String(words[0]).includes("=")))
+                words.shift();
+        }
+        if (!words.length)
+            return "";
+        if (base(words[0]) === "flatpak") {
+            const given = words.find(w => String(w).startsWith("--command="));
+            if (given)
+                return base(String(given).slice(10));
+            const id = words.slice(1).find(w => !String(w).startsWith("-") && w !== "run");
+            return id ? String(id).split(".").pop().toLowerCase() : "";
+        }
+        return base(words[0]);
+    }
+
     function nameFor(appId: string): string {
         return appId ? DesktopEntries.heuristicLookup(appId)?.name ?? appId : "";
     }

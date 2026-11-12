@@ -1,0 +1,11 @@
+[package]
+name = "pistachio-bus"
+description = "What the shell's D-Bus agents share: serving one object by hand and watching a bus name"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[dependencies]
+zbus.workspace = true
+pistachio-lines.workspace = true
+serde = "1"

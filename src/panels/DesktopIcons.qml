@@ -72,6 +72,15 @@ Item {
 
     signal renameRequested(var item)
 
+    // hidden icons can't stay selected (Delete would still trash them)
+    Connections {
+        target: Desktop
+        function onEnabledChanged() {
+            if (!Desktop.enabled)
+                root.selection = [];
+        }
+    }
+
     // Keys (owner's pick, 3 November 2026), once a click has given the desktop the keyboard, which it
     // takes only on a workspace without windows (Wallpaper.qml): the arrows move to the nearest icon
     // that way, Enter opens, Delete trashes, F2 renames, Ctrl+A selects all, Esc lets go.
@@ -82,6 +91,10 @@ Item {
         const ctrl = event.modifiers & Qt.ControlModifier;
         const chosen = selectedItems;
         event.accepted = true;
+        if (!Desktop.enabled && event.key !== Qt.Key_Escape) {
+            event.accepted = false; // no icons to act on
+            return;
+        }
         if (event.key === Qt.Key_Escape) {
             if (root.menu)
                 root.menu = null;
@@ -194,7 +207,9 @@ Item {
             : kind === "document" ? Theme.terracotta : kind === "archive" ? Theme.gold : kind === "code" ? Theme.teal : Theme.subtext;
     }
 
-    visible: Desktop.enabled && opacity > 0
+    // stays while the icons are hidden: the desktop's own menu brings them back (owner's request,
+    // 12 November 2026)
+    visible: opacity > 0
     enabled: !Showoff.active && !FocusMode.zen
     opacity: Showoff.active || FocusMode.zen ? 0 : 1 // Zen mode hides them too
 
@@ -233,6 +248,21 @@ Item {
         }
         onCanceled: root.box = null
     }
+
+    // the icons, faded out while they're switched off (the launcher, the menu, `desktop toggle`)
+    Item {
+        id: iconLayer
+
+        anchors.fill: parent
+        opacity: Desktop.enabled ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.motionDuration
+                easing.type: Theme.easing
+            }
+        }
 
     Repeater {
         model: Desktop.items
@@ -444,6 +474,7 @@ Item {
             }
         }
     }
+    }
 
     // Drops: the desktop's own icons back from a window (moved as by a plain drag), or another app's
     // files (copied in)
@@ -513,11 +544,13 @@ Item {
                     { text: "Move to trash", glyph: Icons.trash, danger: true, run: () => Desktop.trash([m.item]) },
                     { text: "Show in file manager", glyph: Icons.folder, run: () => Desktop.showFolder() }
                 ].concat(LocalSend.available && !m.item.app ? [{ text: "Send with LocalSend", glyph: Icons.share, run: () => root.sendWithLocalSend([m.item]) }] : []);
-            return [
-                { text: "New folder…", glyph: Icons.folderPlus, run: () => root.newFolderRequested(m.cell) },
+            // a new folder wouldn't show while the icons are hidden
+            return (Desktop.enabled ? [{ text: "New folder…", glyph: Icons.folderPlus, run: () => root.newFolderRequested(m.cell) }] : []).concat([
                 { text: "Open Desktop folder", glyph: Icons.folderOpen, run: () => Desktop.showFolder() },
-                { text: "Wallpapers…", glyph: Icons.image, run: () => root.wallpapersRequested() }
-            ];
+                { text: "Wallpapers…", glyph: Icons.image, run: () => root.wallpapersRequested() },
+                Desktop.enabled ? { text: "Hide desktop icons", glyph: Icons.grid.concat(Icons.slash), run: () => Desktop.setEnabled(false) }
+                    : { text: "Show desktop icons", glyph: Icons.grid, run: () => Desktop.setEnabled(true) }
+            ]);
         }
 
         x: root.menu ? Math.min(root.menu.x, root.width - width - 8) : 0

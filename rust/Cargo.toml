@@ -1,0 +1,24 @@
+# The shell's always-running helpers. install.sh builds them and copies the binaries to ~/.local/bin.
+[workspace]
+resolver = "2"
+members = ["lines", "bus", "auth", "devices", "localsend"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+publish = false
+
+[workspace.dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+libc = "0.2"
+zbus = { version = "5", default-features = false, features = ["blocking-api", "async-io"] }
+pistachio-lines = { path = "lines" }
+pistachio-bus = { path = "bus" }
+
+# small and quiet: these sit in memory all day
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

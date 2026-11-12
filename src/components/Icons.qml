@@ -58,6 +58,10 @@ Singleton {
     readonly property list<string> chevronRight: ["M9 18l6-6-6-6"]
     readonly property list<string> chevronDown: ["M6 9l6 6 6-6"]
     readonly property list<string> chevronUp: ["M18 15l-6-6-6 6"]
+    // the shell's branch in About: stable main, or another one that may be unstable (owner's request,
+    // 12 November 2026; Lucide shield-check and flask-conical)
+    readonly property list<string> shieldCheck: ["M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z", "M9 12l2 2 4-4"]
+    readonly property list<string> flask: ["M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2", "M8.5 2h7", "M7 16h10"]
     readonly property list<string> shieldAlert: ["M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z", "M12 9v4", "M12 17h.01"]
     readonly property list<string> minus: ["M5 12h14"]
     readonly property list<string> plus: ["M5 12h14", "M12 5v14"]

@@ -92,7 +92,7 @@ PanelWindow {
         : rows[current]?.kind === "claude" ? [["↑↓", "navigate"], ["↵", "ask Claude"], ["Esc", "close"]]
         : rows[current]?.kind === "preset" ? [["↑↓", "navigate"], ["↵", "load"], ["→", "delete"], ["Esc", "close"]]
         : rows[current]?.kind === "music" ? [["↵", "play"], ["Shift ↵", "play next"], ["→", "add to queue"], ["Esc", "close"]]
-        : rows[current]?.kind === "process" ? [["↑↓", "navigate"], ["↵", "end it"], ["Esc", "close"]]
+        : rows[current]?.kind === "process" ? [["↑↓", "navigate"], ["↵", rows[current].process.pids.length > 1 ? "end them all" : "end it"], ["Esc", "close"]]
         : rows[current]?.kind === "tldr" ? [["↑↓", "navigate"], ["↵", "copy"], ["Esc", "close"]]
         : rows[current]?.kind === "app" && rows[current].app.actions.length > 0 ? [["↑↓", "navigate"], ["↵", "open"], ["→", "more actions"], ["Tab", "switch mode"], ["Esc", "close"]]
         : rows[current]?.kind === "file" && !rows[current].entry.folder ? [["↑↓", "navigate"], ["↵", "open"], ["Space", "preview"], ["Shift ↵", "show in folder"], ["Esc", "close"]]
@@ -559,8 +559,9 @@ PanelWindow {
 
     // `kill <name>`: your programs matching it, the busiest first
     function processRows(q: string): var {
-        const rows = Processes.list.filter(p => !q || Fuzzy.fold(p.name).includes(Fuzzy.fold(q)) || Fuzzy.fold(p.command).includes(Fuzzy.fold(q))).slice(0, 30).map(p => ({
-            kind: "process", key: "process:" + p.pid, title: p.name, subtitle: `PID ${p.pid} · ${p.cpu.toFixed(1)} % CPU · ${Math.round(p.memory)} MB · ${p.command}`, icon: Apps.iconFor(p.name), glyph: Icons.cpu, process: p
+        // one row per program, all its processes together (Enter ends them all, like killall)
+        const rows = Processes.groups.filter(g => !q || Fuzzy.fold(g.name).includes(Fuzzy.fold(q)) || Fuzzy.fold(g.command).includes(Fuzzy.fold(q))).slice(0, 30).map(g => ({
+            kind: "process", key: "process:" + g.name, title: g.name, subtitle: `${g.pids.length > 1 ? g.pids.length + " processes" : "PID " + g.pids[0]} · ${g.cpu.toFixed(1)} % CPU · ${g.memory >= 1024 ? (g.memory / 1024).toFixed(1) + " GB" : Math.round(g.memory) + " MB"} · ${g.command}`, icon: Apps.iconFor(g.name), glyph: Icons.cpu, process: g
         }));
         return [section(q ? `Programs matching “${q}”` : "Your programs · busiest first")].concat(rows.length ? rows : [{ kind: "empty", key: "noprocess", title: "Nothing by that name is running" }]);
     }
@@ -701,8 +702,8 @@ PanelWindow {
             return [{ text: "Play", glyph: Icons.play, run: () => activate(row, 0, false) }];
         case "process":
             return [
-                { text: "End it…", glyph: Icons.close, danger: true, run: () => activate(row, 0, false) },
-                { text: "Force quit", glyph: Icons.trash, danger: true, run: () => Processes.end(row.process, true) }
+                { text: row.process.pids.length > 1 ? "End them all…" : "End it…", glyph: Icons.close, danger: true, run: () => activate(row, 0, false) },
+                { text: row.process.pids.length > 1 ? "Force quit them all" : "Force quit", glyph: Icons.trash, danger: true, run: () => Processes.endAll(row.process, true) }
             ];
         case "tldr":
             return [{ text: "Copy the command", glyph: Icons.clipboard, run: () => activate(row, 0, false) }];
@@ -1115,8 +1116,8 @@ PanelWindow {
             Library.play(row.game);
             open = false;
         } else if (row.kind === "process") {
-            const p = row.process;
-            confirming = { id: "kill:" + p.pid, title: "End it", icon: Icons.close, danger: true, question: `End ${p.name} (PID ${p.pid})?`, confirm: "It closes without asking, and its unsaved work is lost.", run: () => Processes.end(p, false) };
+            const g = row.process, many = g.pids.length > 1;
+            confirming = { id: "kill:" + g.name, title: many ? "End all" : "End it", icon: Icons.close, danger: true, question: many ? `End all ${g.pids.length} ${g.name} processes?` : `End ${g.name} (PID ${g.pids[0]})?`, confirm: `${many ? "They close" : "It closes"} without asking, and unsaved work is lost.`, run: () => Processes.endAll(g, false) };
             current = 0;
             column = 0;
         } else if (row.kind === "qalc") {

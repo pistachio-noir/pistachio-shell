@@ -788,7 +788,7 @@ PanelWindow {
         return [section("Pistachio Noir Shell")].concat([
             line("version", "Version", version + (About.changed ? ` · ${About.changed} files changed since` : ""), Icons.sparkles),
             line("commit", "Last change", About.subject || "…", Icons.pencil),
-            line("branch", "Branch", About.branch ? `${About.branch} · ${About.stable ? "stable" : "experimental, may be unstable"}` : "…", About.stable ? Icons.shieldCheck : Icons.flask),
+            line("branch", "Branch", About.branch ? `${About.branch} · ${About.mood}` : "…", About.stable ? Icons.shieldCheck : Icons.flask),
             line("quickshell", "Quickshell", About.quickshell || "…", Icons.layers),
             line("hyprland", "Hyprland", About.hyprland || "…", Icons.monitor),
             line("qt", "Qt", About.qt || "…", Icons.cpu),

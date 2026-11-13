@@ -18,6 +18,13 @@ Singleton {
     property string repo // the GitHub page
     property string branch // the git branch the shell runs from; "" while unknown or detached
     readonly property bool stable: branch === "main" // anything else may be unstable (owner's call)
+    // main stable, experimental may be unstable, any other branch is a work in progress (owner's
+    // request, 13 November 2026): its own words, glyph and colour in About
+    readonly property string kind: stable ? "stable" : branch === "experimental" ? "experimental" : "cooking"
+    readonly property string mood: kind === "stable" ? "stable" : kind === "experimental" ? "may be unstable" : "something's cooking…"
+    readonly property string moodLong: kind === "stable" ? "Stable: the shell's main line"
+        : kind === "experimental" ? "Experimental: may be unstable; main is the stable one"
+        : "Something's cooking: a branch of its own, half-baked on purpose"
     property string quickshell
     property string hyprland
     property string qt

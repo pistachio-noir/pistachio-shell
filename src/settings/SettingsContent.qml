@@ -67,9 +67,9 @@ Column {
             Row {
                 id: branchRow
                 anchors.centerIn: parent; spacing: 10
-                Icon { anchors.verticalCenter: parent.verticalCenter; size: 18; paths: About.stable ? Icons.shieldCheck : Icons.flask; color: About.stable ? Theme.teal : Theme.gold }
+                Icon { anchors.verticalCenter: parent.verticalCenter; size: 18; paths: About.stable ? Icons.shieldCheck : About.kind === "cooking" ? Icons.sparkles : Icons.flask; color: About.stable ? Theme.teal : About.kind === "cooking" ? Theme.lavender : Theme.gold }
                 SettingsText { anchors.verticalCenter: parent.verticalCenter; text: About.branch; font.weight: Font.ExtraBold }
-                SettingsText { anchors.verticalCenter: parent.verticalCenter; text: About.stable ? "stable" : "may be unstable"; secondary: true }
+                SettingsText { anchors.verticalCenter: parent.verticalCenter; text: About.mood; secondary: true }
             }
         }
     }
@@ -214,7 +214,7 @@ Column {
         if (page === "localsend" && LocalSend.available) return [group("",[toggle("receive","Receive files",LocalSend.summary,()=>LocalSend.wanted,LocalSend.setReceive)]),group("This device",[action("name","Device name",LocalSend.name,"Change",()=>SettingsHub.beginEdit("name")),action("folder","Save received files to",LocalSend.folderShown,"Change",LocalSend.pickFolder)]),group("Incoming requests",[toggle("known","Accept known devices","Skip asking for devices you have accepted before.",()=>LocalSend.acceptKnown,LocalSend.setAcceptKnown)])];
         // only which disks there are shapes the page; the readings are read by the rows themselves
         if (page === "system") return [group("Storage",SystemStats.diskMounts.map(m=>read("storage",m === "/" ? "System disk" : "Home",()=>{ const d=SystemStats.disks.find(x=>x.mount===m); return d ? `${SystemStats.gigabytes(d.free)} free of ${SystemStats.gigabytes(d.size)}` : "—"; },m))),group("Shell",[read("shell","Pistachio Noir",()=>root.usage(SystemStats.shellCpu,SystemStats.shellMem),"CPU and memory, including its helpers."),read("hyprland","Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.hyprCpu,SystemStats.hyprMem) : "—","The compositor."),read("desktop","Shell and Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.shellCpu < 0 || SystemStats.hyprCpu < 0 ? -1 : SystemStats.shellCpu+SystemStats.hyprCpu,SystemStats.shellMem+SystemStats.hyprMem) : "—","Both together.")]),group("Removable drives",Drives.mounted.map(d=>action("drive:"+d.path,d.name,`${d.mountpoint} · ${d.size}`,"Eject",()=>Drives.eject(d))))];
-        if (page === "about") return [group("",[read("branch","Branch",About.branch || "—",About.branch ? (About.stable ? "Stable: the shell's main line" : "Experimental: may be unstable; main is the stable one") : ""),read("build","Build",About.commit || "Reading…",[About.date,About.subject,About.changed ? `${About.changed} changed files` : ""].filter(Boolean).join(" · ")),read("quickshell","Quickshell",About.quickshell || "—"),read("hyprland","Hyprland",About.hyprland || "—"),read("qt","Qt",About.qt || "—"),action("source","Source code","The shell and its design boards.","View source",SettingsHub.openSource)]),group("",[action("showoff","Showoff mode","Arrange the desktop for a setup screenshot.","Start showoff",()=>SettingsHub.showoffRequested())])];
+        if (page === "about") return [group("",[read("branch","Branch",About.branch || "—",About.branch ? About.moodLong : ""),read("build","Build",About.commit || "Reading…",[About.date,About.subject,About.changed ? `${About.changed} changed files` : ""].filter(Boolean).join(" · ")),read("quickshell","Quickshell",About.quickshell || "—"),read("hyprland","Hyprland",About.hyprland || "—"),read("qt","Qt",About.qt || "—"),action("source","Source code","The shell and its design boards.","View source",SettingsHub.openSource)]),group("",[action("showoff","Showoff mode","Arrange the desktop for a setup screenshot.","Start showoff",()=>SettingsHub.showoffRequested())])];
         return [];
     }
 }

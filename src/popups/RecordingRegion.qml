@@ -57,7 +57,7 @@ PanelWindow {
             objectName: "recording-region-control"
             visible: root.pillPlacement !== null
             x: root.pillPlacement?.x ?? 0; y: root.pillPlacement?.y ?? 0
-            width: controls.implicitWidth + 24; height: 44; radius: 22
+            width: controls.implicitWidth + 24; height: 44; radius: Theme.tui ? 0 : 22
             color: Theme.bgAlt
             border.width: 1; border.color: Theme.overlay2
             Accessible.role: Accessible.Grouping
@@ -67,7 +67,7 @@ PanelWindow {
                 x: 12; height: 44; spacing: 8
                 Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 8; height: 8; radius: 4; color: Theme.terracotta
+                    width: 8; height: 8; radius: Theme.tui ? 0 : 4; color: Theme.terracotta
                     SequentialAnimation on opacity {
                         running: root.areaRecording && !Screenshots.paused; loops: Animation.Infinite
                         NumberAnimation { to: 0.35; duration: 800; easing.type: Theme.easing }
@@ -77,13 +77,13 @@ PanelWindow {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: Screenshots.paused ? "Paused" : "Recording"; color: Theme.textBright
-                    font.family: Theme.fontUi; font.pixelSize: 13; font.weight: Font.Bold
+                    font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13; font.weight: Font.Bold
                 }
                 Text {
                     objectName: "recording-region-time"
                     anchors.verticalCenter: parent.verticalCenter
                     text: `${Math.floor(root.seconds / 60)}:${String(root.seconds % 60).padStart(2, "0")}`
-                    color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: 13; font.weight: Font.ExtraBold
+                    color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13; font.weight: Font.ExtraBold
                     font.features: { "tnum": 1 }
                 }
                 Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 1; height: 20; color: Theme.overlay2 }

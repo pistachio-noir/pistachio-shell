@@ -21,7 +21,7 @@ Item {
         y: root.gap
         width: parent.width
         height: Math.round(width * 9 / 16)
-        radius: 12
+        radius: Theme.tui ? 0 : 12
         color: Theme.bg
 
         Image {

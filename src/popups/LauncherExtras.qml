@@ -96,7 +96,7 @@ PanelWindow {
                 height: 44
                 Rectangle {
                     id: well
-                    width: 44; height: 44; radius: 22
+                    width: 44; height: 44; radius: Theme.tui ? 0 : 22
                     color: root.shownMode==="launch-failed" ? Qt.rgba(Theme.terracotta.r, Theme.terracotta.g, Theme.terracotta.b, 0.16) : Theme.overlay
                     Icon { anchors.centerIn: parent; size: 20; paths: root.glyph; color: root.shownMode==="launch-failed" ? Theme.terracotta : Theme.text }
                 }
@@ -106,7 +106,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     Text { width: parent.width; text: root.title; elide: Text.ElideMiddle; color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: 17; font.weight: Font.ExtraBold }
-                    Text { width: parent.width; visible: text !== ""; text: root.detail; elide: Text.ElideMiddle; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold; font.features: { "tnum": 1 } }
+                    Text { width: parent.width; visible: text !== ""; text: root.detail; elide: Text.ElideMiddle; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12; font.weight: Font.DemiBold; font.features: { "tnum": 1 } }
                 }
                 IconButton { id: closeButton; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; icon: Icons.close; iconSize: 16; onClicked: root.close(); Accessible.name: "Close" }
             }
@@ -132,8 +132,8 @@ PanelWindow {
                         model: [root.preview.mime ?? "", root.bytes(root.preview.size), root.preview.modified ?? ""].filter(Boolean)
                         Rectangle {
                             required property string modelData
-                            height: 26; width: metaText.implicitWidth + 22; radius: 13; color: Theme.overlay
-                            Text { id: metaText; anchors.centerIn: parent; text: parent.modelData; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11; font.weight: Font.Bold; font.features: { "tnum": 1 } }
+                            height: 26; width: metaText.implicitWidth + 22; radius: Theme.tui ? 0 : 13; color: Theme.overlay
+                            Text { id: metaText; anchors.centerIn: parent; text: parent.modelData; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11; font.weight: Font.Bold; font.features: { "tnum": 1 } }
                         }
                     }
                 }
@@ -160,12 +160,12 @@ PanelWindow {
                     Column {
                         anchors.centerIn: parent; spacing: 8
                         Icon { anchors.horizontalCenter: parent.horizontalCenter; size: 24; paths: Icons.file; color: Theme.subtext }
-                        Text { text: root.preview.note || "No preview for this kind of file."; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 13; font.weight: Font.Medium }
+                        Text { text: root.preview.note || "No preview for this kind of file."; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13; font.weight: Font.Medium }
                     }
                 }
                 Item {
                     width: parent.width; height: 40
-                    Text { anchors.verticalCenter: parent.verticalCenter; visible: !!root.preview.truncated; text: "Showing the first 256 KB"; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold }
+                    Text { anchors.verticalCenter: parent.verticalCenter; visible: !!root.preview.truncated; text: "Showing the first 256 KB"; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12; font.weight: Font.DemiBold }
                     ActionButton { anchors.right: parent.right; text: "Open with…"; icon: Icons.folderOpen; onClicked: LauncherTools.showFile(LauncherTools.path,"handlers") }
                 }
             }
@@ -177,8 +177,8 @@ PanelWindow {
                     width: parent.width; height: 56; radius: Theme.tileRadius; color: Theme.overlay
                     Column {
                         x: 16; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 32 - rememberSwitch.width
-                        Text { text: "Remember for this type"; color: Theme.text; font.family: Theme.fontUi; font.pixelSize: 13; font.weight: Font.Bold }
-                        Text { width: parent.width; text: LauncherTools.mime ? `Makes it the default for ${LauncherTools.mime}` : ""; elide: Text.ElideRight; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold }
+                        Text { text: "Remember for this type"; color: Theme.text; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13; font.weight: Font.Bold }
+                        Text { width: parent.width; text: LauncherTools.mime ? `Makes it the default for ${LauncherTools.mime}` : ""; elide: Text.ElideRight; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11; font.weight: Font.DemiBold }
                     }
                     Switch { id: rememberSwitch; anchors.right: parent.right; anchors.rightMargin: 16; anchors.verticalCenter: parent.verticalCenter; checked: root.remember; onToggled: root.remember = !root.remember }
                 }
@@ -188,12 +188,12 @@ PanelWindow {
                     model:LauncherTools.handlers
                     Rectangle {
                         required property var modelData
-                        width: parent.width; height: 48; radius: 24
+                        width: parent.width; height: 48; radius: Theme.tui ? 0 : 24
                         color: appMouse.containsMouse ? Theme.overlay : "transparent"
                         opacity: LauncherTools.busy ? 0.5 : 1
                         Behavior on color { ColorAnimation { duration: Theme.hoverDuration; easing.type: Theme.easing } }
                         Image { x: 14; anchors.verticalCenter: parent.verticalCenter; width: 24; height: 24; sourceSize: Qt.size(48, 48); source: Apps.iconFor(parent.modelData.id.replace(/\.desktop$/, "")) }
-                        Text { x: 50; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 64; text: parent.modelData.name; elide: Text.ElideRight; color: Theme.text; font.family: Theme.fontUi; font.pixelSize: 13; font.weight: Font.Bold }
+                        Text { x: 50; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 64; text: parent.modelData.name; elide: Text.ElideRight; color: Theme.text; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13; font.weight: Font.Bold }
                         MouseArea { id: appMouse; anchors.fill: parent; enabled: !LauncherTools.busy; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: LauncherTools.openWith(parent.modelData.id,root.remember) }
                     }
                 }
@@ -208,8 +208,8 @@ PanelWindow {
                     Column {
                         anchors.centerIn: parent; spacing: 8
                         Icon { anchors.horizontalCenter: parent.horizontalCenter; size: 24; paths: Icons.terminal; color: Theme.subtext }
-                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "No background jobs"; color: Theme.text; font.family: Theme.fontUi; font.pixelSize: 14; font.weight: Font.Bold }
-                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Shift+Enter on a $ command in the launcher runs it here."; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12; font.weight: Font.Medium }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "No background jobs"; color: Theme.text; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 14; font.weight: Font.Bold }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Shift+Enter on a $ command in the launcher runs it here."; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12; font.weight: Font.Medium }
                     }
                 }
                 Flickable {

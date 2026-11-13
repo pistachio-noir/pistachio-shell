@@ -13,6 +13,8 @@ ShellRoot {
     // services that work in the background from the start: a singleton only starts once it's used
     readonly property var background: [Drives, LocalSend, Clocks]
 
+    Binding { target: Theme; property: "tui"; value: ShellSettings.appearanceStyle === "tui" }
+
     // frosted panels: how opaque the bar and panels are
     Binding {
         target: Theme
@@ -34,6 +36,7 @@ ShellRoot {
     Bar {
         id: bar
         overviewOpen: overview.open
+        wallpaperSwitcher: wallpaperSwitcher
         sessionPillWidth: sessionPill.visible ? sessionPill.width : 0
         onLauncherRequested: mode => launcher.show(mode)
         onTimerRequested: launcher.askTimer()

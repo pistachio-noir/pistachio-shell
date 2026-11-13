@@ -16,7 +16,7 @@ Rectangle {
     Column {
         id: content; x: 24; y: 24; width: parent.width - 48; spacing: 16
         Text { text: "Record screen"; color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: 20; font.weight: Font.ExtraBold }
-        Text { text: "Audio"; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12; font.weight: Font.Bold }
+        Text { text: "Audio"; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12; font.weight: Font.Bold }
         Row {
             spacing: 6
             Repeater {
@@ -30,7 +30,7 @@ Rectangle {
             }
         }
         Text { text: "Mic follows the current input in Sound settings."; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12 }
-        Text { text: "Countdown"; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12; font.weight: Font.Bold }
+        Text { text: "Countdown"; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12; font.weight: Font.Bold }
         Row {
             spacing: 6
             Repeater {

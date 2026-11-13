@@ -11,12 +11,12 @@ import "calendar.js" as Cal
 // Integrations): a dot under a day that has some, and the clicked day's events (today's at first)
 // under the grid, read-only; a click on one opens GNOME Calendar. The list keeps one height so the
 // window doesn't resize as events arrive.
-Rectangle {
+PanelFrame {
     id: root
 
     property int year
     property int month // 0–11
-    readonly property real cell: grid.width / 7
+    readonly property real cell: (width - 40) / 7
     // A month change slides: the title and the grid have two copies each (MonthPage.qml) that
     // take turns, the one given the new month coming in from `heading` as the other leaves.
     property int page // the copy showing year and month
@@ -59,12 +59,14 @@ Rectangle {
         show(m.year, m.month, wheel ? Qt.point(0, by) : Qt.point(by, 0));
     }
 
-    implicitWidth: 300
-    implicitHeight: 20 + header.height + 14 + weekdays.height + 8 + grid.height + eventsHeight + 14 + footer.height + 20
-    radius: Theme.panelRadius
-    color: Theme.surface
+    title: Theme.tui ? "cal" : ""
+    detail: Theme.tui ? Qt.formatDate(new Date(), "dddd").toLowerCase() : ""
+    implicitWidth: Theme.tui ? 232 : 300
+    implicitHeight: view.item?.implicitHeight ?? 0
+    radius: Theme.tui ? 0 : Theme.panelRadius
+    color: Theme.tui ? Theme.tuiSurface : Theme.surface
     border.width: 1
-    border.color: Theme.overlay2
+    border.color: Theme.tuiBorder
     Accessible.role: Accessible.Grouping
     Accessible.name: "Calendar"
     Component.onCompleted: showToday(false)
@@ -82,6 +84,10 @@ Rectangle {
         precision: SystemClock.Hours
     }
 
+    Loader { id: view; anchors.fill: parent; sourceComponent: Theme.tui ? tuiView : classicView }
+    Component { id: tuiView; TuiCalendar { controller: root } }
+    Component { id: classicView; Item {
+        implicitHeight: 20 + header.height + 14 + weekdays.height + 8 + grid.height + root.eventsHeight + 14 + footer.height + 20
     Item {
         id: header
 
@@ -475,6 +481,8 @@ Rectangle {
             }
         }
     }
+
+    } }
 
     // ‹ and ›: bare chevrons that get a background on hover, like Clear all
     component MonthButton: Rectangle {

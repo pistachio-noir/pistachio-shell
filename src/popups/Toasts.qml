@@ -45,8 +45,14 @@ PanelWindow {
         LocalSendToast {}
     }
 
-    component Toast: Rectangle {
+    // TUI: a frame whose title tab names the app and whose detail says "now", "critical" or "5 new";
+    // no round icon, square countdown (drawn by Claude in the TUI notification centre's language)
+    component Toast: PanelFrame {
         id: toast
+
+        title: Theme.tui ? (n.appName || "notification").toLowerCase() : ""
+        detail: Theme.tui ? (critical ? "critical" : count > 1 ? `${count} new` : "now") : ""
+        active: false
 
         required property var modelData
         readonly property var n: modelData
@@ -91,8 +97,8 @@ PanelWindow {
         }
 
         width: parent.width
-        height: Math.max(icon.height, content.implicitHeight) + 32
-        radius: 24
+        height: Math.max(Theme.tui ? 0 : icon.height, content.implicitHeight) + (Theme.tui ? 36 : 32)
+        radius: Theme.tui ? 0 : 24
         color: Theme.surface
         border.width: 1
         border.color: Theme.overlay2
@@ -186,8 +192,8 @@ PanelWindow {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 6
             width: (parent.width - 40) * toast.remaining
-            height: 3
-            radius: 1.5
+            height: Theme.tui ? 2 : 3
+            radius: Theme.tui ? 0 : 1.5
             color: Theme.overlay2
         }
 
@@ -210,6 +216,7 @@ PanelWindow {
 
         NotificationIcon {
             id: icon
+            visible: !Theme.tui
             x: 16
             y: 16
             notification: toast.n
@@ -219,11 +226,11 @@ PanelWindow {
         Column {
             id: content
 
-            anchors.left: icon.right
-            anchors.leftMargin: 14
+            anchors.left: Theme.tui ? parent.left : icon.right
+            anchors.leftMargin: Theme.tui ? 16 : 14
             anchors.right: parent.right
             anchors.rightMargin: 16
-            y: 16
+            y: Theme.tui ? 20 : 16
             spacing: 10
 
             Column {
@@ -233,7 +240,7 @@ PanelWindow {
                 // a folded flood: "VESKTOP · 5 NEW" over the newest, as the centre's group headers
                 Text {
                     width: parent.width
-                    visible: toast.count > 1
+                    visible: toast.count > 1 && !Theme.tui // the title tab says it
                     bottomPadding: 2
                     text: `${(toast.n.appName || "Notifications").toUpperCase()} · ${toast.count} NEW`
                     textFormat: Text.PlainText
@@ -260,12 +267,14 @@ PanelWindow {
                         elide: Text.ElideRight
                         color: Theme.textBright
                         font.family: Theme.fontUi
-                        font.pixelSize: 14
+                        font.pixelSize: Theme.tui ? Theme.tuiTextSize : 14
                         font.weight: Font.Bold
                     }
 
                     Text {
                         id: when
+                        visible: !Theme.tui // the title tab says it
+                        width: Theme.tui ? 0 : implicitWidth
                         anchors.right: parent.right
                         anchors.baseline: title.baseline
                         text: toast.critical ? "Critical" : "now"
@@ -286,7 +295,7 @@ PanelWindow {
                     elide: Text.ElideRight
                     color: Theme.subtext
                     font.family: Theme.fontUi
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
                     font.weight: Font.Medium
                     lineHeight: 17
                     lineHeightMode: Text.FixedHeight

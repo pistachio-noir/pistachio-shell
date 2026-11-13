@@ -64,6 +64,8 @@ One config folder, split by what each file is for: a theme singleton, services t
 └─ components/          Chip, IconButton, Slider, Switch, Pill, ActionButton (a notification's action, for toasts and the centre), NotificationPreview (a screenshot under its notification), WallpaperView (a cross-fading wallpaper)
 ```
 
+TUI appearance (13 November 2026; plan `superpowers/plans/2026-11-13-tui-style.md`): `Theme.tui` switches every surface live. Where the layout differs a lot, a separate TUI file draws it and the Classic one stays as it was, chosen by a `LazyLoader`/`Loader` or by visibility, with one controller and one set of services: `bar/` ClassicBar and TuiBar (+ TuiBarButton), `panels/` TuiQuickSettings (+ TuiLocalSendSending), TuiOverview (+ TuiOverviewWindow), TuiNotificationList, TuiCalendar, TuiWeather, TuiWindowSwitcher, `launcher/` TuiLauncherRow, `popups/` TuiQuickChat (QuickChat.qml stays its controller), `components/` PanelFrame (the framed box with title tabs), TuiControlRow, TuiBracket ("[k] label"). Elsewhere a file keeps one layout with `Theme.tui` conditions (Lens, toasts, OSD, power menu, menus, lock, capture tools, Settings); Theme's radii are 0 in TUI.
+
 Rule: files under `bar/`, `panels/`, `popups/`, `launcher/`, `settings/` and `lock/` never import a compositor module directly. They use `Compositor` and the services.
 
 ## Compositor adapter

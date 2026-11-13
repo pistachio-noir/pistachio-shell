@@ -126,95 +126,18 @@ PanelWindow {
             current = (Math.min(current, list.length - 1) + by + list.length) % list.length;
     }
 
-    onListChanged: if (current >= list.length) current = Math.max(0, list.length - 1)
-
-    visible: true // always mapped (see above)
-    anchors.top: true
-    anchors.bottom: true
-    anchors.left: true
-    anchors.right: true
-    exclusionMode: ExclusionMode.Ignore
-    color: "transparent"
-    WlrLayershell.namespace: "pistachio-overview"
-    WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.keyboardFocus: root.shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    mask: Region {
-        width: root.shown ? root.width : 0
-        height: root.shown ? root.height : 0
+    function finishDrag() {
+        if (!drag) return;
+        const target = dropTarget, card = drag.card;
+        drag = null;
+        dropTarget = 0;
+        if (target === -1)
+            Compositor.sendWindow(card.w.address, newSpace);
+        else if (target > 0 && target !== active)
+            Compositor.sendWindow(card.w.address, target);
     }
 
-    // For a keybind: qs -c pistachio ipc call overview toggle
-    IpcHandler {
-        target: "overview"
-
-        function toggle(): void {
-            if (root.open)
-                root.hide();
-            else
-                root.show();
-        }
-        function open(): void {
-            root.show();
-        }
-        function close(): void {
-            root.hide();
-        }
-        function status(): string {
-            return JSON.stringify({ open: root.open, mode: root.mode, query: root.query, cards: root.list.length, current: root.current, workspace: root.active });
-        }
-    }
-
-    Reveal {
-        id: reveal
-        open: root.open
-    }
-
-    // the wallpaper, dimmed, over the windows; a click on it leaves
-    Item {
-        id: backdrop
-        anchors.fill: parent
-        opacity: reveal.progress
-        visible: root.shown
-
-        // blurred, and settling from a slight zoom as it opens: a step back from the desktop
-        Loader {
-            anchors.fill: parent
-            active: root.shown
-            scale: 1.12 - 0.07 * reveal.progress // never under 1.05, so the blur's soft edge stays off screen
-            sourceComponent: WallpaperView {
-                path: Wallpapers.current
-                layer.enabled: true
-                layer.effect: MultiEffect {
-                    blurEnabled: true
-                    blur: 1
-                    blurMax: 48
-                    autoPaddingEnabled: false
-                }
-            }
-        }
-
-        Rectangle {
-            anchors.fill: parent
-            color: Theme.deep
-            opacity: 0.5
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: if (!root.drag) root.hide()
-        }
-    }
-
-    Item {
-        id: content
-
-        anchors.fill: parent
-        visible: root.shown
-        opacity: reveal.progress
-        scale: 0.97 + 0.03 * reveal.progress
-        focus: root.open
-
-        Keys.onPressed: event => {
+    function key(event) {
             const ctrl = event.modifiers & Qt.ControlModifier;
             const w = root.selected?.w;
             event.accepted = true;
@@ -263,7 +186,113 @@ PanelWindow {
                 root.current = 0;
             } else
                 event.accepted = false;
+    }
+
+    Connections {
+        target: Theme
+        function onTuiChanged() { root.drag = null; root.dropTarget = 0; root.pointer = Qt.point(-1, -1); }
+    }
+
+    onListChanged: if (current >= list.length) current = Math.max(0, list.length - 1)
+
+    visible: true // always mapped (see above)
+    anchors.top: true
+    anchors.bottom: true
+    anchors.left: true
+    anchors.right: true
+    exclusionMode: ExclusionMode.Ignore
+    color: "transparent"
+    WlrLayershell.namespace: "pistachio-overview"
+    WlrLayershell.layer: Theme.tui ? WlrLayer.Overlay : WlrLayer.Top
+    WlrLayershell.keyboardFocus: root.shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    mask: Region {
+        width: root.shown ? root.width : 0
+        height: root.shown ? root.height : 0 // the TUI strip hides under the Overview now (owner's bug report)
+    }
+
+    // For a keybind: qs -c pistachio ipc call overview toggle
+    IpcHandler {
+        target: "overview"
+
+        function toggle(): void {
+            if (root.open)
+                root.hide();
+            else
+                root.show();
         }
+        function open(): void {
+            root.show();
+        }
+        function close(): void {
+            root.hide();
+        }
+        function status(): string {
+            return JSON.stringify({ open: root.open, mode: root.mode, query: root.query, cards: root.list.length, current: root.current, workspace: root.active });
+        }
+    }
+
+    Reveal {
+        id: reveal
+        open: root.open
+    }
+
+    Loader {
+        anchors.fill: parent
+        focus: true
+        sourceComponent: Theme.tui ? tuiView : classicView
+    }
+    Component { id: tuiView; TuiOverview { controller: root; progress: reveal.progress } }
+    Component {
+        id: classicView
+        Item {
+            objectName: "classic-overview"
+            anchors.fill: parent
+    // the wallpaper, dimmed, over the windows; a click on it leaves
+    Item {
+        id: backdrop
+        anchors.fill: parent
+        opacity: reveal.progress
+        visible: root.shown
+
+        // blurred, and settling from a slight zoom as it opens: a step back from the desktop
+        Loader {
+            anchors.fill: parent
+            active: root.shown
+            scale: 1.12 - 0.07 * reveal.progress // never under 1.05, so the blur's soft edge stays off screen
+            sourceComponent: WallpaperView {
+                path: Wallpapers.current
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    blurEnabled: true
+                    blur: 1
+                    blurMax: 48
+                    autoPaddingEnabled: false
+                }
+            }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.deep
+            opacity: 0.5
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: if (!root.drag) root.hide()
+        }
+    }
+
+    Item {
+        id: content
+
+        anchors.fill: parent
+        visible: root.shown
+        opacity: reveal.progress
+        scale: 0.97 + 0.03 * reveal.progress
+        focus: root.open
+
+        Keys.onPressed: event => root.key(event)
 
         // the workspaces along the top (not with All windows or a search)
         Row {
@@ -684,18 +713,7 @@ PanelWindow {
                             }
                         }
                         onPressed: mouse => from = Qt.point(mouse.x, mouse.y)
-                        onReleased: {
-                            if (!root.drag)
-                                return;
-                            const target = root.dropTarget;
-                            const card = root.drag.card;
-                            root.drag = null;
-                            root.dropTarget = 0;
-                            if (target === -1)
-                                Compositor.sendWindow(card.w.address, root.newSpace);
-                            else if (target > 0 && target !== root.active)
-                                Compositor.sendWindow(card.w.address, target);
-                        }
+                        onReleased: root.finishDrag()
                         onClicked: if (!root.drag) root.activate(slot.modelData)
                     }
                 }
@@ -1099,5 +1117,6 @@ PanelWindow {
                 }
             }
         }
+    }        }
     }
 }

@@ -13,23 +13,28 @@ Basic.Button {
     property bool animateSelection
     property list<string> glyph: []
     implicitHeight: 44
-    implicitWidth: Math.max(44, contentItem.implicitWidth + 48)
-    padding: 18
+    implicitWidth: Math.max(44, Theme.tui ? naturalLabel.implicitWidth + leftPadding + rightPadding : contentItem.implicitWidth + 48)
+    padding: Theme.tui ? Theme.tuiButtonPadding : 18
+    leftPadding: padding
+    rightPadding: padding
     topPadding: 0
     bottomPadding: 0
     font.family: Theme.fontUi
-    font.pixelSize: 12
-    font.weight: Font.Bold
+    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
+    font.weight: Theme.tui ? Font.DemiBold : Font.Bold
     hoverEnabled: true
     background: Rectangle {
-        radius: root.card ? Theme.tileRadius : height / 2
-        scale: root.animateSelection && !root.active ? 0.96 : 1
+        y: Theme.tui && !root.animateSelection ? (root.height-Theme.tuiButtonHeight)/2 : 0
+        height: Theme.tui && !root.animateSelection ? Theme.tuiButtonHeight : root.height
+        radius: Theme.tui ? 0 : (root.card ? Theme.tileRadius : height / 2)
+        scale: !Theme.tui && root.animateSelection && !root.active ? 0.96 : 1
         Behavior on scale { NumberAnimation { duration: Theme.motionDuration; easing.type: Theme.easing } }
-        color: root.card ? root.hovered || root.visualFocus ? Theme.overlay2 : Theme.overlay : root.active ? Theme.pistachio : root.selected ? Theme.overlay2 : root.hovered || root.visualFocus ? Theme.overlay : root.quiet ? "transparent" : Theme.overlay2
+        color: Theme.tui ? (root.active ? Theme.pistachio : root.hovered || root.visualFocus || root.selected ? Theme.tuiHover : root.quiet ? "transparent" : Theme.overlay) : root.card ? root.hovered || root.visualFocus ? Theme.overlay2 : Theme.overlay : root.active ? Theme.pistachio : root.selected ? Theme.overlay2 : root.hovered || root.visualFocus ? Theme.overlay : root.quiet ? "transparent" : Theme.overlay2
         border.width: root.visualFocus ? 1 : 0
         border.color: Theme.subtext
         Behavior on color { ColorAnimation { duration: Theme.hoverDuration; easing.type: Theme.easing } }
     }
+    Text { id: naturalLabel; visible: false; text: root.text; font: root.font }
     contentItem: Text {
         text: root.glyph.length ? "" : root.text
         font: root.font

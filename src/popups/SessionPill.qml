@@ -33,7 +33,7 @@ PanelWindow {
 
         width: row.implicitWidth + 12 + 8
         height: Theme.chipHeight + 8
-        radius: height / 2
+        radius: Theme.tui ? 0 : height / 2
         color: Theme.glass(Theme.bgAlt)
         border.width: 1
         border.color: Theme.overlay2
@@ -62,7 +62,7 @@ PanelWindow {
                 text: FocusMode.clock(FocusMode.left())
                 color: FocusMode.paused ? Theme.subtext : Theme.textBright
                 font.family: Theme.fontUi
-                font.pixelSize: 13
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13
                 font.weight: Font.ExtraBold
                 font.features: { "tnum": 1 }
 
@@ -79,7 +79,7 @@ PanelWindow {
                 text: FocusMode.phaseName() + (FocusMode.paused ? " · paused" : "")
                 color: Theme.subtext
                 font.family: Theme.fontUi
-                font.pixelSize: 11
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11
                 font.weight: Font.DemiBold
                 font.features: { "tnum": 1 }
             }
@@ -109,7 +109,7 @@ PanelWindow {
         anchors.verticalCenter: parent?.verticalCenter
         width: 28
         height: 28
-        radius: 14
+        radius: Theme.tui ? 0 : 14
         color: mouse.containsMouse ? Theme.overlay2 : Theme.overlay
         Accessible.role: Accessible.Button
         Accessible.name: label

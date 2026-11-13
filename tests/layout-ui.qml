@@ -7,12 +7,16 @@ import QtQuick
 import QtTest
 Scope {
     property string tapped
+    Switch { id: probeSwitch; parent:win.contentItem;y:100;checked:true }
+    Slider { id: probeSlider;parent:win.contentItem;x:80;y:100;width:240; from:2500;to:6500;value:4500 }
+
     FloatingWindow {
         id:win; visible:true; implicitWidth:640; implicitHeight:240
         ActionButton { id:normal; x:8; y:180; text:"Open" }
         ActionButton { id:bounded; x:120; y:180; text:"A very long action which must fit inside its available space"; maximumWidth:180 }
         KeyHints { id:footer; width:parent.width; hints:[]; clickableKeys:({"Esc":true}); onActivated:key=>tapped=key }
     }
+    PanelFrame { id:frame;parent:win.contentItem;width:192;height:80;title:"A very long window title that must stay inside the frame";detail:"workspace information";visible:false }
     TestCase { id:input; when:false }
     IpcHandler {
         target:"layoutTest"
@@ -35,6 +39,34 @@ Scope {
                     }
                     if (tapped!=="Esc") throw Error("wrapped hint must remain clickable");
                 }
+                Theme.tui=true;input.wait(100);
+                for(const tab of frame.children){if(tab.width===undefined||!tab.visible)continue;const at=tab.mapToItem(frame,0,0);if(at.x<0||at.x+tab.width>frame.width)throw Error("long title/detail escape frame");}
+                const state=input.findChild(probeSwitch,"switch-state");
+                if(!state || state.text!=="[x]") throw Error("TUI switch reflects on state");
+                probeSwitch.checked=false;input.wait(100);
+                if(state.text!=="[ ]") throw Error("TUI switch reflects off state");
+                if(Math.abs(probeSlider.shownValue-4500)>1) throw Error("TUI meter preserves original units");
+                probeSlider.value=2500;input.wait(100);
+                const meter=input.findChild(probeSlider,"slider-meter");
+                if(!meter) throw Error("TUI meter is present");
+                const emptyWidth=meter.implicitWidth;
+                if(probeSlider.filledCells!==0) throw Error("TUI meter empty at lower endpoint");
+                probeSlider.value=6500;input.wait(100);
+                if(Math.abs(meter.implicitWidth-emptyWidth)>1) throw Error("TUI meter brackets stay fixed at empty and full");
+                if(probeSlider.filledCells!==probeSlider.cells) throw Error("TUI meter full at upper endpoint");
+                probeSlider.value=4500;input.wait(100);
+                if(Math.abs(meter.implicitWidth-emptyWidth)>1) throw Error("TUI meter width fixed at midpoint");
+                probeSlider.LayoutMirroring.enabled=true;input.wait(100);
+                if(!probeSlider.mirrored || !meter.text.startsWith("[&nbsp;")) throw Error("mirrored TUI fill starts from the right");
+                probeSlider.LayoutMirroring.enabled=false;input.wait(100);
+                input.mousePress(probeSlider,20,22);input.mouseMove(probeSlider,200,22,30);input.mouseRelease(probeSlider,200,22);input.wait(100);
+                if(probeSlider.value<5500) throw Error("TUI meter drag changes real value");
+                probeSlider.forceActiveFocus();const oldValue=probeSlider.value;input.keyClick(Qt.Key_Left);input.wait(100);
+                if(probeSlider.value>=oldValue) throw Error("TUI meter keyboard preserves input");
+                probeSlider.enabled=false;const disabledValue=probeSlider.value;input.mouseClick(probeSlider,20,22);input.wait(100);
+                if(probeSlider.value!==disabledValue) throw Error("disabled TUI meter changes value");
+                Theme.tui=false;input.wait(100);
+                if(normal.radius!==normal.height/2) throw Error("Classic button restored");
                 return "PASS footer hints fit and remain clickable at 640/480/320 px";
             } catch(e) { return "FAIL "+e; }
         }

@@ -8,7 +8,7 @@ Rectangle {
     signal clicked
     implicitWidth: label.implicitWidth + 28
     implicitHeight: 40
-    radius: 20
+    radius: Theme.tui ? 0 : 20
     color: selected ? Theme.pistachio : mouse.containsMouse ? Theme.overlay2 : Theme.overlay
     Accessible.role: Accessible.Button
     Accessible.name: text
@@ -19,7 +19,7 @@ Rectangle {
     Text {
         id: label; anchors.centerIn: parent; text: root.text
         color: root.selected ? Theme.bg : Theme.text
-        font.family: Theme.fontUi; font.pixelSize: 12; font.weight: Font.Bold
+        font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12; font.weight: Font.Bold
     }
     MouseArea { id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.clicked() }
 }

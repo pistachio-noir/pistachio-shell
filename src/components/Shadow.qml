@@ -19,7 +19,7 @@ RectangularShadow {
     property bool frostable
 
     // off in the launcher (System, Shell settings); the windows keep the room, which costs nothing
-    visible: ShellSettings.shadows && !(frostable && ShellSettings.frosted)
+    visible: !Theme.tui && ShellSettings.shadows && !(frostable && ShellSettings.frosted)
     offset.y: kind.y
     blur: kind.blur
     color: Qt.rgba(Theme.shadow.r, Theme.shadow.g, Theme.shadow.b, kind.alpha)

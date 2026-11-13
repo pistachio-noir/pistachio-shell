@@ -197,6 +197,8 @@ Singleton {
         return `rgba(${two(c.r)}${two(c.g)}${two(c.b)}${two(alpha)})`;
     }
 
+    Connections { target: Theme; function onFontUiChanged() { Qt.callLater(root.styleGroups); } }
+
     function styleGroups() {
         if (!Hyprland.usingLua)
             return; // a hyprland.conf: the README gives its lines
@@ -471,7 +473,9 @@ Singleton {
         if (window.group.length > 1) {
             dispatch(`hl.dsp.window.move({ window = "${selector}", out_of_group = true })`, "moveoutofgroup");
         }
-        dispatch(`hl.dsp.window.float({ action = "set", window = "${selector}" })`, `setfloating ${selector}`);
+        // Installed Hyprland toggles even action=set on an already-floating window.
+        if (!window.floating)
+            dispatch(`hl.dsp.window.float({ action = "set", window = "${selector}" })`, `setfloating ${selector}`);
         dispatch(`hl.dsp.window.resize({ window = "${selector}", x = ${width}, y = ${height}, relative = false })`, `resizewindowpixel exact ${width} ${height},${selector}`);
         dispatch(`hl.dsp.window.center({ window = "${selector}" })`, "centerwindow");
         styleSettingsWindow(address);
@@ -481,7 +485,7 @@ Singleton {
     function styleSettingsWindow(address: string) {
         const selector = `address:0x${address}`;
         dispatch(`hl.dsp.window.set_prop({ window = "${selector}", prop = "border_size", value = "0" })`, `setprop ${selector} bordersize 0`);
-        dispatch(`hl.dsp.window.set_prop({ window = "${selector}", prop = "rounding", value = "${Theme.panelRadius}" })`, `setprop ${selector} rounding ${Theme.panelRadius}`);
+        dispatch(`hl.dsp.window.set_prop({ window = "${selector}", prop = "rounding", value = "${Theme.tui ? 0 : Theme.panelRadius}" })`, `setprop ${selector} rounding ${Theme.tui ? 0 : Theme.panelRadius}`);
     }
 
     function close(address: string) {

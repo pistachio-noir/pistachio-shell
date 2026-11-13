@@ -1,5 +1,6 @@
 import qs
 import qs.components
+import qs.services
 import QtQuick
 
 // Owner's board: compact capture modes, Lens, then optional utilities, with a delayed help card.
@@ -56,7 +57,7 @@ Item {
         color: Theme.bgAlt
         border.width: 1; border.color: Theme.overlay2
         opacity: reveal.progress
-        visible: reveal.shown
+        visible: reveal.shown && !Theme.tui
         enabled: root.open
         Accessible.role: Accessible.Grouping
         Accessible.name: "Screenshot"
@@ -92,7 +93,7 @@ Item {
                             objectName: "screenshot-choice-" + slot.modelData.name.toLowerCase()
                             readonly property bool selected: root.current === slot.index
                             x: slot.buttonOffset
-                            width: labelRow.implicitWidth + 30; height: 44; radius: 22
+                            width: labelRow.implicitWidth + 30; height: 44; radius: Theme.tui ? 0 : 22
                             color: selected ? Theme.pistachio : mouse.containsMouse ? Theme.overlay : "transparent"
                             Accessible.role: Accessible.Button
                             Accessible.name: `${slot.modelData.name}, key ${String.fromCharCode(slot.modelData.key)}`
@@ -106,14 +107,14 @@ Item {
                                     Icon { anchors.fill: parent; size: 18; paths: slot.modelData.icon; color: button.selected ? Theme.bg : Theme.text }
                                     Rectangle {
                                         visible: slot.modelData.name === "Record"
-                                        anchors.centerIn: parent; width: 6; height: 6; radius: 3
+                                        anchors.centerIn: parent; width: 6; height: 6; radius: Theme.tui ? 0 : 3
                                         color: button.selected ? Theme.bg : Theme.text
                                     }
                                 }
                                 Text {
                                     text: slot.modelData.name; textFormat: Text.PlainText
                                     color: button.selected ? Theme.bg : Theme.text
-                                    font.family: Theme.fontUi; font.pixelSize: 13; font.weight: button.selected ? Font.ExtraBold : Font.Bold
+                                    font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13; font.weight: button.selected ? Font.ExtraBold : Font.Bold
                                 }
                                 Text {
                                     visible: slot.index < 5
@@ -121,7 +122,7 @@ Item {
                                     text: String.fromCharCode(slot.modelData.key)
                                     opacity: 0.7
                                     color: button.selected ? Theme.bg : Theme.text
-                                    font.family: Theme.fontUi; font.pixelSize: 11; font.weight: Font.Bold
+                                    font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11; font.weight: Font.Bold
                                 }
                             }
                             MouseArea {
@@ -152,9 +153,9 @@ Item {
         objectName: "screenshot-output"
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(8, bar.y - 48)
-        width: outputRow.implicitWidth + 8; height: 40; radius: 20
+        width: outputRow.implicitWidth + 8; height: 40; radius: Theme.tui ? 0 : 20
         color: Theme.bgAlt; border.width: 1; border.color: Theme.overlay2
-        visible: reveal.shown; opacity: reveal.progress; enabled: root.open
+        visible: reveal.shown && !Theme.tui; opacity: reveal.progress; enabled: root.open
         Row {
             id: outputRow; x: 4; y: 4; spacing: 2
             Repeater {
@@ -165,6 +166,117 @@ Item {
                     text: modelData.label; selected: root.output === modelData.value
                     height: 32
                     onClicked: root.outputChosen(modelData.value)
+                }
+            }
+        }
+    }
+
+    // TUI (LensMenu board): a "capture" frame listing the modes, Lens last under a rule, the chosen
+    // one's description, where the file goes, and the keys. Same choices, keys and signals as the bar.
+    PanelFrame {
+        id: tuiMenu
+        objectName: "screenshot-tui-menu"
+        readonly property var order: root.choices.map((_, n) => n).filter(n => root.choices[n].name !== "Lens").concat(root.choices.map((_, n) => n).filter(n => root.choices[n].name === "Lens"))
+        readonly property var labels: ({ Region: "screenshot region", Window: "screenshot window", Screen: "screenshot screen", Text: "read text", Colour: "pick a colour", Record: "record screen" })
+        visible: Theme.tui && reveal.shown
+        enabled: root.open
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: Theme.tuiBarHeight + 110 + 8 * (1 - reveal.progress)
+        opacity: reveal.progress
+        width: 408
+        height: tuiColumn.implicitHeight + 28
+        title: "capture"
+        detail: `${root.choices.length} actions`
+        Accessible.role: Accessible.Grouping
+        Accessible.name: "Screenshot"
+        MouseArea { anchors.fill: parent }
+        Column {
+            id: tuiColumn
+            x: 0; y: 18; width: parent.width
+            Repeater {
+                model: tuiMenu.order
+                Column {
+                    id: tuiSlot
+                    required property int modelData
+                    readonly property var choice: root.choices[modelData]
+                    readonly property bool lens: choice.name === "Lens"
+                    readonly property bool selected: root.current === modelData
+                    width: tuiColumn.width
+                    Item {
+                        visible: tuiSlot.lens
+                        width: parent.width; height: Theme.tuiLineHeight
+                        Rectangle { x: 12; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 24; height: 1; color: Theme.tuiBorder }
+                    }
+                    Rectangle {
+                        objectName: "screenshot-choice-" + tuiSlot.choice.name.toLowerCase()
+                        width: parent.width; height: Theme.tuiLauncherRowHeight
+                        color: tuiSlot.selected ? Theme.pistachio : tuiMouse.containsMouse ? Theme.tuiHover : "transparent"
+                        Accessible.role: Accessible.Button
+                        Accessible.name: `${tuiSlot.choice.name}, key ${String.fromCharCode(tuiSlot.choice.key)}`
+                        Accessible.description: tuiSlot.choice.description
+                        Text {
+                            x: 12; anchors.verticalCenter: parent.verticalCenter
+                            text: `[${String.fromCharCode(tuiSlot.choice.key).toLowerCase()}]`
+                            color: tuiSlot.selected ? Theme.bg : Theme.textBright; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize; font.weight: Font.Bold
+                        }
+                        Text {
+                            x: 52; anchors.verticalCenter: parent.verticalCenter
+                            text: tuiSlot.lens ? `ask ${ShellSettings.lensProvider === "codex" ? "chatgpt" : "claude"} about a region` : (tuiMenu.labels[tuiSlot.choice.name] ?? tuiSlot.choice.name.toLowerCase())
+                            color: tuiSlot.selected ? Theme.bg : Theme.text; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize; font.weight: Font.Bold
+                        }
+                        Text {
+                            visible: tuiSlot.lens
+                            anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
+                            text: "lens"
+                            color: tuiSlot.selected ? Theme.bg : Theme.subtext; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize
+                        }
+                        MouseArea {
+                            id: tuiMouse
+                            anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onPositionChanged: event => {
+                                const at = tuiMouse.mapToItem(root, event.x, event.y);
+                                const moved = root.pointerKnown && (Math.abs(at.x-root.pointerPosition.x) > 0.5 || Math.abs(at.y-root.pointerPosition.y) > 0.5);
+                                root.pointerKnown = true; root.pointerPosition = at;
+                                if (containsMouse && root.open && moved) root.highlighted(tuiSlot.modelData);
+                            }
+                            onClicked: root.chosen(tuiSlot.modelData)
+                        }
+                    }
+                }
+            }
+            // what the chosen one does
+            Text {
+                x: 12; width: parent.width - 24; topPadding: 8
+                text: (root.choices[root.current]?.description ?? "").toLowerCase()
+                wrapMode: Text.Wrap
+                color: Theme.subtext; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize
+            }
+            // output  [x] save  [ ] copy  [ ] both
+            Row {
+                x: 12; topPadding: 8; spacing: 16
+                Text { text: "output"; color: Theme.subtext; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize }
+                Repeater {
+                    model: [["save", "save"], ["copy", "copy"], ["both", "both"]]
+                    TuiBracket {
+                        required property var modelData
+                        objectName: "capture-output-" + modelData[0]
+                        key: root.output === modelData[0] ? "x" : " "
+                        on: root.output === modelData[0]
+                        label: modelData[1]
+                        onClicked: root.outputChosen(modelData[0])
+                    }
+                }
+            }
+            Row {
+                x: 12; topPadding: 12; spacing: 16
+                Repeater {
+                    model: [["↑↓", "move"], ["Enter", "start"], ["Esc", "close"]]
+                    Row {
+                        required property var modelData
+                        spacing: 8
+                        Text { text: modelData[0]; color: Theme.textBright; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize; font.weight: Font.Bold }
+                        Text { text: modelData[1]; color: Theme.subtext; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize }
+                    }
                 }
             }
         }
@@ -181,7 +293,7 @@ Item {
         radius: Theme.tileRadius
         color: Theme.bgAlt
         border.width: 1; border.color: Theme.overlay2
-        visible: tipReveal.shown
+        visible: tipReveal.shown && !Theme.tui
         opacity: tipReveal.progress * reveal.progress
         Accessible.role: Accessible.ToolTip
         Accessible.name: root.tipChoice ? root.tipChoice.name + ". " + root.tipChoice.description : ""
@@ -191,11 +303,11 @@ Item {
         Column {
             id: tipText
             x: 17; y: 15; width: parent.width - 34; spacing: 4
-            Text { text: root.tipChoice?.name ?? ""; color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: 13; font.weight: Font.Bold }
+            Text { text: root.tipChoice?.name ?? ""; color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13; font.weight: Font.Bold }
             Text {
                 width: parent.width; text: root.tipChoice?.description ?? ""; textFormat: Text.PlainText
                 wrapMode: Text.Wrap; lineHeightMode: Text.FixedHeight; lineHeight: 18
-                color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12; font.weight: Font.Medium
+                color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12; font.weight: Font.Medium
             }
             Item {
                 width: parent.width; height: command.implicitHeight + 4
@@ -203,7 +315,7 @@ Item {
                     id: command
                     y: 4; width: parent.width; wrapMode: Text.Wrap
                     text: root.tipChoice?.command || (root.tipChoice ? "Press " + String.fromCharCode(root.tipChoice.key) : "")
-                    color: Theme.text; font.family: Theme.fontMono; font.pixelSize: 11
+                    color: Theme.text; font.family: Theme.fontMono; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11
                 }
             }
         }

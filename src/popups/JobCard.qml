@@ -32,12 +32,12 @@ Rectangle {
             // the state's mark
             Rectangle {
                 id: mark
-                width: 32; height: 32; radius: 16
+                width: 32; height: 32; radius: Theme.tui ? 0 : 16
                 anchors.verticalCenter: parent.verticalCenter
                 color: Theme.bg
                 Rectangle {
                     visible: root.running
-                    anchors.centerIn: parent; width: 10; height: 10; radius: 5; color: Theme.pistachio
+                    anchors.centerIn: parent; width: 10; height: 10; radius: Theme.tui ? 0 : 5; color: Theme.pistachio
                     SequentialAnimation on opacity {
                         running: root.running; loops: Animation.Infinite
                         NumberAnimation { to: 0.35; duration: 700; easing.type: Easing.InOutSine }
@@ -77,7 +77,7 @@ Rectangle {
             visible: root.expanded
             width: parent.width
             height: Math.min(240, out.implicitHeight + 28)
-            radius: 14
+            radius: Theme.tui ? 0 : 14
             color: Theme.bg
             clip: true
             Flickable {

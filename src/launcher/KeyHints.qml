@@ -7,7 +7,7 @@ Item {
     property var clickableKeys: ({})
     signal activated(string key)
     objectName: "launcher-key-hints"
-    implicitHeight: Math.max(46, hintsFlow.implicitHeight + 24)
+    implicitHeight: Theme.tui?Math.max(40,hintsFlow.implicitHeight+20):Math.max(46,hintsFlow.implicitHeight+24)
     width: parent.width
     height: implicitHeight
 
@@ -20,8 +20,8 @@ Item {
     Flow {
         id: hintsFlow
         objectName: "key-hints-flow"
-        x: 26; y: 12
-        width: Math.max(0,parent.width-52)
+        x: Theme.tui?12:26; y: Theme.tui?10:12
+        width: Math.max(0,parent.width-(Theme.tui?24:52))
         spacing: 12
 
         Repeater {
@@ -34,10 +34,10 @@ Item {
                 spacing: 8
 
                 Rectangle {
-                    width: Math.max(22, keyText.implicitWidth + 12)
-                    height: 22
-                    radius: 7
-                    color: hintHover.hovered ? Theme.overlay2 : Theme.overlay
+                    width: Theme.tui?keyText.implicitWidth:Math.max(22,keyText.implicitWidth+12)
+                    height: Theme.tui?20:22
+                    radius: Theme.tui?0:7
+                    color: Theme.tui?"transparent":hintHover.hovered?Theme.overlay2:Theme.overlay
 
                     Behavior on color {
                         ColorAnimation {
@@ -52,7 +52,7 @@ Item {
                         text: modelData[0]
                         color: Theme.text
                         font.family: Theme.fontUi
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.tui?Theme.tuiTextSize:12
                         font.weight: Font.ExtraBold
                     }
                 }
@@ -62,7 +62,7 @@ Item {
                     text: modelData[1]
                     color: hintHover.hovered ? Theme.text : Theme.subtext
                     font.family: Theme.fontUi
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.tui?Theme.tuiTextSize:12
                     font.weight: Font.DemiBold
                 }
 

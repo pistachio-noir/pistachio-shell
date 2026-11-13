@@ -6,13 +6,13 @@ import QtQuick
 // The weather above the calendar and the notification centre (calendar-weather-notifications and
 // weather-details-expanded boards; owner's design): now, the city with today's high and low, and the
 // next five days; the chevron opens the next hours, with their chance of rain, and four details.
-Rectangle {
+PanelFrame {
     id: root
 
     property bool expanded
     property real opened: expanded ? 1 : 0
     // its height with the details open, so the window can keep room for them
-    readonly property real fullHeight: 20 + head.height + 14 + details.height + 20
+    readonly property real fullHeight: Theme.tui ? 458 : view.item?.fullHeight ?? 0
 
     function iconOf(code: int, day: bool): list<string> {
         return WeatherLook.iconOf(code, day);
@@ -22,22 +22,31 @@ Rectangle {
         return WeatherLook.colourOf(code, day);
     }
 
-    height: 20 + head.height + 20 + (14 + details.height) * opened
-    radius: Theme.panelRadius
-    color: Theme.surface
+    title: Theme.tui ? "weather" : ""
+    detail: Theme.tui ? "now" : ""
+    active: false
+    height: Theme.tui ? (expanded ? 458 : 170) : view.item?.implicitHeight ?? 0
+    radius: Theme.tui ? 0 : Theme.panelRadius
+    color: Theme.tui ? Theme.tuiSurface : Theme.surface
     border.width: 1
     border.color: Theme.overlay2
-    clip: true
+    clip: !Theme.tui
     Accessible.role: Accessible.Grouping
     Accessible.name: Weather.now ? `Weather in ${Weather.place?.name ?? Weather.city}: ${Weather.now.temp} degrees, ${Weather.describe(Weather.now.code).text}` : "Weather"
 
     Behavior on opened {
+        enabled: !Theme.tui
         NumberAnimation {
             duration: Theme.motionDuration
             easing.type: Theme.easing
         }
     }
 
+    Loader { id: view; anchors.fill: parent; sourceComponent: Theme.tui ? tuiView : classicView }
+    Component { id: tuiView; TuiWeather { controller: root } }
+    Component { id: classicView; Item {
+        readonly property real fullHeight: 20 + head.height + 14 + details.height + 20
+        implicitHeight: 20 + head.height + 20 + (14 + details.height) * root.opened
     // now and the next five days
     Item {
         id: head
@@ -330,5 +339,5 @@ Rectangle {
                 }
             }
         }
-    }
+    }    } }
 }

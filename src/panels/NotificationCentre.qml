@@ -19,6 +19,10 @@ PanelWindow {
         return Notifs.age(ms, clock.date);
     }
 
+    property bool calendarShown: true
+    readonly property alias calendar: calendarItem
+    readonly property alias weather: weatherItem
+    readonly property var list: panel.item?.view ?? null
     property bool open
     // Notifications grouped by app (owner's request, after phase 8): the app with the newest one
     // first, newest first within each. `groups.by` maps an app to its notifications, `ordered` is the
@@ -62,7 +66,7 @@ PanelWindow {
         onTriggered: {
             const i = root.ordered.indexOf(root.spotlight);
             if (i >= 0)
-                list.positionViewAtIndex(i, ListView.Contain);
+                list?.positionViewAtIndex(i, ListView.Contain);
             unspot.restart();
         }
     }
@@ -83,7 +87,7 @@ PanelWindow {
             openGroups = kept;
     }
     // room below the panels for their shadows; the bar places the window with it
-    readonly property int below: panelShadow.below
+    readonly property int below: Theme.tui ? 0 : panelShadow.below
     // The weather's room above the calendar. The window keeps room for its details open, so opening
     // them grows the panel without resizing the window; the panels sit at its bottom.
     readonly property real weatherSpace: Weather.available ? weather.height + 16 : 0
@@ -91,18 +95,20 @@ PanelWindow {
     visible: reveal.shown
     focusable: true // for Escape
     exclusiveZone: 0
-    implicitWidth: panelShadow.side + panels.width + panelShadow.side
-    implicitHeight: panelShadow.above + (Weather.available ? weather.fullHeight + 16 : 0) + calendar.implicitHeight + below
+    implicitWidth: side + panels.width + side
+    implicitHeight: Theme.tui ? 10 + panels.height : panelShadow.above + (Weather.available ? weather.fullHeight + 16 : 0) + calendar.implicitHeight + below
     color: "transparent"
     WlrLayershell.namespace: "pistachio-panel" // frosted panels: Hyprland blurs the shell's layers by name
     mask: Region {
-        item: panels // the shadows' room lets clicks through
+        item: Theme.tui ? panel : panels // gaps between TUI frames let clicks through
+        Region { item: Theme.tui && root.calendarShown ? calendar : null; intersection: Intersection.Combine }
+        Region { item: Theme.tui && root.calendarShown && Weather.available ? weather : null; intersection: Intersection.Combine }
     }
 
     // Showoff mode: no notifications (the empty state shows), and they stay unread. The bar places the
     // centre left and it slides in from there (`slide`, px).
     property real slide
-    readonly property int side: panelShadow.side
+    readonly property int side: Theme.tui ? 0 : panelShadow.side
     readonly property real panelWidth: panels.width
     readonly property real panelHeight: panels.height
 
@@ -146,13 +152,13 @@ PanelWindow {
     Item {
         id: panels
 
-        x: panelShadow.side + root.slide * (1 - reveal.progress)
-        y: root.implicitHeight - root.below - height
-        width: calendar.width + 16 + panel.width
-        height: root.weatherSpace + calendar.implicitHeight // owner's call: a long list stretched the calendar into empty space
+        x: Theme.tui ? 0 : panelShadow.side + root.slide * (1 - reveal.progress)
+        y: Theme.tui ? 10 : root.implicitHeight - root.below - height
+        width: Theme.tui ? (root.calendarShown ? calendar.width + 16 + (Weather.available ? 264 + 16 : 0) : 0) + panel.width : calendar.width + 16 + panel.width
+        height: Theme.tui ? Math.max(panel.height, root.calendarShown ? Math.max(calendar.height, Weather.available ? weather.height : 0) : 0) : root.weatherSpace + calendar.implicitHeight // owner's call: a long list stretched the calendar into empty space
         // fades and grows slightly from the bar, and back
         opacity: reveal.progress
-        scale: 0.96 + 0.04 * reveal.progress
+        scale: Theme.tui ? 1 : 0.96 + 0.04 * reveal.progress
         transformOrigin: Item.Bottom
         focus: true
         Keys.onPressed: event => {
@@ -160,11 +166,13 @@ PanelWindow {
                 Showoff.stop(); // the panels hold the keyboard meanwhile: Esc ends showoff mode
             else if (event.key === Qt.Key_Escape)
                 root.open = false;
-            else if (event.key === Qt.Key_Left || event.key === Qt.Key_H)
+            else if (Theme.tui && panel.item?.key(event))
+                return;
+            else if ((!Theme.tui || root.calendarShown) && (event.key === Qt.Key_Left || !Theme.tui && event.key === Qt.Key_H))
                 calendar.step(-1, false);
-            else if (event.key === Qt.Key_Right || event.key === Qt.Key_L)
+            else if ((!Theme.tui || root.calendarShown) && (event.key === Qt.Key_Right || !Theme.tui && event.key === Qt.Key_L))
                 calendar.step(1, false);
-            else if (event.key === Qt.Key_Home)
+            else if ((!Theme.tui || root.calendarShown) && event.key === Qt.Key_Home)
                 calendar.showToday(true);
             else
                 return;
@@ -172,18 +180,19 @@ PanelWindow {
         }
 
         Shadow {
-
+            objectName: "centre-weather-shadow"
             frostable: true
-            visible: Weather.available
+            visible: !Theme.tui && Weather.available
             kind: Theme.shadowPanel
             anchors.fill: weather
             radius: weather.radius
         }
 
         WeatherPanel {
-            id: weather
-            visible: Weather.available
-            width: parent.width
+            id: weatherItem
+            x: Theme.tui ? calendar.width + 16 : 0
+            visible: Weather.available && (!Theme.tui || root.calendarShown)
+            width: Theme.tui ? 264 : parent.width
         }
 
         Shadow {
@@ -204,18 +213,29 @@ PanelWindow {
         }
 
         Calendar {
-            id: calendar
-            y: root.weatherSpace
+            id: calendarItem
+            visible: !Theme.tui || root.calendarShown
+            y: Theme.tui ? 0 : root.weatherSpace
             height: implicitHeight
         }
 
-        Rectangle {
+        Loader {
             id: panel
+            x: Theme.tui ? (root.calendarShown ? calendar.width + 16 + (Weather.available ? 264 + 16 : 0) : 0) : calendar.width + 16
+            y: Theme.tui ? 0 : calendar.y
+            width: Theme.tui ? 400 : 360
+            height: Theme.tui ? item?.implicitHeight ?? 0 : calendar.height
+            property real radius: Theme.tui ? 0 : Theme.panelRadius
+            sourceComponent: Theme.tui ? tuiNotice : classicNotice
+        }
+    }
+    Component { id: tuiNotice; TuiNotificationList { controller: root } }
+    Component { id: classicNotice;
+        Rectangle {
+            id: classicPanel
+            property alias view: list
 
-            x: calendar.width + 16
-            y: calendar.y
-            width: 360
-            height: calendar.height
+            anchors.fill: parent
             radius: Theme.panelRadius
             color: Theme.surface
             border.width: 1

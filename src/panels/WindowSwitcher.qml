@@ -70,7 +70,7 @@ PanelWindow {
 
     // up and down a row, staying on the grid
     function row(by: int) {
-        const i = current + by * 5;
+        const i = current + by * (Theme.tui?1:5);
         if (i >= 0 && i < windows.length)
             current = i;
     }
@@ -139,6 +139,10 @@ PanelWindow {
         event.accepted = true;
     }
 
+    Connections {
+        target: Theme
+        function onTuiChanged() {root.pointerStart=Qt.point(-1,-1);root.pointerMoved=false;}
+    }
     onWindowsChanged: {
         if (open && windows.length === 0)
             open = false;
@@ -203,7 +207,17 @@ PanelWindow {
         }
     }
 
+    Loader {
+        focus:true
+        anchors.fill:parent
+        sourceComponent:Theme.tui?tuiLayout:classicLayout
+    }
+    Component {id:tuiLayout;TuiWindowSwitcher {controller:root;progress:reveal.progress}}
+    Component {
+        id:classicLayout
+        Item {
     Column {
+        objectName:"classic-window-switcher"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         // centred in the room above the bar, rising 12 px as it fades in
@@ -491,6 +505,8 @@ PanelWindow {
             font.family: Theme.fontUi
             font.pixelSize: 12
             font.weight: Font.DemiBold
+        }
+    }
         }
     }
 }

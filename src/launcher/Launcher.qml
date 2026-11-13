@@ -67,7 +67,8 @@ PanelWindow {
     // the System monitor's GPU and disk rows arrive a moment after System opens); let go of once
     // another row is selected
     property string heldKey
-    onCurrentChanged: if (rows[current]?.key !== heldKey) heldKey = ""
+    onCurrentChanged: {if(rows[current]?.key!==heldKey)heldKey="";if(Theme.tui)Qt.callLater(scrollCurrent);}
+    onColumnChanged: if(Theme.tui)Qt.callLater(scrollCurrent)
     // App actions (owner's request, after phase 8): → on an app opens its own actions as rows under it
     // (the key of the app's row; an app can be listed twice), ← or typing closes them.
     property string expandedKey
@@ -100,9 +101,11 @@ PanelWindow {
         : filesWanted ? [["↑↓", "navigate"], ["↵", "open"], ["Shift ↵", "show in folder"], ["Esc", "close"]]
         : (mode === "all" || mode === "apps") && query.startsWith("!") ? [["↑↓", "navigate"], ["↵", "show in centre"], ["Esc", "close"]]
         : cheatWanted ? [["↑↓", "navigate"], ["↵", "use a prefix"], ["Esc", "close"]]
-        : hints[mode]
+        : Theme.tui && mode==="bluetooth" ? [["↑↓","navigate"],["↵","connect / disconnect"],["Ctrl ⌫","forget device"],["Esc","back"]] : hints[mode]
     // scan for new devices only while the Bluetooth view is on screen
-    readonly property bool scanWanted: open && mode === "bluetooth" && Bluetooth.ready
+    readonly property bool scanWanted: Theme.tui && open && mode === "bluetooth" && Bluetooth.ready
+    onScanWantedChanged: Bluetooth.setScanning(scanWanted)
+    Connections {target:Bluetooth;function onAsked(){if(Theme.tui&&root.open)root.open=false;}}
     // Discovery is owned by the Settings window.
     // and read the machine's load only while the System monitor card is
     readonly property bool statsWanted: open && rows.some(r => r.kind === "stat")
@@ -127,7 +130,7 @@ PanelWindow {
     }
 
     function show(m: string) {
-        if (m === "bluetooth" || m === "about") {
+        if ((!Theme.tui && m === "bluetooth") || m === "about") {
             open = false;
             settingsRequested(m);
             return;
@@ -1015,6 +1018,16 @@ PanelWindow {
 
     // ---- selection and actions ------------------------------------------------------------------
 
+    function scrollCurrent() {
+        if(!list || current<0 || current>=rows.length)return;
+        list.positionViewAtIndex(current,ListView.Contain);
+        if(!Theme.tui || !["workspaces","controls"].includes(rows[current].kind))return;
+        const item=list.itemAtIndex(current);if(!item)return;
+        const top=item.y+column*Theme.tuiLauncherRowHeight;
+        if(top<list.contentY)list.contentY=top;
+        else if(top+Theme.tuiLauncherRowHeight>list.contentY+list.height)list.contentY=top+Theme.tuiLauncherRowHeight-list.height;
+    }
+
     function selectable(i: int): bool {
         return i >= 0 && i < rows.length && !["section", "empty", "calc", "stat", "note"].includes(rows[i].kind) && !rows[i].off;
     }
@@ -1057,6 +1070,8 @@ PanelWindow {
     function activate(row, col: int, shift: bool) {
         if (row.kind === "shellaction") {
             open=false; LauncherTools.activateAction(row.descriptor);
+        } else if (Theme.tui && row.kind === "btlink") {
+            field.text="";mode="bluetooth";resetSelection();
         } else if (row.kind === "settingslink" || row.kind === "btlink") {
             open = false;
             settingsRequested(row.kind === "btlink" ? "bluetooth" : "appearance");
@@ -1088,7 +1103,8 @@ PanelWindow {
             open = false;
         } else if (row.kind === "controls") {
             const id = controls[col].id;
-            if (id === "bluetooth" || id === "ethernet") {
+            if(Theme.tui && id==="bluetooth") {field.text="";mode="bluetooth";resetSelection();}
+            else if (id === "bluetooth" || id === "ethernet") {
                 open = false;
                 settingsRequested(id === "bluetooth" ? "bluetooth" : "network");
             }
@@ -1268,6 +1284,7 @@ PanelWindow {
                 leaveLensChoices();
             else if (mode === "terminals" || mode === "about")
                 leaveTerminals();
+            else if (Theme.tui && mode === "bluetooth") {field.text="";mode="system";}
             else
                 open = false;
             break;
@@ -1290,10 +1307,16 @@ PanelWindow {
             break;
         }
         case Qt.Key_Down:
-        case Qt.Key_Up:
-            current = step(current, pressed === Qt.Key_Down ? 1 : -1);
-            list.positionViewAtIndex(current, ListView.Contain);
+        case Qt.Key_Up: {
+            const direction=pressed===Qt.Key_Down?1:-1, previous=current;
+            if(Theme.tui && row && ["workspaces","controls"].includes(row.kind) && column+direction>=0 && column+direction<gridLength(row)) column+=direction;
+            else {
+                current = step(current,direction);
+                if(Theme.tui && current!==previous && rows[current] && ["workspaces","controls"].includes(rows[current].kind)) column=direction>0?0:gridLength(rows[current])-1;
+            }
+            scrollCurrent();
             break;
+        }
         case Qt.Key_Left:
         case Qt.Key_Right:
             if (row?.kind === "slider" || row?.kind === "time")
@@ -1461,7 +1484,7 @@ PanelWindow {
     Timer {
         id: backToRow
         interval: 50
-        onTriggered: list.positionViewAtIndex(root.current, ListView.Contain)
+        onTriggered: root.scrollCurrent()
     }
 
     // the quick chat, once the launcher has faded and let the keyboard go (both take it exclusively)
@@ -1513,8 +1536,8 @@ PanelWindow {
             root.toggleMode("system");
         }
         function bluetooth(): void {
-            root.open = false;
-            root.settingsRequested("bluetooth");
+            if(Theme.tui)root.toggleMode("bluetooth");
+            else {root.open=false;root.settingsRequested("bluetooth");}
         }
     }
 
@@ -1538,45 +1561,54 @@ PanelWindow {
         opacity: panel.opacity
     }
 
-    Rectangle {
+    PanelFrame {
         id: panel
+        objectName:"launcher-panel"
+        title:Theme.tui?"launcher":""
+        detail:Theme.tui?(root.mode==="windows"?root.rows.filter(r=>r.kind==="window").length+" windows":root.mode==="workspaces"?root.workspaceCards(root.query).length+" workspaces":root.mode==="all"?"home":root.mode):""
 
         x: Math.round((root.width - width) / 2)
-        width: 640
+        width: Theme.tui?Theme.tuiLauncherWidth:640
         height: body.implicitHeight
-        radius: Theme.panelRadius
-        color: Theme.surface
+        radius: Theme.tui?0:Theme.panelRadius
+        color: Theme.tui?Theme.glass(Theme.bg):Theme.surface
         border.width: 1
         border.color: Theme.overlay2
-        clip: true
+        clip: !Theme.tui
         // fades in rising 12 px, and back
         opacity: reveal.progress
-        y: Math.round(root.height * 0.12) + 12 * (1 - reveal.progress) // its top at 12 % of the screen
+        y: Theme.tui?Theme.tuiLauncherTop:Math.round(root.height * 0.12) + 12 * (1 - reveal.progress) // its top at 12 % of the screen
 
-        Column {
+        Item {
             id: body
             width: parent.width
+            implicitHeight:searchArea.height+modeTabs.height+resultsArea.height+footer.height
 
             // search
             Item {
                 id: searchArea
                 width: parent.width
-                height: 68
+                height: Theme.tui?54:68
+                y:Theme.tui?modeTabs.height:0
+                Rectangle {visible:Theme.tui;x:12;anchors.bottom:parent.bottom;width:parent.width-24;height:1;color:Theme.tuiBorder}
+                Text {visible:Theme.tui;x:12;anchors.verticalCenter:parent.verticalCenter;text:">";color:Theme.subtext;font.family:Theme.fontTui;font.pixelSize:Theme.tuiTextSize}
 
                 Icon {
                     id: searchIcon
-                    x: 26
+                    visible:!Theme.tui
+                    x: Theme.tui?0:26
                     anchors.verticalCenter: parent.verticalCenter
-                    size: 20
+                    size: Theme.tui?0:20
                     paths: root.editing ? root.editing.icon : Icons.search
                     color: Theme.subtext
                 }
 
                 TextInput {
                     id: field
+                    objectName:"launcher-field"
 
                     anchors.left: searchIcon.right
-                    anchors.leftMargin: 14
+                    anchors.leftMargin: Theme.tui?28:14
                     anchors.right: parent.right
                     anchors.rightMargin: 26
                     anchors.verticalCenter: parent.verticalCenter
@@ -1584,8 +1616,8 @@ PanelWindow {
                     selectionColor: Theme.overlay2
                     selectedTextColor: Theme.textBright
                     font.family: Theme.fontUi
-                    font.pixelSize: 20
-                    font.weight: Font.DemiBold
+                    font.pixelSize: Theme.tui?Theme.tuiTextSize:20
+                    font.weight: Theme.tui?Font.Medium:Font.DemiBold
                     focus: true
                     clip: true
                     Accessible.role: Accessible.EditableText
@@ -1593,14 +1625,14 @@ PanelWindow {
                     Keys.onPressed: event => root.key(event)
 
                     cursorDelegate: Rectangle {
-                        width: 2
+                        width: Theme.tui?8:2
                         color: Theme.pistachio
                         opacity: field.readOnly ? 0 : 1
                     }
 
                     Text {
                         visible: field.text === ""
-                        text: root.placeholder
+                        text: Theme.tui?root.placeholder.toLowerCase():root.placeholder
                         color: Theme.subtext
                         font: field.font
                     }
@@ -1611,10 +1643,12 @@ PanelWindow {
             Item {
                 id: modeTabs
                 width: parent.width
-                height: 36 + 12
+                height: Theme.tui?40:36+12
+                y:Theme.tui?0:searchArea.height
 
                 // the active tab's chip, one for all of them, so it slides to the next
                 Rectangle {
+                    visible:!Theme.tui
                     readonly property Item active: tabs.count > 0 ? tabs.itemAt(root.modes.findIndex(m => m.id === root.tab)) : null
 
                     x: tabRow.x + (active?.x ?? 0)
@@ -1640,8 +1674,9 @@ PanelWindow {
                 Row {
                     id: tabRow
 
-                    x: 18
-                    spacing: 6
+                    x: Theme.tui?12:18
+                    y: Theme.tui?8:0
+                    spacing: Theme.tui?0:6
 
                     Repeater {
                         id: tabs
@@ -1652,8 +1687,8 @@ PanelWindow {
                             required property var modelData
                             readonly property bool active: modelData.id === root.tab
 
-                            width: tabLabel.implicitWidth + 32
-                            height: 36
+                            width: tabLabel.implicitWidth + (Theme.tui?12:32)
+                            height: Theme.tui?32:36
                             Accessible.role: Accessible.PageTab
                             Accessible.name: modelData.label
                             Accessible.selected: active
@@ -1661,10 +1696,10 @@ PanelWindow {
                             Text {
                                 id: tabLabel
                                 anchors.centerIn: parent
-                                text: parent.modelData.label
-                                color: parent.active ? Theme.pistachio : Theme.subtext
+                                text: Theme.tui?(parent.active?"[":"")+(parent.modelData.id==="all"?"home":parent.modelData.label.toLowerCase())+(parent.active?"]":""):parent.modelData.label
+                                color: parent.active ? (Theme.tui?Theme.textBright:Theme.pistachio) : Theme.subtext
                                 font.family: Theme.fontUi
-                                font.pixelSize: 13
+                                font.pixelSize: Theme.tui?Theme.tuiTextSize:13
                                 font.weight: Font.Bold
 
                                 Behavior on color {
@@ -1685,6 +1720,7 @@ PanelWindow {
                 }
 
                 Rectangle {
+                    visible:!Theme.tui
                     anchors.bottom: parent.bottom
                     width: parent.width
                     height: 1
@@ -1694,16 +1730,19 @@ PanelWindow {
 
             // results
             Item {
+                id:resultsArea
+                y:searchArea.height+modeTabs.height
                 width: parent.width
-                height: list.height + 14 + 8
+                height: list.height + (Theme.tui?0:22)
 
                 ListView {
                     id: list
+                    objectName:"launcher-results"
 
-                    x: 8
-                    y: 14
-                    width: parent.width - 16
-                    height: Math.min(contentHeight, 440, Math.max(0, root.height - Math.round(root.height * 0.12) - 24 - searchArea.height - modeTabs.height - 22 - footer.height))
+                    x: Theme.tui?0:8
+                    y: Theme.tui?0:14
+                    width: parent.width - (Theme.tui?0:16)
+                    height: Math.min(contentHeight, 440, Math.max(0, root.height - (Theme.tui?Theme.tuiLauncherTop:Math.round(root.height*0.12)) - 24 - searchArea.height - modeTabs.height - (Theme.tui?0:22) - footer.height))
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
 
@@ -1728,7 +1767,7 @@ PanelWindow {
                         }
 
                         parent: list.parent // not in the list, which clips and scrolls its rows
-                        x: list.x + list.width + 1
+                        x: Theme.tui?list.x+list.width-8:list.x+list.width+1
                         y: list.y
                         width: 6
                         height: list.height
@@ -1814,7 +1853,7 @@ PanelWindow {
                     property bool entering
 
                     function enter() {
-                        entering = true;
+                        entering = !Theme.tui;
                         entered.restart();
                     }
 
@@ -1846,7 +1885,7 @@ PanelWindow {
                         height: list.glide.height
                         radius: Theme.tileRadius
                         color: Theme.overlay2
-                        opacity: list.glideShown ? 1 : 0
+                        opacity: !Theme.tui && list.glideShown ? 1 : 0
 
                         Behavior on opacity {
                             NumberAnimation {
@@ -1855,28 +1894,28 @@ PanelWindow {
                             }
                         }
                         Behavior on x {
-                            enabled: !list.entering && !list.quick
+                            enabled: !Theme.tui && !list.entering && !list.quick
                             NumberAnimation {
                                 duration: Theme.motionDuration
                                 easing.type: Theme.easing
                             }
                         }
                         Behavior on y {
-                            enabled: !list.entering && !list.quick
+                            enabled: !Theme.tui && !list.entering && !list.quick
                             NumberAnimation {
                                 duration: Theme.motionDuration
                                 easing.type: Theme.easing
                             }
                         }
                         Behavior on width {
-                            enabled: !list.entering && !list.quick
+                            enabled: !Theme.tui && !list.entering && !list.quick
                             NumberAnimation {
                                 duration: Theme.motionDuration
                                 easing.type: Theme.easing
                             }
                         }
                         Behavior on height {
-                            enabled: !list.entering && !list.quick
+                            enabled: !Theme.tui && !list.entering && !list.quick
                             NumberAnimation {
                                 duration: Theme.motionDuration
                                 easing.type: Theme.easing
@@ -1923,10 +1962,10 @@ PanelWindow {
                         readonly property bool cardTop: card === "top" || card === "single"
                         readonly property bool cardBottom: card === "bottom" || card === "single"
                         // space above: before a section, between cards, and a card's inner padding
-                        readonly property int above: (modelData.kind === "section" && index > 0 ? 10 : 0) + (modelData.gap ?? 0) + (cardTop ? 6 : 0)
+                        readonly property int above: Theme.tui?0:(modelData.kind === "section" && index > 0 ? 10 : 0) + (modelData.gap ?? 0) + (cardTop ? 6 : 0)
 
                         width: ListView.view.width
-                        height: above + loader.height + (cardBottom ? 6 : 0)
+                        height: above + loader.height + (!Theme.tui&&cardBottom ? 6 : 0)
                         transform: Translate {
                             id: rise
                         }
@@ -1937,7 +1976,7 @@ PanelWindow {
                         Component.onCompleted: {
                             if (selected)
                                 list.glideTo(box);
-                            if (!list.entering)
+                            if (Theme.tui || !list.entering)
                                 return;
                             opacity = 0;
                             rise.y = 8;
@@ -1971,7 +2010,7 @@ PanelWindow {
                         // This row's slice of its card's outline: the outline is drawn taller than the row and
                         // clipped, so the slices of a card's rows join into one rounded card.
                         Item {
-                            visible: entry.card !== ""
+                            visible: !Theme.tui && entry.card !== ""
                             y: entry.modelData.gap ?? 0
                             width: parent.width
                             height: parent.height - y
@@ -1990,10 +2029,10 @@ PanelWindow {
 
                         Loader {
                             id: loader
-                            x: entry.card ? 6 : 0
+                            x: !Theme.tui && entry.card ? 6 : 0
                             y: entry.above
-                            width: parent.width - (entry.card ? 12 : 0)
-                            sourceComponent: ({
+                            width: parent.width - (!Theme.tui && entry.card ? 12 : 0)
+                            sourceComponent: Theme.tui?tuiView:({
                                 section: sectionView,
                                 empty: emptyView,
                                 note: noteView,
@@ -2048,6 +2087,7 @@ PanelWindow {
                             })[entry.modelData.kind]
                         }
 
+                        Component {id:tuiView;TuiLauncherRow {width:loader.width;row:entry.modelData;rowIndex:entry.index;selected:entry.selected;controller:root}}
                         Component {
                             id: sectionView
 
@@ -2822,6 +2862,7 @@ PanelWindow {
             // Wrap hints within the same panel, preserving their click actions.
             KeyHints {
                 id: footer
+                y:resultsArea.y+resultsArea.height
                 width: parent.width
                 hints: root.keyHints
                 clickableKeys: root.hintKeys

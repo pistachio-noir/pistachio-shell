@@ -12,12 +12,13 @@ Rectangle {
     property real maximumWidth: Infinity
     property bool primary
     property color base: Theme.overlay
+    property color tint: primary ? Theme.bg : Theme.text // the label's colour (TUI's terracotta Cancel)
 
     signal clicked
 
     width: Math.min(maximumWidth, label.implicitWidth + horizontalPadding * 2 + (icon.length ? 22 : 0))
     height: 40
-    radius: height / 2
+    radius: Theme.tui ? 0 : (height / 2)
     color: primary ? Theme.pistachio : mouse.containsMouse ? Theme.overlay2 : base
     Accessible.role: Accessible.Button
     Accessible.name: text
@@ -37,7 +38,7 @@ Rectangle {
         elide: Text.ElideRight
         text: button.text
         textFormat: Text.PlainText
-        color: button.primary ? Theme.bg : Theme.text
+        color: button.tint
         font.family: Theme.fontUi
         font.pixelSize: 12
         font.weight: button.primary ? Font.ExtraBold : Font.Bold

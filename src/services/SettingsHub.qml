@@ -23,6 +23,16 @@ Singleton {
         if (!window) placedAddress = "";
     }
 
+    Connections {
+        target: Theme
+        function onTuiChanged() {
+            Qt.callLater(() => {
+                if (root.window && root.opened)
+                    Compositor.placeSettingsWindow(root.window, Theme.settingsWidth, Theme.settingsHeight);
+            });
+        }
+    }
+
     function openPage(section: string, control: string) {
         page = section || "appearance";
         target = control || "";

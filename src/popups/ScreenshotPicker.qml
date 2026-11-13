@@ -171,7 +171,11 @@ PanelWindow {
             close();
         } else if (mode === "menu") {
             const i = choices.findIndex(c => c.key === event.key);
-            if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
+            // TUI lists them downwards, Lens last (LensMenu board)
+            const order = choices.map((_, n) => n).filter(n => choices[n].name !== "Lens").concat(choices.map((_, n) => n).filter(n => choices[n].name === "Lens"));
+            if (Theme.tui && (event.key === Qt.Key_Up || event.key === Qt.Key_Down))
+                current = order[(order.indexOf(current) + (event.key === Qt.Key_Down ? 1 : -1) + order.length) % order.length];
+            else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
                 current = (current + (event.key === Qt.Key_Right ? 1 : -1) + choices.length) % choices.length;
             else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
                 choose(current);

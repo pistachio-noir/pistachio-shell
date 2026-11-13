@@ -10,7 +10,7 @@ Basic.Popup {
     parent: Basic.Overlay.overlay
     anchors.centerIn: parent
     width: Math.min(440, parent ? parent.width - 48 : 440)
-    padding: 28
+    padding: Theme.tui ? 16 : 28
     modal: true
     focus: true
     closePolicy: Basic.Popup.NoAutoClose
@@ -51,19 +51,19 @@ Basic.Popup {
     }
     onOpened: fill()
     onTitleChanged: if (visible) fill()
-    background: Rectangle { radius: Theme.panelRadius; color: Theme.bgAlt; border.width: 1; border.color: Theme.overlay2; Shadow { anchors.fill: parent; z: -1; radius: Theme.panelRadius; kind: Theme.shadowModal } }
+    background: PanelFrame { title: root.pairing ? "pair" : root.forgetting ? "forget" : SettingsHub.editKey; detail: root.pairing ? "bluetooth" : "setting"; radius: Theme.tui ? 0 : (Theme.panelRadius); color: Theme.bgAlt; border.width: 1; border.color: Theme.overlay2; Shadow { anchors.fill: parent; z: -1; radius: Theme.tui ? 0 : (Theme.panelRadius); kind: Theme.shadowModal } }
     Basic.Overlay.modal: Rectangle { color: Qt.rgba(Theme.bg.r,Theme.bg.g,Theme.bg.b,0.66) }
     contentItem: Column {
         spacing: 14
         Keys.onEscapePressed: root.cancel()
-        Rectangle { width: 48; height:48; radius:24; color:Theme.overlay; Icon { anchors.centerIn:parent;size:22;paths:root.pairing?Icons.bluetooth:root.forgetting?Icons.trash:Icons.pencil;color:Theme.clay } }
-        SettingsText { width:parent.width;text:root.title;font.pixelSize:18;font.weight:Font.ExtraBold }
+        Rectangle { visible:!Theme.tui;width: 48; height:48; radius: Theme.tui ? 0 : (24); color:Theme.overlay; Icon { anchors.centerIn:parent;size:22;paths:root.pairing?Icons.bluetooth:root.forgetting?Icons.trash:Icons.pencil;color:Theme.clay } }
+        SettingsText { width:parent.width;text:root.title;font.pixelSize: Theme.tui ? Theme.tuiTextSize : 18;font.weight:Font.ExtraBold }
         SettingsText { width:parent.width;text:root.description;secondary:true }
         Rectangle {
-            visible: root.code !== ""; width:parent.width;height:80;radius:20;color:Theme.overlay
+            visible: root.code !== ""; width:parent.width;height:80;radius: Theme.tui ? 0 : (20);color:Theme.overlay
             Column { anchors.centerIn:parent; spacing:4
-                SettingsText { text:root.code;font.family:Theme.fontMono;font.pixelSize:30;font.weight:Font.Medium }
-                SettingsText { visible:root.displayCode && root.request.entered >= 0;text:root.pairing?root.request.entered+" digits entered":"";secondary:true;font.pixelSize:11 }
+                SettingsText { text:root.code;font.family:Theme.fontMono;font.pixelSize: Theme.tui ? Theme.tuiCodeSize : 30;font.weight:Font.Medium }
+                SettingsText { visible:root.displayCode && root.request.entered >= 0;text:root.pairing?root.request.entered+" digits entered":"";secondary:true;font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11 }
             }
         }
         Basic.TextField {
@@ -76,14 +76,14 @@ Basic.Popup {
             placeholderTextColor:Theme.subtext
             echoMode:SettingsHub.editKey==="cider"?TextInput.Password:TextInput.Normal
             maximumLength:root.needsCode?(root.request.kind==="pin"?16:6):1024
-            font.family:root.needsCode?Theme.fontMono:Theme.fontUi;font.pixelSize:13
+            font.family:root.needsCode?Theme.fontMono:Theme.fontUi;font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13
             selectByMouse:true
             onAccepted:root.submit()
             onTextEdited:SettingsHub.editError=""
-            background:Rectangle { radius:26;color:Theme.bg;border.width:1;border.color:field.activeFocus?Theme.subtext:Theme.overlay2 }
+            background:Rectangle { radius: Theme.tui ? 0 : (26);color:Theme.bg;border.width:1;border.color:field.activeFocus?Theme.subtext:Theme.overlay2 }
             Accessible.name:root.title
         }
-        SettingsText { visible:text!=="";width:parent.width;text:SettingsHub.editError;color:Theme.terracotta;font.pixelSize:12 }
+        SettingsText { visible:text!=="";width:parent.width;text:SettingsHub.editError;color:Theme.terracotta;font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12 }
         Row {
             anchors.right:parent.right;spacing:10
             SettingsButton { id:cancelButton;text:root.pairing&&root.request.kind==="service"?"Decline":"Cancel";onClicked:root.cancel() }

@@ -83,7 +83,7 @@ Column {
                     selectionColor: Theme.overlay2
                     selectedTextColor: Theme.textBright
                     font.family: Theme.fontUi
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13
                     font.weight: Font.Medium
                     onLinkActivated: link => Chat.openLink(link)
                 }
@@ -92,16 +92,27 @@ Column {
             Component {
                 id: codeView
 
-                Rectangle {
-                    implicitHeight: Math.max(44, code.implicitHeight + 24)
-                    radius: 14
-                    color: Theme.bg
+                // TUI (QuickChatReplying board): a frame with the language in its tab and "[c] copy" on
+                // its top edge; the frame's tab needs ten pixels above it
+                Item {
+                    implicitHeight: codeFrame.height + (Theme.tui ? 10 : 0)
+
+                PanelFrame {
+                    id: codeFrame
+                    y: Theme.tui ? 10 : 0
+                    width: parent.width
+                    height: Math.max(44, code.implicitHeight + (Theme.tui ? 28 : 24))
+                    title: Theme.tui ? (block.modelData.language || "code") : ""
+                    active: false
+                    radius: Theme.tui ? 0 : 14
+                    color: Theme.tui ? Theme.bgAlt : Theme.bg
+                    border.width: Theme.tui ? 1 : 0
 
                     TextEdit {
                         id: code
-                        x: 14
-                        y: 12
-                        width: parent.width - 28 - 36
+                        x: Theme.tui ? 12 : 14
+                        y: Theme.tui ? 16 : 12
+                        width: parent.width - x * 2 - (Theme.tui ? 0 : 36)
                         // coloured by its language (the fence's, or a guess)
                         text: Highlight.html(block.modelData.text, block.modelData.language ?? "", Theme.codeColours)
                         textFormat: TextEdit.RichText
@@ -111,10 +122,45 @@ Column {
                         color: Theme.textBright
                         selectionColor: Theme.overlay2
                         font.family: Theme.fontMono
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
+                    }
+
+                    // [c] copy, on the frame's top edge (TUI)
+                    Rectangle {
+                        visible: Theme.tui
+                        anchors.right: parent.right
+                        anchors.rightMargin: 8
+                        y: -10
+                        width: copyText.implicitWidth + 16
+                        height: Theme.tuiLineHeight
+                        color: copyMouse.containsMouse ? Theme.tuiHover : Theme.bg
+                        Accessible.role: Accessible.Button
+                        Accessible.name: "Copy"
+
+                        Text {
+                            id: copyText
+                            anchors.centerIn: parent
+                            textFormat: Text.StyledText
+                            text: copied.running ? "copied" : `<b><font color="${Theme.textBright}">[c]</font></b> copy`
+                            color: Theme.subtext
+                            font.family: Theme.fontTui
+                            font.pixelSize: Theme.tuiTextSize
+                        }
+
+                        MouseArea {
+                            id: copyMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Chat.copy(block.modelData.text);
+                                copied.restart();
+                            }
+                        }
                     }
 
                     ChatButton {
+                        visible: !Theme.tui
                         anchors.right: parent.right
                         anchors.rightMargin: 6
                         y: 6
@@ -132,6 +178,7 @@ Column {
                         interval: 1500
                     }
                 }
+                }
             }
 
             Component {
@@ -139,10 +186,22 @@ Column {
 
                 Rectangle {
                     implicitHeight: Math.max(40, quote.implicitHeight + 20)
-                    radius: 14
-                    color: Theme.overlay
+                    radius: Theme.tui ? 0 : 14
+                    color: Theme.tui ? Theme.bgAlt : Theme.overlay
+
+                    Text {
+                        visible: Theme.tui
+                        x: 12
+                        y: 10
+                        text: "[!]"
+                        color: Theme.gold
+                        font.family: Theme.fontTui
+                        font.pixelSize: Theme.tuiTextSize
+                        font.weight: Font.Bold
+                    }
 
                     Icon {
+                        visible: !Theme.tui
                         x: 12
                         y: 11
                         size: 16
@@ -152,9 +211,9 @@ Column {
 
                     TextEdit {
                         id: quote
-                        x: 38
+                        x: Theme.tui ? 44 : 38
                         y: 10
-                        width: parent.width - 50
+                        width: parent.width - x - 12
                         text: block.modelData.text
                         textFormat: TextEdit.MarkdownText
                         readOnly: true
@@ -163,7 +222,7 @@ Column {
                         color: Theme.text
                         selectionColor: Theme.overlay2
                         font.family: Theme.fontUi
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
                         font.weight: Font.Medium
                     }
                 }

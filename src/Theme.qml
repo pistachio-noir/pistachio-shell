@@ -5,6 +5,33 @@ import QtQuick
 
 // The only place with colours and sizes. Values from design/*.dc.html.
 Singleton {
+    property bool tui: false
+    readonly property real tuiTextSize: 13.3333
+    readonly property int tuiLineHeight: 20
+    readonly property int tuiButtonHeight: 32
+    readonly property int tuiButtonPadding: 14
+    readonly property int tuiBarHeight: 41
+    readonly property int tuiBarCell: 40
+    readonly property int tuiControlMeterWidth: 140
+    readonly property int tuiLauncherWidth: 576
+    readonly property int tuiLauncherTop: 104
+    readonly property int tuiLauncherRowHeight: 32
+    readonly property int tuiLauncherMeterWidth: 176
+    readonly property int tuiSwitcherWidth: 520
+    readonly property int tuiSwitcherTop: 90
+    readonly property int tuiPanelWidth: 384
+    readonly property int tuiPanelGap: 15
+    readonly property int tuiPanelMargin: 12
+    readonly property int tuiCodeSize: 24
+    readonly property int tuiRowHeight: 52
+    readonly property int tuiSidebarWidth: 224
+    readonly property int tuiHeaderHeight: 52
+    readonly property color tuiSurface: bg
+    readonly property color tuiBorder: overlay2
+    readonly property color tuiRule: overlay
+    readonly property color tuiHover: bgAlt
+    readonly property string fontTui: "JetBrainsMono Nerd Font"
+
     readonly property color bg: "#15170F"
     readonly property color bgAlt: "#1D2016"
     readonly property color overlay: "#2A2F1F"
@@ -34,18 +61,18 @@ Singleton {
 
     readonly property int barWidth: 640
     readonly property int barHeight: 56
-    readonly property int barRadius: 28
+    readonly property int barRadius: tui ? 0 : 28
     readonly property int barMargin: 16
     readonly property int chipHeight: 40
-    readonly property int chipRadius: 20
-    readonly property int tileRadius: 20
-    readonly property int panelRadius: 28
+    readonly property int chipRadius: tui ? 0 : 20
+    readonly property int tileRadius: tui ? 0 : 20
+    readonly property int panelRadius: tui ? 0 : 28
     readonly property int lensPromptWidth: 560
     readonly property int lensAnswerWidth: 480
     readonly property int screenshotMenuTop: 96
     readonly property int screenshotTipWidth: 334
     readonly property int settingsWidth: 1040
-    readonly property int settingsHeight: 760
+    readonly property int settingsHeight: tui ? 800 : 760
 
     // Drop shadows from the boards (CSS box-shadow: 0 <y> <blur> black at <alpha>), for panels and
     // popups; the bar and the tray pill stay flat (owner's call).
@@ -54,8 +81,8 @@ Singleton {
     readonly property var shadowSmall: ({ y: 14, blur: 36, alpha: 0.55 }) // toasts, OSD
     readonly property var shadowModal: ({ y: 24, blur: 60, alpha: 0.65 }) // launcher, polkit, power menu
 
-    readonly property string fontUi: "Manrope"
-    readonly property string fontMono: "JetBrains Mono" // code-like text
+    readonly property string fontUi: tui ? fontTui : "Manrope"
+    readonly property string fontMono: tui ? fontTui : "JetBrains Mono" // code-like text
     // code blocks' colours (components/highlight.js, owner's request, 13 November 2026), as text for
     // its rich text; on the code block's bg
     readonly property var codeColours: ({
@@ -68,8 +95,8 @@ Singleton {
 
     // One easing curve for everything; CSS ease-out is close to OutCubic.
     readonly property int easing: Easing.OutCubic
-    readonly property int hoverDuration: 120
-    readonly property int motionDuration: 200
+    readonly property int hoverDuration: tui ? 80 : 120
+    readonly property int motionDuration: tui ? 80 : 200
     readonly property int growDuration: 300 // the bar growing out of its handle, a touch slower (owner's request)
     readonly property int introDuration: 600 // the wallpaper fading in as the shell starts (owner's request)
     readonly property int settleDuration: 1200 // the wallpaper settling as showoff mode starts

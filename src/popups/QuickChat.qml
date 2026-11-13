@@ -37,7 +37,9 @@ PanelWindow {
     }
 
     function focusInput() {
-        if (Chat.view === "history")
+        if (Theme.tui)
+            tuiChat.focusInput();
+        else if (Chat.view === "history")
             searchField.forceActiveFocus();
         else
             input.focusField();
@@ -47,6 +49,7 @@ PanelWindow {
     function submit(text: string) {
         if (!text.trim() || Chat.writing)
             return;
+        const windowView = Theme.tui ? tuiChat.windowView : classicWindowView;
         if (Chat.withWindow && windowView.hasContent && !Chat.windowPicture) {
             const path = `${Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"}/pistachio-chat-window-${Date.now()}.png`;
             const grabbed = windowView.grabToImage(result => {
@@ -128,13 +131,22 @@ PanelWindow {
         onClicked: mouse => {
             if (root.menuOpen)
                 root.menuOpen = false;
-            else if (!panel.contains(mapToItem(panel, mouse.x, mouse.y)))
+            else if (!(Theme.tui ? tuiChat : panel).contains(mapToItem(Theme.tui ? tuiChat : panel, mouse.x, mouse.y)))
                 Chat.close();
         }
     }
 
+    // TUI: the boards' frame under the top strip; this file stays its controller
+    TuiQuickChat {
+        id: tuiChat
+        visible: Theme.tui
+        controller: root
+        progress: reveal.progress
+    }
+
     Shadow {
         id: shadow
+        visible: !Theme.tui
         frostable: true
         kind: Theme.shadowPanel
         anchors.fill: panel
@@ -149,6 +161,7 @@ PanelWindow {
     // while an answer is written. One curve and the Theme's durations, as everywhere.
     ClippingRectangle {
         id: panel
+        visible: !Theme.tui
 
         // centred over the bar, 16 px above it (the boards), growing upwards
         x: Math.round((root.width - width) / 2)
@@ -1054,9 +1067,9 @@ PanelWindow {
                         clip: true
 
                         ScreencopyView {
-                            id: windowView
+                            id: classicWindowView
                             anchors.fill: parent
-                            captureSource: Chat.withWindow && Chat.open ? Chat.windowSource : null
+                            captureSource: Chat.withWindow && Chat.open && !Theme.tui ? Chat.windowSource : null
                             live: false
                         }
                     }

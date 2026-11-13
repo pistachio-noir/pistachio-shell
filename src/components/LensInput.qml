@@ -10,15 +10,33 @@ Rectangle {
     property bool initial
     signal submitted(string text)
     signal stopped
-    implicitHeight: Math.min(136, Math.max(52, field.contentHeight + 22))
-    radius: 26
-    color: Theme.bg
-    border.width: 1
+    // TUI (Lens boards): no box, "> " then the text with a block cursor, "[s] stop" while reading
+    implicitHeight: Theme.tui ? Math.min(120, Math.max(Theme.tuiLineHeight, field.contentHeight)) : Math.min(136, Math.max(52, field.contentHeight + 22))
+    radius: Theme.tui ? 0 : 26
+    color: Theme.tui ? "transparent" : Theme.bg
+    border.width: Theme.tui ? 0 : 1
     border.color: Theme.overlay2
 
     function focusInput() { field.forceActiveFocus(); }
+    Text {
+        visible: Theme.tui
+        y: 0
+        text: ">"
+        color: Theme.pistachio
+        font.family: Theme.fontTui
+        font.pixelSize: Theme.tuiTextSize
+        font.weight: Font.Bold
+    }
+    TuiBracket {
+        id: tuiStop
+        visible: Theme.tui && root.reading
+        anchors.right: parent.right
+        key: "s"
+        label: "stop"
+        onClicked: root.stopped()
+    }
     Icon {
-        visible: root.initial
+        visible: root.initial && !Theme.tui
         x: 16
         anchors.verticalCenter: parent.verticalCenter
         paths: Icons.sparkles
@@ -28,10 +46,10 @@ Rectangle {
     Flickable {
         id: scroll
         objectName: "lensInputScroll"
-        x: root.initial ? 44 : 18
-        y: 11
-        width: parent.width - x - 56
-        height: parent.height - 22
+        x: Theme.tui ? 16 : root.initial ? 44 : 18
+        y: Theme.tui ? 0 : 11
+        width: parent.width - x - (Theme.tui ? (tuiStop.visible ? tuiStop.width + 12 : 0) : 56)
+        height: parent.height - (Theme.tui ? 0 : 22)
         contentWidth: width
         contentHeight: Math.max(height, field.height)
         clip: true
@@ -53,7 +71,7 @@ Rectangle {
             // Centre short text explicitly; the attached TextArea.flickable also
             // adjusts margins/contentY and shifted text away from the icon's centre.
             onCursorRectangleChanged: scroll.ensureCursor()
-            placeholderText: root.placeholder
+            placeholderText: Theme.tui ? "" : root.placeholder
             placeholderTextColor: Theme.subtext
             readOnly: root.reading
             wrapMode: TextEdit.Wrap
@@ -61,13 +79,22 @@ Rectangle {
             selectionColor: Theme.overlay2
             selectedTextColor: Theme.textBright
             font.family: Theme.fontUi
-            font.pixelSize: root.initial ? 14 : 13
-            font.weight: Font.DemiBold
+            font.pixelSize: Theme.tui ? Theme.tuiTextSize : root.initial ? 14 : 13
+            font.weight: Theme.tui ? Font.Bold : Font.DemiBold
             background: null
+            // TUI: the placeholder after the block cursor, as the boards draw it
+            Text {
+                visible: Theme.tui && field.text === "" && field.preeditText === ""
+                x: 12
+                text: root.placeholder.replace(/…$/, "").toLowerCase()
+                color: Theme.subtext
+                font.family: Theme.fontTui
+                font.pixelSize: Theme.tuiTextSize
+            }
             cursorDelegate: Rectangle {
-                width: 2
-                height: field.font.pixelSize + 6
-                radius: 1
+                width: Theme.tui ? 8 : 2
+                height: Theme.tui ? Theme.tuiLineHeight - 2 : field.font.pixelSize + 6
+                radius: Theme.tui ? 0 : 1
                 color: Theme.pistachio
                 visible: field.activeFocus && !field.readOnly
             }
@@ -80,6 +107,7 @@ Rectangle {
         }
     }
     Rectangle {
+        visible: !Theme.tui
         width: 44; height: 44; radius: 22
         anchors.right: parent.right; anchors.rightMargin: 6
         anchors.verticalCenter: parent.verticalCenter

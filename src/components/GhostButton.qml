@@ -15,7 +15,7 @@ Rectangle {
 
     width: 44
     height: 44
-    radius: 22
+    radius: Theme.tui ? 0 : (22)
     color: mouse.containsMouse ? Theme.overlay2 : "transparent"
     Accessible.role: Accessible.Button
     Accessible.name: label

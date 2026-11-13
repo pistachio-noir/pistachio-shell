@@ -216,7 +216,7 @@ PanelWindow {
         x: root.side
         width: 320
         height: 56
-        radius: height / 2
+        radius: Theme.tui ? 0 : height / 2
         color: Theme.surface
         border.width: 1
         border.color: Theme.overlay2
@@ -240,10 +240,32 @@ PanelWindow {
             : root.output ? `Output ${root.outputName}`
             : root.muted ? "Volume muted" : `${root.kind === "volume" ? "Volume" : "Brightness"} ${label.text} percent`
 
-        Icon {
+        // TUI: a short word, as the strip labels its readings, in place of the glyph
+        Item {
             id: icon
-            x: 22
+            x: Theme.tui ? 18 : 22
             anchors.verticalCenter: parent.verticalCenter
+            width: Theme.tui ? tag.implicitWidth : 20
+            height: 20
+
+            Text {
+                id: tag
+                visible: Theme.tui
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.mode ? "mode" : root.tabs ? "tabs" : root.workspace ? "ws" : root.desktop ? "desk"
+                    : root.kind === "brightness" ? "bri" : root.output ? "out" : root.kind === "mic" ? "mic"
+                    : root.kind === "screen" ? "scr" : "vol"
+                color: glyph.color
+                font.family: Theme.fontTui
+                font.pixelSize: Theme.tuiTextSize
+                font.weight: Font.Bold
+            }
+        }
+
+        Icon {
+            id: glyph
+            visible: !Theme.tui
+            anchors.centerIn: icon
             size: 20
             paths: root.mode ? (root.modeOn ? Icons.lightbulb : Icons.moon)
                 : root.tabs ? Icons.layers
@@ -275,7 +297,7 @@ PanelWindow {
             elide: Text.ElideRight
             color: Theme.textBright
             font.family: Theme.fontUi
-            font.pixelSize: 14
+            font.pixelSize: Theme.tui ? Theme.tuiTextSize : 14
             font.weight: Font.Bold
         }
 
@@ -295,7 +317,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 color: Theme.textBright
                 font.family: Theme.fontUi
-                font.pixelSize: 14
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 14
                 font.weight: Font.Bold
             }
 
@@ -306,7 +328,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 color: Theme.subtext
                 font.family: Theme.fontUi
-                font.pixelSize: 12
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
                 font.weight: Font.Medium
             }
         }
@@ -327,7 +349,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 color: Theme.textBright
                 font.family: Theme.fontUi
-                font.pixelSize: 14
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 14
                 font.weight: Font.Bold
                 font.features: { "tnum": 1 }
             }
@@ -338,7 +360,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 color: Theme.subtext
                 font.family: Theme.fontUi
-                font.pixelSize: 12
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
                 font.weight: Font.Medium
                 font.features: { "tnum": 1 }
             }
@@ -361,7 +383,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 color: Theme.textBright
                 font.family: Theme.fontUi
-                font.pixelSize: 14
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 14
                 font.weight: Font.Bold
             }
 
@@ -377,7 +399,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 color: Theme.subtext
                 font.family: Theme.fontUi
-                font.pixelSize: 12
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
                 font.weight: Font.Medium
             }
         }
@@ -400,7 +422,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 color: Theme.textBright
                 font.family: Theme.fontUi
-                font.pixelSize: 14
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 14
                 font.weight: Font.Bold
             }
 
@@ -416,7 +438,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 color: Theme.subtext
                 font.family: Theme.fontUi
-                font.pixelSize: 12
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
                 font.weight: Font.Medium
             }
         }
@@ -440,7 +462,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     width: current ? 20 : 6
                     height: 6
-                    radius: 3
+                    radius: Theme.tui ? 0 : 3
                     color: current ? Theme.pistachio : ws?.occupied ? Theme.subtext : "transparent"
                     border.width: current || ws?.occupied ? 0 : 1.5
                     border.color: Theme.muted
@@ -472,7 +494,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 color: Theme.textBright
                 font.family: Theme.fontUi
-                font.pixelSize: 14
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 14
                 font.weight: Font.Bold
             }
 
@@ -484,7 +506,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 color: Theme.subtext
                 font.family: Theme.fontUi
-                font.pixelSize: 12
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
                 font.weight: Font.Medium
                 font.features: { "tnum": 1 }
             }
@@ -497,14 +519,14 @@ PanelWindow {
             anchors.right: label.left
             anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
-            height: 8
-            radius: 4
+            height: Theme.tui ? 10 : 8
+            radius: Theme.tui ? 0 : 4
             color: Theme.overlay
 
             Rectangle {
                 width: parent.width * Math.min(1, root.level)
                 height: parent.height
-                radius: 4
+                radius: Theme.tui ? 0 : 4
                 color: root.muted ? Theme.overlay2 : Theme.pistachio
             }
         }
@@ -514,14 +536,14 @@ PanelWindow {
             anchors.right: parent.right
             anchors.rightMargin: 22
             anchors.verticalCenter: parent.verticalCenter
-            width: root.muted ? 50 : 30
+            width: root.muted ? (Theme.tui ? 56 : 50) : (Theme.tui ? 40 : 30)
             // a new output's volume reads 0 until PipeWire has bound it
             visible: !root.notice && (!root.output || (Audio.sink?.ready ?? false))
             horizontalAlignment: Text.AlignRight
-            text: root.muted ? "Muted" : Math.round(root.level * 100)
+            text: Theme.tui ? (root.muted ? "muted" : Math.round(root.level * 100) + "%") : root.muted ? "Muted" : Math.round(root.level * 100)
             color: root.muted ? Theme.subtext : Theme.textBright
             font.family: Theme.fontUi
-            font.pixelSize: 13
+            font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13
             font.weight: Font.ExtraBold
             font.features: { "tnum": 1 }
         }

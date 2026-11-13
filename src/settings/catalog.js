@@ -42,6 +42,7 @@ var settings = [
     ["sound","mic-check","Microphone check","Devices","test sample record meter playback"],
     ["sound","player","Media player","Devices","mpris auto selection"],
     ["network","ipv4","IP addresses","Connection details","ipv4 ipv6 gateway dns ethernet copy"],
+    ["appearance", "style", "Style", "Style", "classic tui appearance terminal look"],
     ["appearance", "frost", "Frosted panels", "Surfaces", "solid subtle glassy opacity blur"],
     ["appearance", "shadows", "Drop shadows", "Surfaces", "depth"],
     ["appearance", "wallpaper", "Wallpaper", "Desktop", "background image"],

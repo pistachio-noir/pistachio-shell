@@ -13,6 +13,7 @@ PanelWindow {
 
     property bool open
     property real at // the click's x on the screen
+    property bool topEdge
     property int lift // the bar's top, from the screen's bottom edge
 
     signal renameRequested(int workspace)
@@ -80,9 +81,9 @@ PanelWindow {
         id: card
 
         x: Math.max(8, Math.min(root.at - width / 2, root.width - width - 8))
-        y: root.height - root.lift - height - 8
+        y: root.topEdge ? root.lift+15 : root.height - root.lift - height - 8
         width: 240
-        height: column.implicitHeight + 12
+        height: column.implicitHeight + (Theme.tui ? 20 : 12)
         focus: root.open
         Keys.onEscapePressed: root.open = false
 
@@ -92,11 +93,14 @@ PanelWindow {
             radius: panel.radius
         }
 
-        Rectangle {
+        // TUI: a frame whose title tab carries the heading
+        PanelFrame {
             id: panel
             anchors.fill: parent
+            title: Theme.tui ? heading.text.toLowerCase() : ""
+            active: false
             radius: Theme.tileRadius
-            color: Theme.bgAlt
+            color: Theme.tui ? Theme.tuiSurface : Theme.bgAlt
             border.width: 1
             border.color: Theme.overlay2
             Accessible.role: Accessible.PopupMenu
@@ -105,12 +109,14 @@ PanelWindow {
         Column {
             id: column
             x: 6
-            y: 6
+            y: Theme.tui ? 14 : 6
             width: parent.width - 12
 
             Text {
+                id: heading
+                visible: !Theme.tui
                 x: 10
-                height: 28
+                height: visible ? 28 : 0
                 verticalAlignment: Text.AlignVCenter
                 text: root.kind === "clock" ? "TIMERS AND ALARMS" : `WORKSPACE ${root.ws}`
                 color: Theme.subtext
@@ -129,13 +135,14 @@ PanelWindow {
                     required property var modelData
 
                     width: column.width
-                    height: 36
-                    radius: 14
-                    color: entryMouse.containsMouse ? Theme.overlay : "transparent"
+                    height: Theme.tui ? Theme.tuiButtonHeight : 36
+                    radius: Theme.tui ? 0 : 14
+                    color: entryMouse.containsMouse ? (Theme.tui ? Theme.tuiHover : Theme.overlay) : "transparent"
                     Accessible.role: Accessible.MenuItem
                     Accessible.name: modelData.text
 
                     Icon {
+                        visible: !Theme.tui
                         x: 12
                         anchors.verticalCenter: parent.verticalCenter
                         size: 16
@@ -144,15 +151,15 @@ PanelWindow {
                     }
 
                     Text {
-                        x: 40
-                        width: parent.width - 52
+                        x: Theme.tui ? 12 : 40
+                        width: parent.width - x - 12
                         anchors.verticalCenter: parent.verticalCenter
                         text: entry.modelData.text
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
-                        color: Theme.text
+                        color: Theme.tui && entry.modelData.danger ? Theme.terracotta : Theme.text
                         font.family: Theme.fontUi
-                        font.pixelSize: 13
+                        font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13
                         font.weight: Font.DemiBold
                     }
 

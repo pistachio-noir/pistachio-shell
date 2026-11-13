@@ -14,7 +14,7 @@ Rectangle {
 
     width: 36
     height: 36
-    radius: 18
+    radius: Theme.tui ? 0 : 18
     color: primary ? Theme.pistachio : mouse.containsMouse && enabled ? Theme.overlay2 : "transparent"
     opacity: primary && !enabled ? 0.5 : 1
     Accessible.role: Accessible.Button

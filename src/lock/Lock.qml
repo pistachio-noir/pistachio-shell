@@ -211,6 +211,7 @@ Scope {
                 opacity: surface.shown
 
                 MultiEffect {
+                    visible: !Theme.tui
                     anchors.fill: parent
                     source: desktop
                     autoPaddingEnabled: false
@@ -220,9 +221,28 @@ Scope {
                 }
 
                 Rectangle {
+                    visible: !Theme.tui
                     anchors.fill: parent
                     color: Theme.bg
                     opacity: 0.6
+                }
+
+                // TUI (owner's note, 13 November 2026): the Overview's dotted background in place of
+                // the blur, fading in over the sharp still as the blur does
+                Canvas {
+                    visible: Theme.tui
+                    anchors.fill: parent
+                    onPaint: {
+                        const c = getContext("2d");
+                        c.fillStyle = Theme.deep;
+                        c.fillRect(0, 0, width, height);
+                        c.fillStyle = Theme.tuiRule;
+                        for (let x = 8; x < width; x += 16)
+                            for (let y = 10; y < height; y += 20)
+                                c.fillRect(x, y, 1, 1);
+                    }
+                    onWidthChanged: requestPaint()
+                    onHeightChanged: requestPaint()
                 }
             }
 
@@ -234,6 +254,7 @@ Scope {
                 // a soft dark patch behind the clock and field, so the date and hint read over a
                 // bright desktop while the rest of it shows through the lighter dim
                 RectangularShadow {
+                    visible: !Theme.tui // nothing to read over on the dots
                     anchors.centerIn: column
                     width: column.width + 120
                     height: column.height + 100
@@ -309,7 +330,7 @@ Scope {
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: 64
                             height: 64
-                            radius: 32
+                            radius: Theme.tui ? 0 : 32
                             color: Theme.overlay
 
                             Icon {
@@ -323,7 +344,7 @@ Scope {
                         Rectangle {
                             width: 320
                             height: 56
-                            radius: 28
+                            radius: Theme.tui ? 0 : 28
                             color: Theme.bgAlt
                             border.width: 1
                             border.color: Theme.overlay2
@@ -421,7 +442,7 @@ Scope {
                                             anchors.verticalCenter: parent.verticalCenter
                                             width: 8
                                             height: 8
-                                            radius: 4
+                                            radius: Theme.tui ? 0 : 4
                                             color: Theme.textBright
 
                                             NumberAnimation on scale {
@@ -441,9 +462,9 @@ Scope {
 
                                     Rectangle {
                                         anchors.verticalCenter: parent.verticalCenter
-                                        width: 2
-                                        height: 22
-                                        radius: 1
+                                        width: Theme.tui ? 8 : 2 // TUI: a block cursor
+                                        height: Theme.tui ? Theme.tuiLineHeight - 2 : 22
+                                        radius: Theme.tui ? 0 : 1
                                         color: Theme.pistachio
                                         opacity: blink.on && !Session.checking ? 1 : 0
                                     }
@@ -464,7 +485,8 @@ Scope {
 
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: Session.checking ? "Checking…" : Session.error || "Enter to unlock"
+                            text: Theme.tui ? (Session.checking ? "checking…" : Session.error || "enter to unlock")
+                                : Session.checking ? "Checking…" : Session.error || "Enter to unlock"
                             color: Session.error ? Theme.terracotta : Theme.subtext
                             font.family: Theme.fontUi
                             font.pixelSize: 12
@@ -511,7 +533,7 @@ Scope {
                     anchors.bottomMargin: 24
                     width: status.width + 36
                     height: 40
-                    radius: 20
+                    radius: Theme.tui ? 0 : 20
                     color: Theme.bgAlt
                     border.width: 1
                     border.color: Theme.overlay2

@@ -38,6 +38,8 @@ PanelWindow {
         const i = actions.findIndex(a => a.key === event.key);
         if (event.key === Qt.Key_Escape)
             open = false;
+        else if (Theme.tui && (event.key === Qt.Key_Up || event.key === Qt.Key_Down)) // TUI lists them downwards
+            current = (current + (event.key === Qt.Key_Down ? 1 : -1) + actions.length) % actions.length;
         else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
             current = (current + (event.key === Qt.Key_Right ? 1 : -1) + actions.length) % actions.length;
         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
@@ -108,6 +110,7 @@ PanelWindow {
         }
 
         MultiEffect {
+            visible: !Theme.tui // TUI: a flat dim, as its boards dim the screen
             anchors.fill: parent
             source: shot
             autoPaddingEnabled: false
@@ -119,7 +122,7 @@ PanelWindow {
         Rectangle {
             anchors.fill: parent
             color: Theme.bg
-            opacity: 0.45
+            opacity: Theme.tui ? 0.74 : 0.45
         }
 
         MouseArea {
@@ -142,6 +145,7 @@ PanelWindow {
 
         Rectangle {
             id: panel
+            visible: !Theme.tui
 
             width: buttons.implicitWidth + 48
             height: buttons.implicitHeight + 48
@@ -237,7 +241,107 @@ PanelWindow {
             }
         }
 
+        // TUI (no board; drawn by Claude like the TUI launcher): a "power" frame listing the actions as
+        // rows with their letter in brackets, the chosen one in the pistachio chip, then the keys
+        PanelFrame {
+            visible: Theme.tui
+            width: 320
+            height: tuiRows.implicitHeight + 28
+            title: "power"
+            detail: "up " + Math.floor(Uptime.seconds / 3600) + "h " + Math.floor(Uptime.seconds / 60) % 60 + "m"
+            Accessible.role: Accessible.Grouping
+            Accessible.name: "Power menu"
+
+            MouseArea {
+                anchors.fill: parent
+            }
+
+            Column {
+                id: tuiRows
+                x: 12
+                y: 18
+                width: parent.width - 24
+
+                Repeater {
+                    model: root.actions
+
+                    Rectangle {
+                        id: row
+
+                        required property var modelData
+                        required property int index
+                        readonly property bool selected: root.current === index
+
+                        width: tuiRows.width
+                        height: Theme.tuiLauncherRowHeight
+                        color: selected ? Theme.pistachio : "transparent"
+                        Accessible.role: Accessible.Button
+                        Accessible.name: `${modelData.name}, key ${String.fromCharCode(modelData.key)}`
+
+                        Text {
+                            x: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: `[${String.fromCharCode(row.modelData.key)}]`
+                            color: row.selected ? Theme.bg : row.modelData.danger ? Theme.terracotta : Theme.subtext
+                            font.family: Theme.fontTui
+                            font.pixelSize: Theme.tuiTextSize
+                            font.weight: Font.Bold
+                        }
+
+                        Text {
+                            x: 52
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: row.modelData.name.toLowerCase()
+                            color: row.selected ? Theme.bg : Theme.text
+                            font.family: Theme.fontTui
+                            font.pixelSize: Theme.tuiTextSize
+                            font.weight: row.selected ? Font.Bold : Font.Medium
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onEntered: root.current = row.index
+                            onClicked: root.run(row.index)
+                        }
+                    }
+                }
+
+                Flow {
+                    width: parent.width
+                    leftPadding: 12
+                    topPadding: 12
+                    spacing: 16
+
+                    Repeater {
+                        model: [["↑↓", "move"], ["Enter", "confirm"], ["Esc", "cancel"]]
+
+                        Row {
+                            required property var modelData
+                            spacing: 8
+
+                            Text {
+                                text: modelData[0]
+                                color: Theme.textBright
+                                font.family: Theme.fontTui
+                                font.pixelSize: Theme.tuiTextSize
+                                font.weight: Font.Bold
+                            }
+                            Text {
+                                text: modelData[1]
+                                color: Theme.subtext
+                                font.family: Theme.fontTui
+                                font.pixelSize: Theme.tuiTextSize
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Text {
+            visible: !Theme.tui
             anchors.horizontalCenter: parent.horizontalCenter
             text: "← → move · Enter confirm · Esc cancel"
             color: Theme.subtext

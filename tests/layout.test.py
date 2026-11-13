@@ -3,7 +3,7 @@ import os,pathlib,shutil,subprocess,tempfile,time
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='pistachio-layout-') as d:
  base=pathlib.Path(d);(base/'launcher').mkdir();(base/'components').mkdir();
- for name in ['ActionButton.qml','Icon.qml']:shutil.copy(ROOT/'src/components'/name,base/'components'/name)
+ for name in ['ActionButton.qml','Icon.qml','Switch.qml','Slider.qml','PanelFrame.qml']:shutil.copy(ROOT/'src/components'/name,base/'components'/name)
  (base/'runtime').mkdir(mode=0o700)
  shutil.copy(ROOT/'src/Theme.qml',base/'Theme.qml');shutil.copy(ROOT/'src/launcher/KeyHints.qml',base/'launcher/KeyHints.qml');shutil.copy(ROOT/'tests/layout-ui.qml',base/'shell.qml')
  env=dict(os.environ,QT_QPA_PLATFORM='offscreen',XDG_RUNTIME_DIR=str(base/'runtime'),XDG_CACHE_HOME=str(base/'cache'));env.pop('WAYLAND_DISPLAY',None);env.pop('DISPLAY',None)

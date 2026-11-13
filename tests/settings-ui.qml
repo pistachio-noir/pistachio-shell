@@ -2,13 +2,16 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import QtTest
+import qs
 import qs.services
 import qs.settings
 
 ShellRoot {
+    Component.onCompleted: if (Quickshell.env("PISTACHIO_SETTINGS_NATIVE")==="1") SettingsHub.openPage("appearance", "")
+    Binding { target: Theme; property: "tui"; value: ShellSettings.appearanceStyle === "tui" }
     property real fixtureWriteMs
     SettingsWindow { id: win }
-    TestCase { id: input; name: "SettingsControls"; when: false }
+    TestCase { id: input; parent: win.contentItem; name: "SettingsControls"; when: false }
     function find(item, name) {
         if (item.objectName === name && item.visible) return item;
         for (const child of item.children) { const match = find(child,name); if(match) return match; }
@@ -16,15 +19,41 @@ ShellRoot {
     }
     function need(name) { const item=find(win.contentItem,name) || find(win.dialog.contentItem,name); if(!item) throw new Error("Missing "+name); return item; }
     function check(ok, why) { if(!ok) throw new Error(why); }
-    function click(item) { input.mouseClick(item,item.width/2,item.height/2); input.wait(30); }
+    function click(item) { try { input.mouseClick(item,item.width/2,item.height/2); } catch(e) { throw new Error("Click failed: "+item.objectName+" "+e.message); } input.wait(30); }
     function scrollInto(item) {
         let scroll=item.parent;
         while(scroll && scroll.contentY===undefined) scroll=scroll.parent;
         if(scroll) scroll.contentY=Math.max(0,Math.min(scroll.contentHeight-scroll.height,item.mapToItem(scroll.contentItem,0,0).y-scroll.height/2));
         input.wait(30);
     }
-    function page(name) { win.navigate(name,""); input.wait(30); }
+    function page(name) { win.navigate(name,""); input.wait(Quickshell.env("PISTACHIO_SETTINGS_NATIVE")==="1" ? Theme.motionDuration+100 : 30); }
+    function capture(name) {
+        const folder=Quickshell.env("PISTACHIO_SETTINGS_SHOTS");
+        if (!folder) return;
+        if (Quickshell.env("PISTACHIO_SETTINGS_NATIVE")==="1") {
+            Quickshell.execDetached(["grim", folder+"/"+name+".png"]);
+            input.wait(250);
+            return;
+        }
+        const item=win.dialog.visible ? win.dialog.contentItem : need("settings-surface");
+        item.grabToImage(result=>result.saveToFile(folder+"/"+name+".png"));
+        input.wait(80);
+    }
     function runChecks() {
+        check(ShellSettings.appearanceStyle === "classic", "missing style defaults to Classic");
+        ShellSettings.setAppearanceStyle("tui");
+        check(ShellSettings.appearanceStyle === "tui" && Theme.tui, "style applies live");
+        // Native fixture stubs compositor remapping; exercise watcher-only lifecycle offscreen.
+        if(Quickshell.env("PISTACHIO_SETTINGS_NATIVE")!=="1") {
+            SettingsHub.opened=false;input.wait(30);
+            check(SystemStats.watching, "TUI keeps stats watched with Settings closed");
+            win.minimized=true;input.wait(30);check(SystemStats.watching,"TUI keeps stats watched while minimized");win.minimized=false;
+        }
+        ShellSettings.setAppearanceStyle("invalid");
+        check(ShellSettings.appearanceStyle === "tui", "invalid style is rejected");
+        Store.saved.appearanceStyle = "broken";
+        check(ShellSettings.appearanceStyle === "classic", "invalid stored style defaults to Classic");
+        ShellSettings.setAppearanceStyle("classic");
         ShellSettings.setShadows(false);Store.fixtureWriteNow();ShellSettings.setShadows(true);input.wait(500);
         const oldNotifications=Store.saved.notifications;
         Store.saved.notifications=Array.from({length:200},(_,i)=>({id:i,body:"fixture".repeat(200)}));
@@ -57,7 +86,9 @@ ShellRoot {
         scrollInto(need("mic-play"));click(need("mic-play"));input.wait(100);check(MicCheck.state==="playing","explicit playback");
         SettingsHub.opened=false;input.wait(100);check(MicCheck.state==="idle","closing discards audio");SettingsHub.opened=true;
         page("appearance");
-        check(win.width === 1040 && win.height === 760,"default size");
+        check(win.width === 1040 && win.height === 760,"default size: "+win.width+"x"+win.height+" style="+ShellSettings.appearanceStyle);
+        const originalSearchWidth=win.width;
+        const originalSearchX=need("settings-search").mapToItem(win.contentItem,0,0).x;
         const surface=need("settings-surface");
         check(surface.contentInsideBorder && surface.contentItem.width===win.width-2*surface.border.width && surface.contentItem.height===win.height-2*surface.border.width,"content stays inside the rounded window border");
         input.wait(250);
@@ -134,6 +165,7 @@ ShellRoot {
             Bluetooth.ask(kind);input.wait(40);
             check(SettingsHub.page==="bluetooth","pairing opens Settings");
             const dialog=win.dialog;
+            capture("classic-pair-"+kind);
             check(dialog.visible,"pairing dialog visible: "+kind);
             if(kind==="pin"||kind==="passkey") {
                 const code=need("settings-edit-field");code.text=kind==="pin"?"AB12":"123456";
@@ -156,6 +188,93 @@ ShellRoot {
         LocalSend.available=false;win.showPage("localsend","");input.wait(20);check(SettingsHub.page==="appearance","missing LocalSend stays unavailable");
         page("bluetooth");Bluetooth.setScanning(true);SettingsHub.opened=false;input.wait(30);
         check(!Bluetooth.scanning,"closing stops discovery");
+        ShellSettings.setAppearanceStyle("tui");
+        input.wait(180);
+        win.implicitWidth=1040;win.implicitHeight=800;
+        page("appearance");
+        check(need("settings-surface").radius===0, "TUI Settings has square frame");
+        check(need("settings-sidebar").width===224, "TUI sidebar matches board width");
+        check(need("settings-header").height===52, "TUI header matches board height");
+        check(need("toggle-shadows").contentItem.text.includes("["), "TUI toggle draws bracket state");
+        LocalSend.available=true;
+        for (const name of ["appearance","display","sound","notifications","focus","integrations","bluetooth","network","localsend","lens","apps","system","health","about"]) {
+            page(name);input.wait(90);
+            check(need("settings-page-content").opacity > 0.99, "TUI page fade finishes quickly: "+name);
+            capture("tui-"+name);
+        }
+        for (const size of [[1040,800],[900,620]]) {
+            win.implicitWidth=size[0];win.implicitHeight=size[1];input.wait(30);
+            page("lens");
+            const choice=need("choice-lensClaudeModel");scrollInto(choice);click(choice);input.wait(30);
+            if (size[0]===1040) {
+                const filter=input.findChild(choice.popup.contentItem,"choice-filter");
+                check(filter && filter.visible, "TUI model selector offers filter");
+                filter.forceActiveFocus();filter.selectAll();
+                for(const ch of "Opus") input.keyClick(ch);
+                input.wait(40);
+                check(choice.shownChoices.length===1 && choice.shownChoices[0].value==="opus", "model filter matches real choices");
+                input.keyClick(Qt.Key_Down);input.keyClick(Qt.Key_Return);input.wait(50);
+                check(ShellSettings.lensClaudeModel==="opus" && !choice.popup.visible, "model filter Down and Enter selects the match");
+                click(choice);input.wait(30);
+            }
+            capture("tui-model-"+size[0]);
+            const point=choice.popup.contentItem.mapToItem(win.contentItem,0,0);
+            check(point.x>=0 && point.x+choice.popup.contentItem.width<=win.width, "TUI model popup contained");
+            input.keyClick(Qt.Key_Escape);
+            page("sound");const level=need("level-output");scrollInto(level);
+            input.mouseClick(level,level.width*0.7,22);input.wait(90);
+            check(Math.abs(Audio.volume-0.7)<0.06, "TUI volume drag retains input contract");
+            page("display");const heat=need("level-warmth");scrollInto(heat);
+            input.mouseClick(heat,heat.width*0.8,22);input.wait(90);
+            check(NightLight.temperature<4000, "TUI slider keeps Kelvin units");
+            page("apps");SettingsHub.beginEdit("weather");input.wait(40);
+            check(win.dialog.visible, "TUI edit opens");
+            const saveButton=win.dialog.contentItem.children.find(c=>c.children && c.children.some(b=>b.text==="Save"))?.children.find(b=>b.text==="Save");
+            check(saveButton && saveButton.contentItem.width >= saveButton.contentItem.implicitWidth, "TUI Save label fits its button");
+            SettingsHub.editError="No location found. Try a city and country.";
+            capture("tui-weather-error-"+size[0]);
+            ShellSettings.setAppearanceStyle("classic");input.wait(90);
+            check(win.dialog.visible && SettingsHub.editKey==="weather", "switch retains pending edit");
+            input.keyClick(Qt.Key_Escape);input.wait(40);
+            ShellSettings.setAppearanceStyle("tui");input.wait(90);
+        }
+        win.implicitWidth=1040;win.implicitHeight=800;input.wait(30);
+        for(const kind of ["confirm","authorize","service","pin","passkey","display-pin","display-passkey"]) {
+            Bluetooth.ask(kind);input.wait(50);capture("tui-pair-"+kind);win.dialog.cancel();input.wait(30);
+        }
+        page("network");Network.connected=false;Network.hasLink=false;input.wait(50);capture("tui-network-unplugged");Network.connected=true;Network.hasLink=true;
+        page("bluetooth");Bluetooth.nearby=[{name:"Desk speaker",address:"fixture"}];
+        need("settings-page-content").discovering=true;input.wait(50);capture("tui-bluetooth-scan");
+        Bluetooth.nearby=[];Bluetooth.scanning=false;input.wait(50);capture("tui-bluetooth-empty");
+        page("sound");
+        Audio.streams=[{id:99,name:"Fixture music",audio:{volume:0.5,muted:false}}];
+        need("settings-page-content").soundTab="applications";input.wait(50);
+        const appRow=need("setting-stream:99"), appLabel=need("label-stream:99");
+        const muteButton=appRow.children.find(c=>c.visible && c.text==="[x]");
+        check(muteButton && muteButton.mapToItem(appRow,muteButton.width,0).x <= appLabel.mapToItem(appRow,0,0).x, "TUI application mute reserves space beside label");
+        capture("tui-sound-applications");
+        page("sound");need("settings-page-content").soundTab="devices";input.wait(40);const outputChoice=need("choice-output");click(outputChoice);capture("tui-sound-output");input.keyClick(Qt.Key_Escape);
+        page("apps");const terminalChoice=need("choice-terminal");click(terminalChoice);capture("tui-terminal");input.keyClick(Qt.Key_Escape);
+        page("lens");const effortChoice=need("choice-lensClaudeEffort");scrollInto(effortChoice);click(effortChoice);capture("tui-effort");input.keyClick(Qt.Key_Escape);
+        page("appearance");
+        const tuiSearch=need("settings-search");tuiSearch.text="volume";input.wait(50);
+        check(need("level-output").visible && need("toggle-tick").visible, "TUI search exposes actual level and toggle controls");
+        capture("tui-search");
+        const wasTick=ShellSettings.volumeTick;click(need("toggle-tick"));
+        check(ShellSettings.volumeTick!==wasTick, "TUI search control applies real preference");
+        tuiSearch.text="";
+        page("appearance");const styleChoice=need("choice-style");scrollInto(styleChoice);click(styleChoice);
+        input.keyClick(Qt.Key_Up);input.keyClick(Qt.Key_Return);input.wait(150);
+        check(!Theme.tui && ShellSettings.appearanceStyle==="classic", "Appearance selector switches to Classic live");
+        click(styleChoice);input.keyClick(Qt.Key_Down);input.keyClick(Qt.Key_Return);input.wait(150);
+        check(Theme.tui && ShellSettings.appearanceStyle==="tui", "Appearance selector switches to TUI live");
+        ShellSettings.setAppearanceStyle("classic");input.wait(180);
+        win.implicitWidth=1040;win.implicitHeight=760;input.wait(Quickshell.env("PISTACHIO_SETTINGS_NATIVE")==="1"?300:30);
+        check(Math.abs(need("settings-search").mapToItem(win.contentItem,0,0).x-originalSearchX-(win.width-originalSearchWidth))<1, "Classic search position survives style roundtrip: "+JSON.stringify({before:originalSearchX,after:need("settings-search").mapToItem(win.contentItem,0,0).x,width:win.width,height:win.height}));
+        check(need("settings-surface").radius===28 && Theme.fontUi==="Manrope", "Classic frame and font restored");
+        ShellSettings.setAppearanceStyle("tui");
+        input.wait(50);
+        check(Theme.tui && Theme.fontUi === "JetBrainsMono Nerd Font", "TUI uses installed Nerd font");
         ShellSettings.setLensSuggestCoding(false);
         input.wait(350);
         return "all passed (controls, selectors, validation, seven pairing kinds, search, watchers, resize)";
@@ -164,7 +283,7 @@ ShellRoot {
         target:"settingsTest"
         function ready():bool{return Store.ready;}
         function writeTime():real{return fixtureWriteMs;}
-        function codingState():string{return JSON.stringify({ready:Store.ready,suggest:ShellSettings.lensSuggestCoding,claude:ShellSettings.lensClaudeCodingModel,codexEffort:ShellSettings.lensCodexCodingEffort,normalClaude:ShellSettings.lensClaudeModel});}
-        function run():string{try{return runChecks();}catch(error){return "FAIL: "+error.message;}}
+        function codingState():string{return JSON.stringify({ready:Store.ready,style:ShellSettings.appearanceStyle,suggest:ShellSettings.lensSuggestCoding,claude:ShellSettings.lensClaudeCodingModel,codexEffort:ShellSettings.lensCodexCodingEffort,normalClaude:ShellSettings.lensClaudeModel});}
+        function run():string{try{return runChecks();}catch(error){return "FAIL: "+error.message+"\n"+error.stack;}}
     }
 }

@@ -10,7 +10,7 @@ Rectangle {
 
     width: Math.min(maxWidth, label.implicitWidth + 38)
     height: 28
-    radius: 14
+    radius: Theme.tui ? 0 : 14
     color: Theme.overlay2
 
     Icon {
@@ -34,7 +34,7 @@ Rectangle {
         elide: Text.ElideRight
         color: Theme.text
         font.family: Theme.fontUi
-        font.pixelSize: 12
+        font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
         font.weight: Font.DemiBold
     }
 }

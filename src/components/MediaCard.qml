@@ -100,7 +100,7 @@ Rectangle {
         anchors.verticalCenter: top.verticalCenter
         width: 52
         height: 52
-        radius: 14
+        radius: Theme.tui ? 0 : 14
         color: Theme.overlay2
 
         Icon {
@@ -235,13 +235,13 @@ Rectangle {
             anchors.right: length.left
             anchors.verticalCenter: parent.verticalCenter
             height: 4
-            radius: 2
+            radius: Theme.tui ? 0 : 2
             color: Theme.overlay2
 
             Rectangle {
                 width: parent.width * media.fraction
                 height: parent.height
-                radius: 2
+                radius: Theme.tui ? 0 : 2
                 color: Theme.pistachio
             }
 
@@ -251,7 +251,7 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 10
                 height: 10
-                radius: 5
+                radius: Theme.tui ? 0 : 5
                 color: Theme.textBright
                 opacity: seekArea.containsMouse || media.dragging ? 1 : 0
 
@@ -304,7 +304,7 @@ Rectangle {
             x: 4
             height: 24
             verticalAlignment: Text.AlignVCenter
-            text: "UP NEXT"
+            text: Theme.tui ? "up next" : "UP NEXT"
             color: Theme.subtext
             font.family: Theme.fontUi
             font.pixelSize: 11
@@ -322,7 +322,7 @@ Rectangle {
 
                 width: parent.width
                 height: 40
-                radius: 12
+                radius: Theme.tui ? 0 : 12
                 color: nextMouse.containsMouse ? Theme.overlay2 : "transparent"
                 Accessible.role: Accessible.Button
                 Accessible.name: `Play ${modelData.name} by ${modelData.artist}`
@@ -333,7 +333,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 28
                     height: 28
-                    radius: 6
+                    radius: Theme.tui ? 0 : 6
                     color: Theme.overlay2
 
                     Image {

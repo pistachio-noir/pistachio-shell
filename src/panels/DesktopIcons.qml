@@ -324,7 +324,7 @@ Item {
                 y: 8
                 width: 56
                 height: 56
-                radius: 18
+                radius: Theme.tui ? 0 : 18
                 color: icon.selected || mouse.containsMouse ? Theme.overlay2 : Theme.overlay
 
                 Behavior on color {
@@ -347,7 +347,7 @@ Item {
                     id: thumbnail
                     anchors.fill: parent
                     anchors.margins: 4
-                    radius: 14
+                    radius: Theme.tui ? 0 : 14
                     color: "transparent"
                     visible: icon.modelData.kind === "image" && picture.status === Image.Ready
 
@@ -382,7 +382,7 @@ Item {
                 anchors.topMargin: 5
                 width: label.width + 12
                 height: label.height + 4
-                radius: 9
+                radius: Theme.tui ? 0 : 9
                 color: icon.selected ? Theme.pistachio : "transparent"
 
                 Text {
@@ -400,7 +400,7 @@ Item {
                     style: icon.selected ? Text.Normal : Text.Raised
                     styleColor: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.85)
                     font.family: Theme.fontUi
-                    font.pixelSize: 11
+                    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11
                     font.weight: Font.Bold
                 }
             }
@@ -506,7 +506,7 @@ Item {
         width: root.box?.width ?? 0
         height: root.box?.height ?? 0
         visible: root.box !== null
-        radius: 6
+        radius: Theme.tui ? 0 : 6
         color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08)
         border.width: 1
         border.color: Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, 0.6)
@@ -600,7 +600,7 @@ Item {
 
                     width: parent.width
                     height: 36
-                    radius: 14
+                    radius: Theme.tui ? 0 : 14
                     color: entryMouse.containsMouse ? Theme.overlay : "transparent"
                     Accessible.role: Accessible.MenuItem
                     Accessible.name: modelData.text
@@ -619,7 +619,7 @@ Item {
                         text: entry.modelData.text
                         color: Theme.text
                         font.family: Theme.fontUi
-                        font.pixelSize: 13
+                        font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13
                         font.weight: Font.DemiBold
                     }
 

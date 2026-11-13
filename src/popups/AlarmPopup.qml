@@ -103,7 +103,7 @@ PanelWindow {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: 56
                 height: 56
-                radius: 28
+                radius: Theme.tui ? 0 : 28
                 color: Theme.overlay
 
                 Icon {
@@ -134,7 +134,7 @@ PanelWindow {
                     text: root.shown?.kind === "timer" ? "TIMER DONE" : "ALARM"
                     color: Theme.subtext
                     font.family: Theme.fontUi
-                    font.pixelSize: 11
+                    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11
                     font.weight: Font.Bold
                     font.letterSpacing: 0.66
                 }
@@ -158,7 +158,7 @@ PanelWindow {
                     text: root.shown?.label ?? ""
                     color: Theme.text
                     font.family: Theme.fontUi
-                    font.pixelSize: 15
+                    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 15
                     font.weight: Font.Bold
                 }
             }

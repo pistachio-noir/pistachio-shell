@@ -5,6 +5,15 @@ import QtQuick
 
 // The shell's own look, set in the launcher (System, Shell settings) and kept in Store.
 Singleton {
+    readonly property string appearanceStyle: Store.saved.appearanceStyle === "tui" ? "tui" : "classic"
+    function setAppearanceStyle(value: string) {
+        if (value === "classic" || value === "tui") Store.saved.appearanceStyle = value;
+    }
+    readonly property bool tuiTrayOpen: Store.saved.tuiTrayOpen === true
+    function setTuiTrayOpen(value: bool) {
+        Store.saved.tuiTrayOpen = value;
+    }
+
     readonly property string lensProvider: Store.saved.lensProvider
     readonly property string lensClaudeModel: Store.saved.lensClaudeModel
     readonly property string lensClaudeEffort: Store.saved.lensClaudeEffort

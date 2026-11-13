@@ -17,6 +17,7 @@ Item {
     Accessible.checked: checked
 
     Rectangle {
+        visible: !Theme.tui
         anchors.centerIn: parent
         width: 48
         height: 28
@@ -45,6 +46,17 @@ Item {
                 }
             }
         }
+    }
+
+    Text {
+        objectName: "switch-state"
+        visible: Theme.tui
+        anchors.centerIn: parent
+        text: root.checked ? "[x]" : "[ ]"
+        color: root.checked ? Theme.pistachio : Theme.subtext
+        font.family: Theme.fontTui
+        font.pixelSize: Theme.tuiTextSize
+        font.weight: Font.Bold
     }
 
     MouseArea {

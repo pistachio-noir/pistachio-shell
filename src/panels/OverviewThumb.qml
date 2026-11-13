@@ -132,7 +132,7 @@ Item {
 
                     height: 24
                     width: Math.min(110, tabName.implicitWidth + 20)
-                    radius: 12
+                    radius: Theme.tui ? 0 : 12
                     color: showing ? Theme.pistachio : Qt.rgba(Theme.bgAlt.r, Theme.bgAlt.g, Theme.bgAlt.b, 0.9)
 
                     Text {
@@ -160,7 +160,7 @@ Item {
             y: 10
             height: 24
             width: badgeText.implicitWidth + 20
-            radius: 12
+            radius: Theme.tui ? 0 : 12
             color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.85)
             border.width: 1
             border.color: Theme.overlay2
@@ -190,7 +190,7 @@ Item {
             anchors.centerIn: parent
             width: 28
             height: 28
-            radius: 14
+            radius: Theme.tui ? 0 : 14
             color: closeMouse.containsMouse ? Theme.overlay : Theme.bgAlt
             border.width: 1
             border.color: Theme.overlay2

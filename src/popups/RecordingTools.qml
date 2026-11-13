@@ -54,11 +54,11 @@ PanelWindow {
             Text { text: "Trim recording"; color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: 20; font.weight: Font.ExtraBold }
             Text {
                 width: parent.width; text: Screenshots.trimPath.split("/").pop(); elide: Text.ElideMiddle; textFormat: Text.PlainText
-                color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12
+                color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
             }
             Text {
                 text: Screenshots.trimDuration > 0 ? "Duration " + Screenshots.trimDuration.toFixed(2) + " s · original stays unchanged" : "Reading duration…"
-                color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12
+                color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
             }
             Row {
                 spacing: 12
@@ -66,12 +66,12 @@ PanelWindow {
                     spacing: 8
                     Text { text: "Start · seconds"; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12 }
                     Rectangle {
-                        width: 180; height: 44; radius: 20; color: Theme.overlay
+                        width: 180; height: 44; radius: Theme.tui ? 0 : 20; color: Theme.overlay
                         TextInput {
                             id: start; objectName: "recording-trim-start"
                             x: 14; width: parent.width - 28; anchors.verticalCenter: parent.verticalCenter
                             text: "0"; color: Theme.textBright; selectionColor: Theme.pistachio; selectedTextColor: Theme.bg
-                            font.family: Theme.fontMono; font.pixelSize: 13; selectByMouse: true
+                            font.family: Theme.fontMono; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13; selectByMouse: true
                             enabled: !Screenshots.trimBusy; inputMethodHints: Qt.ImhFormattedNumbersOnly
                             Keys.onEscapePressed: Screenshots.closeTrim()
                         }
@@ -81,12 +81,12 @@ PanelWindow {
                     spacing: 8
                     Text { text: "End · seconds"; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12 }
                     Rectangle {
-                        width: 180; height: 44; radius: 20; color: Theme.overlay
+                        width: 180; height: 44; radius: Theme.tui ? 0 : 20; color: Theme.overlay
                         TextInput {
                             id: end; objectName: "recording-trim-end"
                             x: 14; width: parent.width - 28; anchors.verticalCenter: parent.verticalCenter
                             color: Theme.textBright; selectionColor: Theme.pistachio; selectedTextColor: Theme.bg
-                            font.family: Theme.fontMono; font.pixelSize: 13; selectByMouse: true
+                            font.family: Theme.fontMono; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13; selectByMouse: true
                             enabled: !Screenshots.trimBusy; inputMethodHints: Qt.ImhFormattedNumbersOnly
                             Keys.onEscapePressed: Screenshots.closeTrim()
                         }
@@ -97,7 +97,7 @@ PanelWindow {
                 width: parent.width; visible: text !== ""; wrapMode: Text.Wrap
                 text: Screenshots.trimError || (Screenshots.trimSavedPath ? "Saved " + Screenshots.trimSavedPath.split("/").pop() : "")
                 textFormat: Text.PlainText; color: Screenshots.trimError ? Theme.terracotta : Theme.text
-                font.family: Theme.fontUi; font.pixelSize: 12
+                font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
             }
             Row {
                 spacing: 8

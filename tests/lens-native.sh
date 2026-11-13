@@ -96,9 +96,9 @@ assert calls[1]['args'].count('--image')==3
 call('closeFixture'); wait(lambda s:not s['open']); time.sleep(.5)
 log=(base/'log').read_text()
 assert 'Configuration Loaded' in log,log
-unexpected = [line for line in log.splitlines() if any(word in line for word in (' ERROR',' WARN','TypeError','ReferenceError')) and 'qt.qpa.wayland.textinput:' not in line]
+unexpected = [line for line in log.splitlines() if any(word in line for word in (' ERROR',' WARN','TypeError','ReferenceError')) and 'qt.qpa.wayland.textinput' not in line]
 assert not unexpected,log
-warnings = sum('qt.qpa.wayland.textinput:' in line for line in log.splitlines())
+warnings = sum('qt.qpa.wayland.textinput' in line for line in log.splitlines())
 print('lens: aligned attachment/agent rows for one/two/three images, prompt/answer/crowded bounds and close passed; no QML errors or warnings')
 if warnings: print('lens: %d transient Qt Wayland text-input focus warnings during chooser transitions' % warnings)
 print('Screenshots: /tmp/pistachio-lens-prompt.png /tmp/pistachio-lens-combined.png')

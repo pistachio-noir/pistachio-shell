@@ -9,9 +9,14 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 MOCKS = {
+    "Qalc": "property bool found:false",
+    "Events": 'property bool available:false; property var calendars:[]',
+    "Clocks": 'property bool clocksInstalled:false',
+    "FocusMode": 'property bool zen:false;property bool focusing:false;property bool pomodoring:false;property var allowed:[];function setOption(k,v){Store.saved[k]=v;}function setAllowed(a,v){}function startZen(v){}function stopZen(){}function toggleFocus(){}function togglePomodoro(){}',
+
     "Compositor": 'property var windows: []; property int activeWorkspace: 1; function placeSettingsWindow(w,x,y) {}',
     "Session": 'property bool locked',
-    "About": 'property string repo: ""; property string commit: "test"; property string date: "2026-11-10"; property string subject: "Test build"; property int changed: 0; property string quickshell: "0.3.2"; property string hyprland: "0.57.1"; property string qt: "6"; function load() {}',
+    "About": 'property string branch:"tui";property string mood:"cooking";property string moodLong:"Experimental build";property string kind:"cooking";property bool stable:false;property string repo: ""; property string commit: "test"; property string date: "2026-11-10"; property string subject: "Test build"; property int changed: 0; property string quickshell: "0.3.2"; property string hyprland: "0.57.1"; property string qt: "6"; function load() {}',
     "Weather": 'property string city: "Before"; property string placeName: city; property var pending; function lookup(s,then) { pending=then; } function setCity(s) {city=s;}',
     "Cider": 'property bool installed: true; property bool usable: false; property string token: ""; property var pending; function check(s,then) {pending=then;} function setToken(s) {token=s;}',
     "LocalSend": 'property bool available:true; property bool wanted:false; property string summary:"Off"; property string name:"Test computer"; property string folderShown:"~/Downloads"; property bool acceptKnown:false; signal openRequested; function setReceive(v){wanted=v;} function setName(v){name=v;} function pickFolder(){} function setAcceptKnown(v){acceptKnown=v;}',
@@ -26,7 +31,7 @@ MOCKS = {
     "SystemStats": '''property bool watching:false; property real cpu:0.12;property real cpuTemp:48;property string cpuName:"Test CPU";
         property real memUsed:12;property real memTotal:32;property bool gpuFound:true;property real gpu:0.05;
         property real gpuTemp:45;property real vramUsed:1;property real shellCpu:0.002;property real shellMem:100;
-        property var disks:[{mount:"/",size:512,free:150}];function gigabytes(v){return Math.round(v)+" GB";}function setWatching(v){watching=v;}''',
+        property var diskMounts:["/"];property real hyprCpu:0.01;property real hyprMem:100;property var disks:[{mount:"/",size:512,free:150}];function gigabytes(v){return Math.round(v)+" GB";}function setWatching(v){watching=v;}''',
     "Network": 'property bool watching; property string interfaceName:"eth0"; property var details:({ipv4:["192.0.2.4/24"],ipv6:[],gateways:["192.0.2.1"],dns:["192.0.2.53"]}); function copyDetail(key){Clipboard.copyText(details[key].join("\\n"));} property bool connected:true;property bool hasLink:true;property int speed:1000;',
     "Clipboard": 'property string copied; function copyText(value){copied=value;}',
     "Brightness": 'property bool available:true;property real value:0.7;function set(v){value=v;}',
@@ -36,11 +41,11 @@ MOCKS = {
         function setSchedule(on,a,b){scheduled=on;from=a;to=b;}
         function timeText(v){return String(Math.floor(v/60)).padStart(2,"0")+":"+String(v%60).padStart(2,"0");}''',
     "Notifs": '''property bool dnd:false;property bool dndScheduled:false;property bool dndFollowsNight:false;
-        property int dndFrom:1320;property int dndTo:420;property var rules:({"Test app":{noToasts:true}});
+        property int dndFrom:1320;property int dndTo:420;property var notifications:[];property var rules:({"Test app":{noToasts:true}});
         function setDnd(v){dnd=v;}function setDndSchedule(v){dndScheduled=v;}function setDndFollowsNight(v){dndFollowsNight=v;}
         function setDndTimes(a,b){dndFrom=a;dndTo=b;}function ruleText(a){return "No toasts";}
         function setRule(a,v){rules={};}''',
-    "Apps": 'property var terminalChoices:["kitty","foot"];property string terminal:"kitty";function terminalName(s){return s;}function setTerminal(s){terminal=s;}',
+    "Apps": 'property var list:[];property var terminalChoices:["kitty","foot"];property string terminal:"kitty";function terminalName(s){return s;}function setTerminal(s){terminal=s;}',
     "Wallpapers": 'property string current:"";property string folder:"/tmp/wallpapers";function openFolder(){}',
     "Desktop": 'property bool enabled:true;function setEnabled(v){enabled=v;}',
     "Drives": 'property var mounted:[]; property var result:null;property var pending:null;property bool busy;function eject(d){} function canReturn(pid){return false;}function returnToApp(pid){}',
@@ -80,16 +85,35 @@ with tempfile.TemporaryDirectory(prefix="pistachio-settings-test-") as directory
     (base / "runtime").mkdir(mode=0o700)
     env = dict(os.environ, PATH=str(base / "bin")+":"+os.environ["PATH"], QT_QPA_PLATFORM="offscreen", XDG_RUNTIME_DIR=str(base / "runtime"),
                XDG_STATE_HOME=str(base / "state"), XDG_CACHE_HOME=str(base / "cache"))
-    for key in ("WAYLAND_DISPLAY", "DISPLAY"):
-        env.pop(key, None)
+    native = os.environ.get("PISTACHIO_SETTINGS_NATIVE") == "1"
+    if native:
+        env["QT_QPA_PLATFORM"] = "wayland"
+        display = os.environ.get("WAYLAND_DISPLAY", "wayland-1")
+        env["WAYLAND_DISPLAY"] = display if display.startswith("/") else os.environ["XDG_RUNTIME_DIR"] + "/" + display
+    else:
+        for key in ("WAYLAND_DISPLAY", "DISPLAY"):
+            env.pop(key, None)
     with (base / "log").open("w+") as log:
         proc = subprocess.Popen(["qs", "-p", directory], env=env, stdout=log, stderr=log)
         try:
             result = None
+            placed = False
             for _ in range(70):
+                if native and not placed:
+                    clients = json.loads(subprocess.check_output(["hyprctl", "--instance", "0", "-j", "clients"]))
+                    window = next((w for w in clients if w["pid"] == proc.pid), None)
+                    if window:
+                        selector = "address:" + window["address"]
+                        if not window["floating"]:
+                            subprocess.run(["hyprctl", "--instance", "0", "dispatch", f'hl.dsp.window.float({{action="set",window="{selector}"}})'], capture_output=True, check=True)
+                        subprocess.run(["hyprctl", "--instance", "0", "dispatch", f'hl.dsp.window.resize({{window="{selector}",x=1040,y=760,relative=false}})'], capture_output=True, check=True)
+                        placed = True
+                if native and not placed:
+                    time.sleep(.1)
+                    continue
                 probe = subprocess.run(["qs", "-p", directory, "ipc", "call", "settingsTest", "ready"], env=env, capture_output=True, text=True)
                 if probe.stdout.strip() == "true":
-                    result = subprocess.run(["qs", "-p", directory, "ipc", "call", "settingsTest", "run"], env=env, capture_output=True, text=True, timeout=35)
+                    result = subprocess.run(["qs", "-p", directory, "ipc", "call", "settingsTest", "run"], env=env, capture_output=True, text=True, timeout=60 if native else 35)
                     break
                 time.sleep(0.1)
             log.flush()
@@ -109,7 +133,7 @@ with tempfile.TemporaryDirectory(prefix="pistachio-settings-test-") as directory
                     saved = json.loads(probe.stdout)
                     if saved["ready"]: break
                 time.sleep(0.1)
-            assert saved and saved["ready"] and not saved["suggest"] and saved["claude"] == "opus" and saved["codexEffort"] == "medium" and saved["normalClaude"] == "sonnet", saved
+            assert saved and saved["ready"] and saved["style"] == "tui" and not saved["suggest"] and saved["claude"] == "opus" and saved["codexEffort"] == "medium" and saved["normalClaude"] == "opus", saved
             print("settings QML: coding toggle/presets persist across restart; normal settings stay independent")
         finally:
             proc.terminate()

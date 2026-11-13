@@ -7,17 +7,17 @@ Basic.TextField {
     id: root
     property int minutes
     signal modified(int value)
-    width: 112
+    width: Theme.tui ? 72 : 112
     height: 44
     text: NightLight.timeText(minutes)
     inputMask: "99:99"
     horizontalAlignment: TextInput.AlignHCenter
-    font.family: Theme.fontMono
-    font.pixelSize: 13
+    font.family: Theme.tui ? Theme.fontTui : Theme.fontMono
+    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13
     color: Theme.textBright
     selectByMouse: true
     background: Rectangle {
-        radius: 22
+        radius: Theme.tui ? 0 : (22)
         color: Theme.bgAlt
         border.width: root.activeFocus ? 1 : 0
         border.color: Theme.subtext

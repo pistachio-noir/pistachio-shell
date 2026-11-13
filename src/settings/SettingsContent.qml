@@ -10,7 +10,7 @@ Column {
     property string soundTab: "devices"
     property bool discovering
     property bool active
-    spacing: 14
+    spacing: Theme.tui ? 0 : 14
     readonly property var info: Catalog.page(page)
     readonly property var groups: buildGroups()
     onPageChanged: { SettingsReset.cancel(); discovering = false; soundTab = SettingsHub.target === "applications" ? "applications" : "devices"; Qt.callLater(() => arrival++); }
@@ -37,8 +37,8 @@ Column {
         Column {
             id: heading
             width: parent.width - (headingAction.visible ? headingAction.width + 16 : 0); spacing: 3
-            SettingsText { width: parent.width; text: root.info[1]; font.pixelSize: 18; font.weight: Font.ExtraBold }
-            SettingsText { width: parent.width; text: root.info[2]; secondary: true }
+            SettingsText { width: parent.width; text: root.info[1]; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 18; font.weight: Font.ExtraBold }
+            SettingsText { visible: !Theme.tui; width: parent.width; text: root.info[2]; secondary: true }
         }
         SettingsButton {
             id: headingAction
@@ -52,17 +52,18 @@ Column {
             }
         }
     }
+    Rectangle { visible:Theme.tui;width:parent.width;height:1;color:Theme.tuiBorder }
     AppearancePreview { width: parent.width; visible: root.page === "appearance" }
     Row {
         width: parent.width; height: 82; spacing: 16; visible: root.page === "about"
-        Rectangle { width:60;height:60;radius:30;color:Theme.overlay;Icon{anchors.centerIn:parent;size:28;paths:Icons.sliders;color:Theme.clay} }
-        Column { anchors.verticalCenter:parent.verticalCenter;spacing:4;SettingsText{text:"Pistachio Shell";font.pixelSize:17;font.weight:Font.ExtraBold}SettingsText{text:"A shell for Hyprland.";secondary:true} }
+        Rectangle { visible:!Theme.tui;width:60;height:60;radius: Theme.tui ? 0 : (30);color:Theme.overlay;Icon{anchors.centerIn:parent;size:28;paths:Icons.sliders;color:Theme.clay} }
+        Column { anchors.verticalCenter:parent.verticalCenter;spacing:4;SettingsText{text:"Pistachio Shell";font.pixelSize: Theme.tui ? Theme.tuiTextSize : 17;font.weight:Font.ExtraBold}SettingsText{text:"A shell for Hyprland.";secondary:true} }
         // the branch it runs from: main is stable, any other may not be (owner's request, 12 November 2026)
         Rectangle {
             objectName: "setting-branch-chip"
             visible: About.branch !== ""
             anchors.verticalCenter: parent.verticalCenter
-            height: 40; radius: 20; color: Theme.overlay
+            height: 40; radius: Theme.tui ? 0 : (20); color: Theme.overlay
             width: branchRow.implicitWidth + 32
             Row {
                 id: branchRow
@@ -94,10 +95,10 @@ Column {
     }
     Rectangle {
         visible: root.page === "bluetooth" && root.discovering && !Bluetooth.nearby.length
-        width: parent.width; height: 150; radius: Theme.tileRadius; color: Theme.overlay
+        width: parent.width; height: 150; radius: Theme.tui ? 0 : (Theme.tileRadius); color: Theme.overlay
         Column {
             anchors.centerIn: parent; width: parent.width - 48; spacing: 8
-            SettingsText { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: Bluetooth.scanning ? "Looking for nearby devices…" : "Nothing nearby yet"; font.pixelSize: 14 }
+            SettingsText { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: Bluetooth.scanning ? "Looking for nearby devices…" : "Nothing nearby yet"; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 14 }
             SettingsText { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: "Make your device discoverable, then scan again."; secondary: true }
             SettingsButton { anchors.horizontalCenter: parent.horizontalCenter; text: "Scan again"; enabled: Bluetooth.ready; onClicked: Bluetooth.setScanning(true) }
         }
@@ -126,8 +127,11 @@ Column {
     function usage(cpu, mb) { return `${cpu < 0 ? "—" : (cpu*100).toFixed(1)+"%"} · ${Math.round(mb)} MB`; }
     function read(id, title, value, subtitle) { return { id: id, title: title, value: typeof value === "function" ? value : () => value, subtitle: typeof subtitle === "function" ? subtitle : () => subtitle || "" }; }
     function time(id, title, get, set) { return { id: id, kind: "time", title: title, value: get, set: set }; }
-    function buildGroups() {
+    function buildGroups(page = root.page) {
         if (page === "appearance") return [
+            group("Style", [
+                { id: "style", kind: "choice", title: "Style", subtitle: () => "Applied live across the shell.", choices: () => [{value:"classic",title:"Classic"},{value:"tui",title:"TUI"}], value: () => ShellSettings.appearanceStyle, set: ShellSettings.setAppearanceStyle }
+            ]),
             group("Surfaces", [
                 { id: "frost", kind: "choice", title: "Frosted panels", subtitle: () => "Choose how much of the desktop shows through.", choices: () => [{value:"solid",title:"Solid"},{value:"subtle",title:"Subtle"},{value:"glassy",title:"Glassy"}], value: () => !ShellSettings.frosted ? "solid" : ShellSettings.glassy ? "glassy" : "subtle", set: v => { ShellSettings.setGlassy(v === "glassy"); ShellSettings.setFrosted(v !== "solid"); } },
                 toggle("shadows", "Drop shadows", "Soft depth around panels and popups.", () => ShellSettings.shadows, ShellSettings.setShadows)

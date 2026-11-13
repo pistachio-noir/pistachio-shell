@@ -42,25 +42,25 @@ PanelWindow {
             x: Lens.area.x; y: Lens.area.y
             width: Lens.area.width; height: Lens.area.height
             color: "transparent"
-            radius: 6
+            radius: Theme.tui ? 0 : 6
             border.width: 1
             border.color: Theme.textBright
         }
         Rectangle {
             visible: Lens.images.some(image => image.id === 1)
             x: Lens.area.x
-            y: Math.max(4, Lens.area.y - 34)
-            width: sizeLabel.implicitWidth + 20
-            height: 26; radius: 13
+            y: Math.max(4, Lens.area.y - (Theme.tui ? 28 : 34))
+            width: sizeLabel.implicitWidth + (Theme.tui ? 16 : 20)
+            height: Theme.tui ? Theme.tuiLineHeight : 26; radius: Theme.tui ? 0 : 13
             color: Theme.bgAlt
             border.width: 1; border.color: Theme.overlay2
             Text {
                 id: sizeLabel
                 anchors.centerIn: parent
-                text: `${Lens.answer ? "Snip · " : ""}${Lens.area.width} × ${Lens.area.height}`
+                text: `${Lens.answer && !Theme.tui ? "Snip · " : ""}${Lens.area.width} × ${Lens.area.height}`
                 color: Theme.textBright
                 font.family: Theme.fontUi
-                font.pixelSize: 11
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11
                 font.weight: Font.Bold
                 font.features: { "tnum": 1 }
             }
@@ -84,7 +84,7 @@ PanelWindow {
         id: window
         readonly property bool answered: Lens.answer !== "" && Lens.state !== "prompt" && Lens.state !== "error"
         readonly property bool failed: Lens.state === "error"
-        readonly property real inset: answered || failed ? 20 : 12
+        readonly property real inset: Theme.tui ? 16 : answered || failed ? 20 : 12
         readonly property real maxHeight: height - 48
 
         // Reserve actual visible controls and their Column gaps, including wrapped actions.
@@ -141,9 +141,11 @@ PanelWindow {
             }
             y: {
                 const desired = window.answered ? Lens.area.y - 124 : Lens.area.y + Lens.area.height + 18;
-                const above = Lens.area.y - height - 18;
+                const above = Lens.area.y - height - (Theme.tui ? 28 : 18);
                 const top = !window.answered && desired + height > window.height - 24 && above >= 24 ? above : desired;
-                return Math.max(24, Math.min(window.height - height - 24, top)) + 12 * (1 - reveal.progress);
+                // TUI: below the top strip, with room for the frame's tab
+                const least = Theme.tui ? Theme.tuiBarHeight + 24 : 24;
+                return Math.max(least, Math.min(window.height - height - 24, top)) + (Theme.tui ? 8 : 12) * (1 - reveal.progress);
             }
             opacity: reveal.progress
             focus: Lens.open
@@ -152,9 +154,12 @@ PanelWindow {
             }
 
             Shadow { anchors.fill: panel; radius: panel.radius; kind: Theme.shadowPanel; frostable: true }
-            Rectangle {
+            // TUI (Lens boards): "ask" with the snip's size, then the provider's name with "lens"
+            PanelFrame {
                 id: panel
                 anchors.fill: parent
+                title: Theme.tui ? (window.answered ? (Lens.combined ? "claude + chatgpt" : Lens.providerName.toLowerCase()) : "ask") : ""
+                detail: Theme.tui ? (window.answered ? "lens" : `snip ${Lens.area.width} × ${Lens.area.height}`) : ""
                 radius: Theme.panelRadius
                 color: Theme.surface
                 border.width: 1; border.color: Theme.overlay2
@@ -165,13 +170,33 @@ PanelWindow {
             Column {
                 id: content
                 enabled: !Lens.upgradePrompt
-                x: window.inset; y: window.inset
+                x: window.inset; y: window.inset + (Theme.tui ? 4 : 0)
                 width: parent.width - 2 * window.inset
-                spacing: 14
+                spacing: Theme.tui ? 10 : 14
+
+                // TUI: "you" and "snip" rows in place of the header and the question tile
+                Column {
+                    visible: Theme.tui && window.answered
+                    width: parent.width
+                    Repeater {
+                        model: [["you", Lens.question, true], ["snip", `${Lens.images.length} image${Lens.images.length === 1 ? "" : "s"}${Lens.attachment ? " · " + Lens.attachment : ""} · ${Lens.busy ? Lens.readingLabel.toLowerCase() : "answered in " + Math.round(Lens.seconds) + " s · " + Lens.modelLabel + (Lens.effort ? " · " + Lens.effort : "")}`, false]]
+                        Item {
+                            required property var modelData
+                            width: parent.width; height: Math.max(Theme.tuiLineHeight, rowText.implicitHeight)
+                            Text { text: modelData[0]; color: Theme.subtext; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize }
+                            Text {
+                                id: rowText
+                                x: 64; width: parent.width - 64
+                                text: modelData[1]; textFormat: Text.PlainText; wrapMode: Text.Wrap; maximumLineCount: modelData[2] ? 4 : 2; elide: Text.ElideRight
+                                color: modelData[2] ? Theme.textBright : Theme.subtext; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize; font.weight: modelData[2] ? Font.Bold : Font.Normal
+                            }
+                        }
+                    }
+                }
 
                 Item {
                     objectName: "lens-answer-header"
-                    visible: window.answered
+                    visible: window.answered && !Theme.tui
                     width: parent.width
                     height: visible ? 44 : 0
                     Rectangle {
@@ -197,7 +222,7 @@ PanelWindow {
                 }
 
                 Rectangle {
-                    visible: window.answered
+                    visible: window.answered && !Theme.tui
                     width: parent.width; height: visible ? 56 : 0
                     radius: Theme.tileRadius; color: Theme.overlay
                     Image {
@@ -229,13 +254,31 @@ PanelWindow {
                         id: body
                         width: response.width
                         spacing: 14
-                        LensMarkdown { width: parent.width; markdown: Lens.answer }
+                        // TUI: the provider's name beside the answer, as the board's rows
+                        Item {
+                            width: parent.width; height: answerText.implicitHeight
+                            Text {
+                                visible: Theme.tui
+                                text: Lens.combined ? "both" : Lens.providerName.toLowerCase()
+                                color: Lens.combined ? Theme.lavender : Lens.provider === "codex" ? Theme.teal : Theme.clay
+                                font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize; font.weight: Font.Bold
+                            }
+                            LensMarkdown { id: answerText; x: Theme.tui ? 64 : 0; width: parent.width - x; markdown: Lens.answer }
+                        }
+                        // [c] copy  [r] retry
+                        Row {
+                            visible: Theme.tui && !Lens.busy
+                            x: 64; spacing: 24
+                            TuiBracket { key: "c"; label: "copy"; onClicked: Clipboard.copyText(Lens.answer) }
+                            TuiBracket { key: "r"; label: "retry"; onClicked: Lens.retry() }
+                        }
                         Rectangle {
                             visible: Lens.diff !== ""
                             width: parent.width
                             height: visible ? proposal.implicitHeight + 24 : 0
                             radius: Theme.tileRadius
-                            color: Theme.overlay
+                            color: Theme.tui ? Theme.bgAlt : Theme.overlay
+                            border.width: Theme.tui ? 1 : 0; border.color: Theme.tuiBorder
                             Column {
                                 id: proposal
                                 x: 12; y: 12; width: parent.width - 24; spacing: 12
@@ -279,8 +322,39 @@ PanelWindow {
                     }
                 }
 
+                // TUI error (LensError board): the question, then a framed box
+                Text {
+                    visible: Theme.tui && window.failed
+                    width: parent.width
+                    text: "> " + Lens.question; textFormat: Text.PlainText; wrapMode: Text.Wrap
+                    color: Theme.textBright; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize; font.weight: Font.Bold
+                }
+                Rectangle {
+                    visible: Theme.tui && window.failed
+                    width: parent.width; height: visible ? tuiError.implicitHeight + 28 : 0
+                    color: Theme.bgAlt
+                    border.width: 1; border.color: Theme.tuiBorder
+                    Accessible.role: Accessible.AlertMessage
+                    Accessible.name: `Couldn't reach ${Lens.providerName}`
+                    Column {
+                        id: tuiError
+                        x: 14; y: 14; width: parent.width - 28; spacing: 2
+                        Text { text: `[!] couldn’t reach ${Lens.providerName.toLowerCase()}`; color: Theme.terracotta; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize; font.weight: Font.Bold }
+                        Text {
+                            width: parent.width; bottomPadding: 10
+                            text: (Lens.problem ? Lens.problem.toLowerCase() + " " : "") + "your snip and question are saved."; textFormat: Text.PlainText
+                            wrapMode: Text.Wrap; maximumLineCount: 8; elide: Text.ElideRight
+                            color: Theme.subtext; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize
+                        }
+                        Row {
+                            spacing: 8
+                            ActionButton { text: "Try again"; primary: true; height: 44; onClicked: Lens.retry() }
+                            ActionButton { text: "Edit question"; base: Theme.overlay; height: 44; onClicked: Lens.edit() }
+                        }
+                    }
+                }
                 Column {
-                    visible: window.failed
+                    visible: window.failed && !Theme.tui
                     width: parent.width
                     spacing: 14
                     Row {
@@ -403,8 +477,23 @@ PanelWindow {
                         }
                     }
                 }
+                // TUI: ● ○ ○ reading your snip          2 s
+                Item {
+                    visible: Theme.tui && Lens.busy && !window.answered
+                    width: parent.width; height: visible ? Theme.tuiLineHeight : 0
+                    Text {
+                        textFormat: Text.StyledText
+                        text: {
+                            const lit = Math.floor(Lens.seconds * 2) % 3;
+                            return [0, 1, 2].map(i => `<font color="${i === lit ? Theme.pistachio : Theme.overlay2}">${i === lit ? "●" : "○"}</font>`).join(" ")
+                                + "  " + (Lens.synthesising ? "combining both answers" : "reading your snip");
+                        }
+                        color: Theme.subtext; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize
+                    }
+                    Text { anchors.right: parent.right; text: `${Math.floor(Lens.seconds)} s`; color: Theme.subtext; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize; font.features: { "tnum": 1 } }
+                }
                 Row {
-                    visible: Lens.busy && !window.answered
+                    visible: Lens.busy && !window.answered && !Theme.tui
                     width: parent.width; height: visible ? 18 : 0
                     spacing: 10
                     Row {
@@ -422,8 +511,22 @@ PanelWindow {
                     Text { text: Lens.readingLabel; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold }
                     Text { text: `${Math.floor(Lens.seconds)} s`; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11; font.features: { "tnum": 1 } }
                 }
+                // TUI's keys: bright key, quiet label
+                Flow {
+                    visible: Theme.tui && !window.failed && !window.answered && !Lens.busy
+                    width: parent.width; spacing: 16
+                    Repeater {
+                        model: [["Enter", "ask"], ["Shift+Enter", "new line"], ["Esc", "cancel"]]
+                        Row {
+                            required property var modelData
+                            spacing: 8
+                            Text { text: modelData[0]; color: Theme.textBright; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize; font.weight: Font.Bold }
+                            Text { text: modelData[1]; color: Theme.subtext; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize }
+                        }
+                    }
+                }
                 Text {
-                    visible: !window.answered && !window.failed && !Lens.busy
+                    visible: !window.answered && !window.failed && !Lens.busy && !Theme.tui
                     text: "Enter ask     Shift+Enter new line     Esc cancel"
                     color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold
                 }
@@ -437,7 +540,7 @@ PanelWindow {
                     id: answerFooter
                     visible: window.answered
                     width: parent.width; spacing: 14
-                    Rectangle { width: parent.width; height: 1; color: Theme.overlay }
+                    Rectangle { width: parent.width; height: 1; color: Theme.tui ? Theme.tuiBorder : Theme.overlay }
                     LensInput {
                         id: followup
                         width: parent.width
@@ -445,6 +548,19 @@ PanelWindow {
                         reading: Lens.busy
                         onSubmitted: text => Lens.ask(text)
                         onStopped: Lens.cancel()
+                    }
+                    Row {
+                        visible: Theme.tui
+                        spacing: 16
+                        Repeater {
+                            model: [["Enter", "send"], ["Esc", "close"]]
+                            Row {
+                                required property var modelData
+                                spacing: 8
+                                Text { text: modelData[0]; color: Theme.textBright; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize; font.weight: Font.Bold }
+                                Text { text: modelData[1]; color: Theme.subtext; font.family: Theme.fontTui; font.pixelSize: Theme.tuiTextSize }
+                            }
+                        }
                     }
                 }
             }

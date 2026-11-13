@@ -94,7 +94,7 @@ PanelWindow {
                     required property var modelData
 
                     width: parent.width
-                    height: modelData.isSeparator ? 13 : 36
+                    height: modelData.isSeparator ? 13 : Theme.tui ? Theme.tuiButtonHeight : 36
 
                     Rectangle {
                         visible: slot.modelData.isSeparator
@@ -138,9 +138,9 @@ PanelWindow {
 
         enabled: entry?.enabled ?? true // also turns the mouse area off
         width: parent.width
-        height: 36
-        radius: 14
-        color: mouse.containsMouse ? Theme.overlay2 : "transparent"
+        height: Theme.tui ? Theme.tuiButtonHeight : 36
+        radius: Theme.tui ? 0 : 14
+        color: mouse.containsMouse ? (Theme.tui ? Theme.tuiHover : Theme.overlay2) : "transparent"
         Accessible.role: button === QsMenuButtonType.CheckBox ? Accessible.CheckBox : button === QsMenuButtonType.RadioButton ? Accessible.RadioButton : Accessible.MenuItem
         Accessible.name: label.text
         Accessible.checked: checked
@@ -185,7 +185,7 @@ PanelWindow {
             elide: Text.ElideRight
             color: row.enabled ? Theme.text : Theme.subtext
             font.family: Theme.fontUi
-            font.pixelSize: 13
+            font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13
             font.weight: Font.DemiBold
         }
 
@@ -202,7 +202,7 @@ PanelWindow {
             Rectangle {
                 visible: row.button !== QsMenuButtonType.None
                 anchors.fill: parent
-                radius: row.button === QsMenuButtonType.RadioButton ? 8 : 5
+                radius: Theme.tui ? 0 : row.button === QsMenuButtonType.RadioButton ? 8 : 5
                 color: row.checked ? Theme.pistachio : "transparent"
                 border.width: row.checked ? 0 : 1.5
                 border.color: Theme.subtext

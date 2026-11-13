@@ -20,7 +20,7 @@ Rectangle {
 
     implicitWidth: leftPadding + row.implicitWidth + rightPadding
     implicitHeight: Theme.chipHeight
-    radius: Theme.chipRadius
+    radius: Theme.tui ? 0 : (Theme.chipRadius)
     color: lit ? Theme.overlay2 : Theme.overlay
     Accessible.role: Accessible.Button
 

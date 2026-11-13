@@ -19,7 +19,7 @@ Rectangle {
     visible: mode !== ""
     width: parent.width
     height: Math.max(disc.height, content.implicitHeight) + 32
-    radius: 24
+    radius: Theme.tui ? 0 : 24
     color: Theme.surface
     border.width: 1
     border.color: Theme.overlay2
@@ -40,7 +40,7 @@ Rectangle {
         y: 16
         width: 40
         height: 40
-        radius: 20
+        radius: Theme.tui ? 0 : 20
         color: Theme.overlay
 
         Icon {
@@ -82,7 +82,7 @@ Rectangle {
                     }
                     color: Theme.textBright
                     font.family: Theme.fontUi
-                    font.pixelSize: 14
+                    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 14
                     font.weight: Font.Bold
                 }
 
@@ -93,7 +93,7 @@ Rectangle {
                     text: toast.mode === "receiving" ? `${LocalSend.percent(toast.incoming)}%` : toast.mode === "note" ? "" : "now"
                     color: toast.mode === "receiving" ? Theme.textBright : Theme.subtext
                     font.family: Theme.fontUi
-                    font.pixelSize: 11
+                    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11
                     font.weight: toast.mode === "receiving" ? Font.Bold : Font.DemiBold
                     font.features: { "tnum": 1 }
                 }
@@ -107,7 +107,7 @@ Rectangle {
                 text: toast.mode === "request" ? `${toast.request.files.length} ${toast.request.files.length === 1 ? "file" : "files"} · ${LocalSend.size(toast.request.total)}` : toast.mode === "receiving" ? `${toast.incoming.file || "Starting"} · file ${toast.incoming.index} of ${toast.incoming.count}` : ""
                 color: Theme.subtext
                 font.family: Theme.fontUi
-                font.pixelSize: 12
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
                 font.weight: Font.Medium
                 lineHeight: 17
                 lineHeightMode: Text.FixedHeight
@@ -134,7 +134,7 @@ Rectangle {
                 visible: (toast.request?.files.length ?? 0) > 2
                 width: moreLabel.implicitWidth + 24
                 height: 28
-                radius: 14
+                radius: Theme.tui ? 0 : 14
                 color: Theme.overlay2
 
                 Text {
@@ -143,7 +143,7 @@ Rectangle {
                     text: `+${(toast.request?.files.length ?? 0) - 2}`
                     color: Theme.text
                     font.family: Theme.fontUi
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
                     font.weight: Font.Bold
                 }
             }
@@ -157,7 +157,7 @@ Rectangle {
             text: `Save to <font face="${Theme.fontMono}" color="${Theme.text}">${LocalSend.folderShown.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</font>`
             color: Theme.subtext
             font.family: Theme.fontUi
-            font.pixelSize: 12
+            font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
             font.weight: Font.Medium
         }
 
@@ -172,7 +172,7 @@ Rectangle {
             text: toast.message?.text ?? ""
             color: Theme.text
             font.family: Theme.fontUi
-            font.pixelSize: 13
+            font.pixelSize: Theme.tui ? Theme.tuiTextSize : 13
             font.weight: Font.Medium
             lineHeight: 18
             lineHeightMode: Text.FixedHeight
@@ -186,13 +186,13 @@ Rectangle {
             Rectangle {
                 width: parent.width
                 height: 8
-                radius: 4
+                radius: Theme.tui ? 0 : 4
                 color: Theme.bg
 
                 Rectangle {
                     width: toast.incoming && toast.incoming.total > 0 ? parent.width * Math.min(1, toast.incoming.done / toast.incoming.total) : 0
                     height: parent.height
-                    radius: 4
+                    radius: Theme.tui ? 0 : 4
                     color: Theme.pistachio
 
                     Behavior on width {
@@ -212,7 +212,7 @@ Rectangle {
                     text: toast.incoming ? `${LocalSend.size(toast.incoming.done)} of ${LocalSend.size(toast.incoming.total)}` : ""
                     color: Theme.subtext
                     font.family: Theme.fontUi
-                    font.pixelSize: 11
+                    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11
                     font.weight: Font.DemiBold
                     font.features: { "tnum": 1 }
                 }
@@ -222,7 +222,7 @@ Rectangle {
                     text: toast.incoming ? LocalSend.pace(toast.incoming) : ""
                     color: Theme.subtext
                     font.family: Theme.fontUi
-                    font.pixelSize: 11
+                    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11
                     font.weight: Font.DemiBold
                     font.features: { "tnum": 1 }
                 }
@@ -256,7 +256,7 @@ Rectangle {
                 visible: toast.mode === "receiving"
                 width: cancelLabel.implicitWidth + 32
                 height: 40
-                radius: 20
+                radius: Theme.tui ? 0 : 20
                 color: cancelMouse.containsMouse ? Theme.overlay2 : Theme.overlay
                 Accessible.role: Accessible.Button
                 Accessible.name: "Cancel"
@@ -267,7 +267,7 @@ Rectangle {
                     text: "Cancel"
                     color: Theme.terracotta
                     font.family: Theme.fontUi
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.tui ? Theme.tuiTextSize : 12
                     font.weight: Font.ExtraBold
                 }
 

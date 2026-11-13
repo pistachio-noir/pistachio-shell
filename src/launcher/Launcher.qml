@@ -90,6 +90,7 @@ PanelWindow {
         : editing ? [["↵", "save"], ["Esc", "back"]]
         : rows[current]?.kind === "appaction" ? [["↑↓", "navigate"], ["↵", "open"], ["←", "back"], ["Esc", "close"]]
         : rows[current]?.kind === "claude" ? [["↑↓", "navigate"], ["↵", "ask Claude"], ["Esc", "close"]]
+        : rows[current]?.kind === "ask" ? [["↑↓", "navigate"], ["↵", rows[current].prompt ? "ask" : "open the quick chat"], ["Esc", "close"]]
         : rows[current]?.kind === "preset" ? [["↑↓", "navigate"], ["↵", "load"], ["→", "delete"], ["Esc", "close"]]
         : rows[current]?.kind === "music" ? [["↵", "play"], ["Shift ↵", "play next"], ["→", "add to queue"], ["Esc", "close"]]
         : rows[current]?.kind === "process" ? [["↑↓", "navigate"], ["↵", rows[current].process.pids.length > 1 ? "end them all" : "end it"], ["Esc", "close"]]
@@ -334,11 +335,11 @@ PanelWindow {
             [":", "Emoji; Enter copies one"],
             ["?", "This cheat sheet"],
             ["12*3", "A calculation: the answer shows at the top"]
-        ].concat(Apps.claudeApp ? [["claude", "Ask Claude: a new chat in Claude Desktop"]] : [],
+        ].concat([["ask", "Ask AI: the quick chat above the bar, with a question or without"]], Apps.claudeApp ? [["claude", "Ask Claude: a new chat in Claude Desktop"]] : [],
             Cider.installed && Cider.enabled ? [["m", "Apple Music in Cider: Enter plays, Shift+Enter plays next"]] : [],
             Qalc.installed ? [["=", "libqalculate: equations, units, currencies, bases; Enter copies"]] : [],
             [["kill", "Your running programs; Enter ends one"]], ShellSettings.integration("tldr") ? [["tldr", "Examples for a command; Enter copies one"]] : [])
-            .map(([k, t], i) => row("prefix", i, [k], t, { prefix: k === "12*3" ? "" : ["claude", "m", "kill", "tldr"].includes(k) ? k + " " : k }));
+            .map(([k, t], i) => row("prefix", i, [k], t, { prefix: k === "12*3" ? "" : ["ask", "claude", "m", "kill", "tldr"].includes(k) ? k + " " : k }));
         const keys = [
             [["Tab"], "Next mode; Shift+Tab goes back"],
             [["↑", "↓"], "Move between results (or Ctrl+K, Ctrl+J)"],
@@ -992,6 +993,12 @@ PanelWindow {
             rows = rows.reduce((all, r) => all.concat([r], r.key !== expandedKey ? [] : r.kind === "app" ? actionRows(r) : r.kind === "preset" ? [presetDeleteRow(r)] : []), []); // flatMap isn't there
         // "claude" and a question (owner's request, 1 November 2026): an Ask Claude row on top, while
         // Claude Desktop is installed; the usual results stay under it ("claude code" still finds apps)
+        // "ask" (and a question): the quick chat, on top (owner's call, 13 November 2026)
+        const asking = mode === "all" || mode === "apps" ? /^ask(?:\s+(.*))?$/i.exec(q) : null;
+        if (asking) {
+            const question = (asking[1] ?? "").trim();
+            rows = [section("Ask AI"), { kind: "ask", key: "ask", title: question || "Quick chat", subtitle: question ? `Ask ${Chat.providerName} in the quick chat` : `A quick question to ${Chat.providerName}, above the bar`, glyph: Icons.sparkles, prompt: question }].concat(rows);
+        }
         const asked = (mode === "all" || mode === "apps") && Apps.claudeApp ? /^claude\s+(\S.*)$/i.exec(q) : null;
         if (asked)
             rows = [section("Claude"), { kind: "claude", key: "claude", title: asked[1].trim(), subtitle: "Ask Claude: a new chat in Claude Desktop", icon: Apps.icon(Apps.claudeApp.icon), prompt: asked[1].trim() }].concat(rows);
@@ -1106,6 +1113,10 @@ PanelWindow {
         } else if (row.kind === "claude") {
             Apps.askClaude(row.prompt);
             open = false;
+        } else if (row.kind === "ask") {
+            askAfterFade.prompt = row.prompt;
+            open = false;
+            askAfterFade.restart(); // once the launcher has let the keyboard go
         } else if (row.kind === "web") {
             Apps.searchWeb(row.title);
             open = false;
@@ -1453,6 +1464,14 @@ PanelWindow {
         onTriggered: list.positionViewAtIndex(root.current, ListView.Contain)
     }
 
+    // the quick chat, once the launcher has faded and let the keyboard go (both take it exclusively)
+    Timer {
+        id: askAfterFade
+        property string prompt
+        interval: Theme.motionDuration + 60
+        onTriggered: Chat.show(prompt)
+    }
+
     // after a window action, show the list as it is once Hyprland has reported the change
     Timer {
         id: resnap
@@ -1789,7 +1808,7 @@ PanelWindow {
                     property bool quick
                     readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["shellaction", "settingslink", "lenschoice", "lensoption", "app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude"].includes(root.rows[root.current].kind))
+                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["shellaction", "settingslink", "lenschoice", "lensoption", "app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude", "ask"].includes(root.rows[root.current].kind))
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -2020,6 +2039,7 @@ PanelWindow {
                                 notification: resultView,
                                 web: resultView,
                                 claude: resultView,
+                                ask: resultView,
                                 drive: resultView,
                                 cheat: cheatView,
                                 power: resultView,
@@ -2503,7 +2523,7 @@ PanelWindow {
                                     : row.kind === "file" ? "Open"
                                     : row.kind === "notification" ? "Show"
                                     : row.kind === "web" ? "Search"
-                                    : row.kind === "claude" ? "Ask"
+                                    : row.kind === "claude" || row.kind === "ask" ? "Ask"
                                     : row.kind === "drive" ? "Eject"
                                     : row.kind === "btlink" ? "Devices"
                                     : row.kind === "btdevice" ? (bt.connected ? "Disconnect" : bt.paired ? "Connect" : "Pair")
@@ -2891,10 +2911,11 @@ PanelWindow {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            const run = menuEntry.modelData.run;
-                            root.menu = null;
+                            // closing the menu destroys this entry, and `root` with its context: keep both first
+                            const run = menuEntry.modelData.run, launcher = root;
+                            launcher.menu = null;
                             run();
-                            root.focusField();
+                            launcher.focusField();
                         }
                     }
                 }

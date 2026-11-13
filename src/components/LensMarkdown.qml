@@ -1,6 +1,7 @@
 import qs
 import qs.services
 import QtQuick
+import "highlight.js" as Highlight
 
 // Native Markdown for prose; separate code cards keep mono text and a real Copy button.
 Column {
@@ -102,8 +103,9 @@ Column {
                                 TextEdit {
                                     id: codeText
                                     width: Math.max(implicitWidth, parent.width)
-                                    text: block.modelData.text
-                                    textFormat: TextEdit.PlainText
+                                    // coloured by its language (the fence's, or a guess; owner's request, 13 November 2026)
+                                    text: Highlight.html(block.modelData.text, block.modelData.language, Theme.codeColours).replace("white-space:pre-wrap", "white-space:pre")
+                                    textFormat: TextEdit.RichText
                                     readOnly: true
                                     selectByMouse: true
                                     color: Theme.text

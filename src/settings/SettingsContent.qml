@@ -37,7 +37,7 @@ Column {
         Column {
             id: heading
             width: parent.width - (headingAction.visible ? headingAction.width + 16 : 0); spacing: 3
-            SettingsText { width: parent.width; text: root.page === "lens" ? "Pistachio Lens" : root.info[1]; font.pixelSize: 18; font.weight: Font.ExtraBold }
+            SettingsText { width: parent.width; text: root.info[1]; font.pixelSize: 18; font.weight: Font.ExtraBold }
             SettingsText { width: parent.width; text: root.info[2]; secondary: true }
         }
         SettingsButton {
@@ -207,7 +207,9 @@ Column {
                 ])
             ];
         }
-        if (page === "lens") return [group("", [action("chats", "Saved chats", "~/lens-chats · snip and Markdown", "Open folder", SettingsHub.openChats)])];
+        if (page === "lens") return [group("", [action("chats", "Saved chats", "~/lens-chats · snip and Markdown", "Open folder", SettingsHub.openChats)]),
+            group("Quick chat", [toggle("quickchat", "Quick chat in quick settings", "A tile beside LocalSend opens it. Off, LocalSend takes the whole row.", () => ShellSettings.quickChatTile, ShellSettings.setQuickChatTile),
+                action("quickchats", "Saved quick chats", "~/quick-chats · Markdown", "Open folder", SettingsHub.openQuickChats)])];
         if (page === "apps") return [group("Open things with", [{id:"terminal",kind:"choice",title:"Terminal",subtitle:()=>"For commands, terminal apps and showoff.", choices:()=>Apps.terminalChoices.map(v=>({value:v,title:Apps.terminalName(v)})),value:()=>Apps.terminal,set:Apps.setTerminal}]), group("Places", [action("weather","Weather location",Weather.placeName,"Change",()=>SettingsHub.beginEdit("weather")), action("wallpapers","Wallpapers",Wallpapers.folder.replace(/^\/home\/[^/]+/,"~"),"Open folder",Wallpapers.openFolder)]), ...(Cider.installed ? [group("Integrations",[action("cider","Cider token",Cider.usable ? "Set · enables Up next and Apple Music search." : "Not set · for Up next and Apple Music search.","Change",()=>SettingsHub.beginEdit("cider"))])] : [])];
         if (page === "localsend" && LocalSend.available) return [group("",[toggle("receive","Receive files",LocalSend.summary,()=>LocalSend.wanted,LocalSend.setReceive)]),group("This device",[action("name","Device name",LocalSend.name,"Change",()=>SettingsHub.beginEdit("name")),action("folder","Save received files to",LocalSend.folderShown,"Change",LocalSend.pickFolder)]),group("Incoming requests",[toggle("known","Accept known devices","Skip asking for devices you have accepted before.",()=>LocalSend.acceptKnown,LocalSend.setAcceptKnown)])];
         // only which disks there are shapes the page; the readings are read by the rows themselves

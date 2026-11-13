@@ -80,13 +80,25 @@ PanelWindow {
 
     function close() {
         const cancelledSnip = mode === "lens-add" || (mode === "taking" && wanted === "lens-add");
+        const cancelledLens = mode === "lens" || (mode === "taking" && wanted === "lens");
         mode = "";
+        // a question the quick chat handed over goes back to it, not into the next Lens snip
+        if (cancelledLens && Lens.handedQuestion) {
+            Chat.draft = Lens.handedQuestion;
+            Lens.handedQuestion = "";
+        }
         if (cancelledSnip) Lens.resumeSnips();
     }
 
     Connections {
         target: Lens
         function onSnipRequested() { root.start("lens-add"); }
+    }
+
+    // the quick chat's Snip a region: on to Lens (its question handed over, Lens.handedQuestion)
+    Connections {
+        target: Chat
+        function onLensRequested() { root.start("lens"); }
     }
 
     function recordingChoice(whole: bool) {

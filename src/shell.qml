@@ -64,6 +64,7 @@ ShellRoot {
     ScreenshotPicker {}
     RecordingRegion {} // area bounds and an outside Stop pill
     LensCard {}
+    QuickChat {} // the quick chat above the bar (Chat, `chat toggle`, the launcher's ask)
     LauncherExtras {}
     RecordingTools {}
     AlarmPopup {} // timers done and Clocks' alarms ringing

@@ -76,7 +76,7 @@ def health(auth=False, pid=None):
     rows = [dict(id=tool, title=title, detail=kind, status='Installed' if shutil.which(tool) else 'Missing') for tool,title,kind in DEPENDENCIES]
     if pid is not None: rows.insert(0,shell_errors(pid))
     rows.insert(0,dict(id='shell',title='Shell',detail='Settings service active',status='Running'))
-    for filename,title in [('lens.py','Lens helper'),('mic-check.py','Microphone helper')]:
+    for filename,title in [('lens.py','Lens helper'),('chat.py','Quick chat helper'),('mic-check.py','Microphone helper')]:
         rows.append(dict(id=filename,title=title,detail='Installed helper source',status='Present' if Path(__file__).with_name(filename).is_file() else 'Missing'))
     # the helpers install.sh builds from rust/ into ~/.local/bin
     for binary,title in [('pistachio-auth','Polkit agent'),('pistachio-devices','Bluetooth agent and drive automount'),('pistachio-localsend','LocalSend helper')]:

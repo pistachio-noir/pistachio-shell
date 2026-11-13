@@ -181,10 +181,17 @@ PanelWindow {
                 }
             }
 
-            // LocalSend, while its app is installed (board quick-settings-localsend): opens its page
+            // LocalSend, while its app is installed (board quick-settings-localsend), and the quick chat
+            // beside it (owner's call, 13 November 2026; Settings → Lens and AI can leave it out): each
+            // half the row when both show, else the one takes it all
+            Row {
+                visible: LocalSend.available || ShellSettings.quickChatTile
+                width: parent.width
+                spacing: 10
+
             Rectangle {
                 visible: LocalSend.available
-                width: parent.width
+                width: ShellSettings.quickChatTile ? (parent.width - 10) / 2 : parent.width
                 height: 64
                 radius: Theme.tileRadius
                 color: Theme.overlay
@@ -270,6 +277,82 @@ PanelWindow {
                     Accessible.checked: LocalSend.receiving
                     onClicked: LocalSend.setReceive(!LocalSend.receiving)
                 }
+            }
+
+            // the quick chat
+            Rectangle {
+                visible: ShellSettings.quickChatTile
+                width: LocalSend.available ? (parent.width - 10) / 2 : parent.width
+                height: 64
+                radius: Theme.tileRadius
+                color: chatMouse.containsMouse ? Theme.overlay2 : Theme.overlay
+                Accessible.role: Accessible.Button
+                Accessible.name: "Quick chat. Open"
+
+                Behavior on color {
+                    ColorAnimation {
+                        duration: Theme.hoverDuration
+                        easing.type: Theme.easing
+                    }
+                }
+
+                Rectangle {
+                    id: chatDisc
+                    x: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 36
+                    height: 36
+                    radius: 18
+                    color: Theme.overlay2
+
+                    Icon {
+                        anchors.centerIn: parent
+                        paths: Icons.sparkles
+                        color: Theme.clay
+                    }
+                }
+
+                Column {
+                    anchors.left: chatDisc.right
+                    anchors.leftMargin: 12
+                    anchors.right: parent.right
+                    anchors.rightMargin: 14
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Text {
+                        text: "Quick chat"
+                        color: Theme.textBright
+                        font.family: Theme.fontUi
+                        font.pixelSize: 13
+                        font.weight: Font.Bold
+                        lineHeight: 17
+                        lineHeightMode: Text.FixedHeight
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: `Ask ${Chat.providerName}`
+                        elide: Text.ElideRight
+                        color: Theme.subtext
+                        font.family: Theme.fontUi
+                        font.pixelSize: 11
+                        font.weight: Font.DemiBold
+                        lineHeight: 14
+                        lineHeightMode: Text.FixedHeight
+                    }
+                }
+
+                MouseArea {
+                    id: chatMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        root.open = false;
+                        Chat.show("");
+                    }
+                }
+            }
             }
 
             // what's playing, while a media player has something (not on the board; owner's request)

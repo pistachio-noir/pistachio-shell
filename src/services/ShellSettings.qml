@@ -13,6 +13,7 @@ Singleton {
     readonly property bool lensClaudeFallback: Store.saved.lensClaudeFallback
     readonly property bool lensCodexFallback: Store.saved.lensCodexFallback
     readonly property bool lensSuggestCoding: Store.saved.lensSuggestCoding
+    readonly property bool quickChatTile: Store.saved.quickChatTile ?? true
     readonly property string lensClaudeCodingModel: Store.saved.lensClaudeCodingModel
     readonly property string lensClaudeCodingEffort: Store.saved.lensClaudeCodingEffort
     readonly property string lensCodexCodingModel: Store.saved.lensCodexCodingModel
@@ -44,6 +45,7 @@ Singleton {
         else if (provider === "codex") Store.saved.lensCodexFallback = on;
     }
     function setLensSuggestCoding(on: bool) { Store.saved.lensSuggestCoding = on; }
+    function setQuickChatTile(on: bool) { Store.saved.quickChatTile = on; }
 
     readonly property string screenshotOutput: ["save","copy","both"].includes(Store.saved.screenshotOutput) ? Store.saved.screenshotOutput : "save"
     readonly property string recordingAudio: ["off","system","mic","both"].includes(Store.saved.recordingAudio) ? Store.saved.recordingAudio : "system"

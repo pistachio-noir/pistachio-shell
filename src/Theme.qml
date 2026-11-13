@@ -56,6 +56,14 @@ Singleton {
 
     readonly property string fontUi: "Manrope"
     readonly property string fontMono: "JetBrains Mono" // code-like text
+    // code blocks' colours (components/highlight.js, owner's request, 13 November 2026), as text for
+    // its rich text; on the code block's bg
+    readonly property var codeColours: ({
+        plain: textBright.toString(), keyword: lavender.toString(), string: teal.toString(), number: clay.toString(),
+        comment: subtext.toString(), function: gold.toString(), type: sageBlue.toString(), variable: clay.toString(),
+        flag: sageBlue.toString(), key: sageBlue.toString(), meta: terracotta.toString(), add: teal.toString(),
+        remove: terracotta.toString(), font: fontMono
+    })
     readonly property string fontEmoji: "Noto Color Emoji" // the launcher's emoji picker
 
     // One easing curve for everything; CSS ease-out is close to OutCubic.

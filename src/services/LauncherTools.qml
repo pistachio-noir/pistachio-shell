@@ -29,6 +29,7 @@ Singleton {
         { id: "record", name: "Record screen", available:Screenshots.hasRecorder, target: ["screenshot", "record"] },
         { id: "jobs", name: "Background jobs", target: [] },
         { id: "overview", name: "Overview", target: ["overview", "toggle"] },
+        { id: "chat", name: "Quick chat · Ask AI", target: ["chat", "open"] },
         { id: "sound", name: "Sound settings", target: ["settings", "section", "sound"] },
         { id: "network", name: "Network settings", target: ["settings", "section", "network"] }
     ].concat([

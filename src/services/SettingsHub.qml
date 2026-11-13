@@ -70,6 +70,10 @@ Singleton {
         else { editBusy = false; editError = "Unknown setting."; }
     }
 
+    function openQuickChats() {
+        Quickshell.execDetached(["sh", "-c", 'mkdir -p "$1" && xdg-open "$1"', "sh", Quickshell.env("HOME") + "/quick-chats"]);
+    }
+
     function openChats() {
         Quickshell.execDetached(["sh", "-c", 'mkdir -p "$1" && xdg-open "$1"', "sh", Quickshell.env("HOME") + "/lens-chats"]);
     }

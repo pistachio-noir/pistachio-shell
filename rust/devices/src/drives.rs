@@ -13,7 +13,8 @@
 //! a loop device with a file behind it is handled (an image the owner set up), except the system's
 //! own (/var/lib/extensions, /var/lib/confexts, snap).
 //!
-//! Notifications (app name and wording as udiskie's): "Device added", "Device mounted" with Browse
+//! Notifications (wording as udiskie's; app name "Drives", owner's call 13 November 2026, as the
+//! shell's eject notifications): "Device added", "Device mounted" with Browse
 //! directory (xdg-open), "Device unmounted", "Device removed", "Job failed" with Retry. An encrypted
 //! drive is not unlocked here (udiskie asked for its passphrase in a window of its own): one
 //! notification says so and offers the file manager, which can unlock it.
@@ -261,7 +262,7 @@ impl Drives {
         let labels: Vec<&str> = toast.actions.iter().flat_map(|(key, label, _)| [*key, *label]).collect();
         let hints: HashMap<&str, Value> = HashMap::new();
         let shown = notifications
-            .call_method(Some(NOTIFICATIONS), "/org/freedesktop/Notifications", Some(NOTIFICATIONS), "Notify", &("udiskie", 0u32, toast.icon.as_str(), toast.summary, toast.body.as_str(), labels, hints, -1i32))
+            .call_method(Some(NOTIFICATIONS), "/org/freedesktop/Notifications", Some(NOTIFICATIONS), "Notify", &("Drives", 0u32, toast.icon.as_str(), toast.summary, toast.body.as_str(), labels, hints, -1i32))
             .and_then(|reply| reply.body().deserialize::<(u32,)>());
         match shown {
             Ok((id,)) if !toast.actions.is_empty() => {

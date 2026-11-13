@@ -54,6 +54,7 @@ Singleton {
         property bool lensClaudeFallback
         property bool lensCodexFallback
         property bool lensSuggestCoding: true
+        property bool quickChatTile: true // the quick chat's tile beside LocalSend in quick settings (Settings → Lens and AI)
         property string lensClaudeCodingModel: "sonnet"
         property string lensClaudeCodingEffort: "high"
         property string lensCodexCodingModel: "gpt-6.1-sol"

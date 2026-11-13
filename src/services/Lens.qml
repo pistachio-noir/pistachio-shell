@@ -16,6 +16,7 @@ Singleton {
     property rect area
     property var still: null // holds the ItemGrabResult, keeping its in-memory URL valid
     property string question
+    property string handedQuestion // from the quick chat's Snip a region: the prompt starts with it
     property string answer
     property var lastAnswer: null
     property var actions: []
@@ -56,7 +57,8 @@ Singleton {
         path = file;
         area = rect;
         still = capture;
-        question = "";
+        question = handedQuestion;
+        handedQuestion = "";
         answer = "";
         lastAnswer = null;
         actions = [];

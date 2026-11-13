@@ -1,6 +1,11 @@
 bar.peek(): void
 brightness.down(): void
 brightness.up(): void
+chat.ask(text: string): void
+chat.close(): void
+chat.open(): void
+chat.status(): string
+chat.toggle(): void
 clocks.stop(): void
 clocks.stopwatch(): void
 clocks.timer(text: string): void

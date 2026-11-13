@@ -335,6 +335,9 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: root.add(text.split("\n").filter(p => p !== ""))
         }
+        // the chooser took the keyboard, which closed quick settings as a click outside would: open
+        // the page again, with what was picked, so Send is one click away (owner's report, 13 November)
+        onExited: root.openRequested()
     }
 
     // the settings card's Change: a folder for what arrives

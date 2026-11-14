@@ -1,6 +1,7 @@
 pragma Singleton
 
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Pam
 import QtQuick
 
@@ -68,6 +69,62 @@ Singleton {
 
     function shutdown() {
         Quickshell.execDetached(["systemctl", "poweroff"]);
+    }
+
+    // Restart into another boot entry (owner's call, 14 November 2026). Limine (12.9) publishes its
+    // entries in the boot loader interface's EFI variables (LoaderEntries, LoaderEntrySelected), which
+    // anyone can read. logind's own reboot-to-entry, which needs no password, only knows entries it finds
+    // on /boot (it refused Limine's "Windows"), so the one-shot entry is set with `bootctl set-oneshot`
+    // as root: pkexec, so the shell's polkit dialog asks for the password; then a normal reboot. Firmware
+    // setup goes through logind and needs no password (allowed for the active session, checked).
+    property var bootEntries: [] // [{ id, name }], the entry booted now left out
+    property bool firmwareSetup // UEFI, so the firmware's setup can be asked for
+    property bool bootBusy // waiting for the password or bootctl
+
+    function refreshBootEntries() {
+        if (!bootList.running)
+            bootList.running = true;
+    }
+
+    function rebootInto(id: string) {
+        if (bootBusy || !id)
+            return;
+        bootBusy = true;
+        oneShot.command = ["pkexec", "bootctl", "set-oneshot", id];
+        oneShot.running = true;
+    }
+
+    function rebootToFirmware() {
+        Quickshell.execDetached(["systemctl", "reboot", "--firmware-setup"]);
+    }
+
+    Process {
+        id: bootList
+        command: ["python3", Quickshell.shellPath("services/boot-entries.py")]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const got = JSON.parse(text);
+                    root.bootEntries = got.entries;
+                    root.firmwareSetup = got.efi;
+                } catch (e) {
+                    root.bootEntries = [];
+                }
+            }
+        }
+    }
+
+    Process {
+        id: oneShot
+        // 0: set, so reboot; anything else (Cancel in the password dialog, a wrong password, bootctl
+        // refusing) leaves the system as it is
+        onExited: code => {
+            root.bootBusy = false;
+            if (code === 0)
+                root.reboot();
+            else
+                console.warn(`Session: restart into another entry stopped (exit ${code})`);
+        }
     }
 
     PamContext {

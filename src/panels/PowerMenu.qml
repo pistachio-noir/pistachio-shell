@@ -18,8 +18,17 @@ PanelWindow {
         { name: "Log out", key: Qt.Key_E, icon: Icons.logOut, run: () => Session.logout() },
         { name: "Suspend", key: Qt.Key_S, icon: Icons.moon, run: () => Session.suspend() },
         { name: "Reboot", key: Qt.Key_R, icon: Icons.reboot, run: () => Session.reboot() },
+        // another Limine entry or the firmware's setup (owner's call, 14 November 2026; no board):
+        // it switches the menu to those; Esc comes back
+        { name: "Restart into…", key: Qt.Key_I, icon: Icons.hardDrive, choose: true },
         { name: "Shut down", key: Qt.Key_P, icon: Icons.power, run: () => Session.shutdown(), danger: true }
     ]
+    // Restart into…'s choices: the other boot entries (1, 2, …; Windows needs the password, through
+    // the polkit dialog after the menu has gone), then the firmware's setup (F)
+    readonly property var targets: Session.bootEntries.slice(0, 9).map((e, n) => ({ name: e.name, key: Qt.Key_1 + n, icon: /windows/i.test(e.id) ? Icons.window : Icons.monitor, run: () => Session.rebootInto(e.id) }))
+        .concat(Session.firmwareSetup ? [{ name: "Firmware setup", key: Qt.Key_F, icon: Icons.cpu, run: () => Session.rebootToFirmware() }] : [])
+    property bool choosing
+    readonly property var items: choosing ? targets : actions
     property int current
     property bool open
     // The still arrived (or took too long: then the menu opens over the dim alone). The menu waits
@@ -30,18 +39,27 @@ PanelWindow {
     property var pending: null
 
     function run(i: int) {
-        pending = actions[i];
+        if (items[i]?.choose) {
+            choosing = true;
+            current = 0;
+            return;
+        }
+        pending = items[i] ?? null;
         open = false;
     }
 
     function key(event) {
-        const i = actions.findIndex(a => a.key === event.key);
-        if (event.key === Qt.Key_Escape)
-            open = false;
-        else if (Theme.tui && (event.key === Qt.Key_Up || event.key === Qt.Key_Down)) // TUI lists them downwards
-            current = (current + (event.key === Qt.Key_Down ? 1 : -1) + actions.length) % actions.length;
+        const i = items.findIndex(a => a.key === event.key);
+        if (event.key === Qt.Key_Escape) {
+            if (choosing) { // back to the power actions, on Restart into…
+                choosing = false;
+                current = actions.findIndex(a => a.choose);
+            } else
+                open = false;
+        } else if (Theme.tui && (event.key === Qt.Key_Up || event.key === Qt.Key_Down)) // TUI lists them downwards
+            current = (current + (event.key === Qt.Key_Down ? 1 : -1) + items.length) % items.length;
         else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
-            current = (current + (event.key === Qt.Key_Right ? 1 : -1) + actions.length) % actions.length;
+            current = (current + (event.key === Qt.Key_Right ? 1 : -1) + items.length) % items.length;
         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
             run(current);
         else if (i >= 0)
@@ -52,7 +70,9 @@ PanelWindow {
         if (!open)
             return;
         pending = null;
+        choosing = false;
         current = 0;
+        Session.refreshBootEntries();
         shot.captureSource = screen;
         captureTimeout.restart();
     }
@@ -175,7 +195,7 @@ PanelWindow {
                 spacing: 12
 
                 Repeater {
-                    model: root.actions
+                    model: root.items
 
                     Rectangle {
                         id: button
@@ -247,7 +267,7 @@ PanelWindow {
             visible: Theme.tui
             width: 320
             height: tuiRows.implicitHeight + 28
-            title: "power"
+            title: root.choosing ? "restart into" : "power"
             detail: "up " + Math.floor(Uptime.seconds / 3600) + "h " + Math.floor(Uptime.seconds / 60) % 60 + "m"
             Accessible.role: Accessible.Grouping
             Accessible.name: "Power menu"
@@ -263,7 +283,7 @@ PanelWindow {
                 width: parent.width - 24
 
                 Repeater {
-                    model: root.actions
+                    model: root.items
 
                     Rectangle {
                         id: row
@@ -315,7 +335,7 @@ PanelWindow {
                     spacing: 16
 
                     Repeater {
-                        model: [["↑↓", "move"], ["Enter", "confirm"], ["Esc", "cancel"]]
+                        model: [["↑↓", "move"], ["Enter", "confirm"], ["Esc", root.choosing ? "back" : "cancel"]]
 
                         Row {
                             required property var modelData
@@ -343,7 +363,7 @@ PanelWindow {
         Text {
             visible: !Theme.tui
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "← → move · Enter confirm · Esc cancel"
+            text: root.choosing ? "← → move · Enter restart · Esc back" : "← → move · Enter confirm · Esc cancel"
             color: Theme.subtext
             font.family: Theme.fontUi
             font.pixelSize: 12

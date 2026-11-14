@@ -134,13 +134,16 @@ Singleton {
         onExited: code => {
             if (code !== 0 || !root.active)
                 return;
-            const command = Apps.inTerminal(["fastfetch", "--config", root.config], true, "fastfetch");
-            Compositor.exec(command.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(" "), {
+            // fastfetch, then the terminal just stays, cursor hidden: holding it with the terminal's own
+            // "wait after command" left Ghostty's "Command Succeeded" bar and a cursor in the picture
+            // (owner's report, 14 November 2026); closing the window still ends showoff
+            const command = Apps.inTerminal(["sh", "-c", 'fastfetch --config "$1"; printf "\\033[?25l"; exec sleep infinity', "sh", root.config], false, "fastfetch");
+            Compositor.exec(command.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(" "), Object.assign(Theme.tui ? { rounding: 0 } : {}, {
                 float: true,
                 size: [Math.round(box.width), Math.round(box.height)],
                 move: [Math.round(box.x), Math.round(box.y)],
                 workspace: String(root.stage)
-            });
+            }));
         }
     }
 }

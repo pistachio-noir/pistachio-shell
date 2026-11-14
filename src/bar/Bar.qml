@@ -96,6 +96,17 @@ Scope {
         ScriptAction { script:if(root.controls)root.controls.open=true }
         PauseAnimation { duration:150 }
         ScriptAction { script: {
+            if(Theme.tui) {
+                // TUI (owner's report, 14 November 2026): the centre and calendar sit in a row in the
+                // middle under the strip, the control panel at the right; the terminal goes under that
+                // row, as wide as it and clear of the control panel (Classic's in-between gap was 432 px)
+                const centreLeft=Math.round((root.screen.width-centreWindow.implicitWidth)/2);
+                const tRight=Math.min(centreLeft+centreWindow.implicitWidth,root.screen.width-Theme.tuiPanelMargin-(root.controls?.panelWidth??Theme.tuiPanelWidth)-24);
+                const tTop=Theme.tuiBarHeight+Theme.tuiPanelGap+centreWindow.implicitHeight+24;
+                const tBottom=Math.min(root.screen.height-24,tTop+480); // about fastfetch's own height, not the rest of the screen
+                Showoff.openTerminal(Qt.rect(centreLeft,tTop,Math.max(1,tRight-centreLeft),Math.max(1,tBottom-tTop)));
+                return;
+            }
             const bottom=root.screen.height-(Theme.tui?16:root.height+16);
             const left=root.stageMargin+centreWindow.panelWidth+40;
             const right=root.screen.width-root.stageMargin-(root.controls?.panelWidth??380)-40;

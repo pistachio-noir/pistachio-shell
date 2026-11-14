@@ -197,7 +197,7 @@ Singleton {
         return `rgba(${two(c.r)}${two(c.g)}${two(c.b)}${two(alpha)})`;
     }
 
-    Connections { target: Theme; function onFontUiChanged() { Qt.callLater(root.styleGroups); } }
+    Connections { target: Theme; function onFontUiChanged() { Qt.callLater(root.styleGroups); } function onNoirChanged() { Qt.callLater(root.styleGroups); } }
 
     function styleGroups() {
         if (!Hyprland.usingLua)

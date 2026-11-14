@@ -37,7 +37,8 @@ PanelWindow {
         }
     }
     Binding { target:root.contentItem;property:"opacity";value:root.progress }
-    Binding { target:root.contentItem;property:"y";value:-Theme.tuiBarHeight*(1-root.progress) }
+    // It fades rather than slides (owner's report, 14 November 2026): content moving under a still
+    // pointer made Qt report it leaving, so the revealed bar hid again at once and looped
     Rectangle { anchors.fill:parent;color:Theme.surface }
     WlrLayershell.namespace: "pistachio-bar"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -99,7 +100,7 @@ PanelWindow {
             TuiBarButton { objectName:"tui-cpu";text:"cpu";value:SystemStats.cpu<0?"—":Math.round(SystemStats.cpu*100)+"%";tint:Theme.clay;onClicked:{SettingsHub.openPage("system","");} }
             TuiBarButton { objectName:"tui-mem";text:"mem";value:SystemStats.memUsed.toFixed(1)+"G";tint:Theme.gold;onClicked:{SettingsHub.openPage("system","");} }
             TuiBarButton { text:"vol";value:Audio.muted?"muted":Math.round(Audio.volume*100)+"%";tint:Theme.lavender;active:root.controller.controls?.open??false;onClicked:button=>{if(button===Qt.MiddleButton)Audio.toggleMute();else root.controller.toggle(root.controller.controls);};onScrolled:delta=>Audio.setVolume(Math.max(0,Math.min(1,Audio.volume+(delta>0?0.05:-0.05)))) }
-            TuiBarButton { objectName:"tui-bluetooth";text:"bt";value:Bluetooth.enabled?(Bluetooth.battery>=0?Bluetooth.battery+"%":Bluetooth.connectedName?"on":"idle"):"off";tint:Theme.sageBlue;Accessible.name:"Bluetooth devices";onClicked:root.controller.launcherRequested("bluetooth") }
+            TuiBarButton { objectName:"tui-bluetooth";text:"bt";value:Bluetooth.enabled?(Bluetooth.battery>=0?Bluetooth.battery+"%":Bluetooth.connectedName?"on":"idle"):"off";tint:Theme.sageBlue;Accessible.name:"Bluetooth settings";onClicked:SettingsHub.openPage("bluetooth","") }
             TuiBarButton { objectName:"tui-mic-cue";visible:Audio.micMuted||Audio.recorders.length>0;text:"mic";value:Audio.micMuted?"muted":"in use";tint:Theme.clay;Accessible.name:Audio.micMuted?"Microphone muted":"Microphone in use by "+Audio.recorders.map(n=>Audio.appName(n)).join(", ");onClicked:root.controller.toggle(root.controller.controls) }
             TuiBarButton { objectName:"tui-share-cue";visible:ScreenShare.sharing;text:"share";value:String(ScreenShare.apps.length);tint:Theme.clay;Accessible.name:"Screen shared with "+ScreenShare.apps.join(", ");onClicked:root.controller.toggle(root.controller.controls) }
             TuiBarButton { text:"bell";value:Notifs.dnd?"dnd":String(Notifs.unreadCount);onClicked:root.controller.toggleCentre(false) }

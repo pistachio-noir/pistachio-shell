@@ -9,6 +9,10 @@ Singleton {
     function setAppearanceStyle(value: string) {
         if (value === "classic" || value === "tui") Store.saved.appearanceStyle = value;
     }
+    readonly property string colourScheme: Store.saved.colourScheme === "noir" ? "noir" : "pistachio"
+    function setColourScheme(value: string) {
+        if (value === "pistachio" || value === "noir") Store.saved.colourScheme = value;
+    }
     readonly property bool tuiTrayOpen: Store.saved.tuiTrayOpen === true
     function setTuiTrayOpen(value: bool) {
         Store.saved.tuiTrayOpen = value;

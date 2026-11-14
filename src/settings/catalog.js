@@ -43,6 +43,7 @@ var settings = [
     ["sound","player","Media player","Devices","mpris auto selection"],
     ["network","ipv4","IP addresses","Connection details","ipv4 ipv6 gateway dns ethernet copy"],
     ["appearance", "style", "Style", "Style", "classic tui appearance terminal look"],
+    ["appearance", "colours", "Colours", "Style", "colours colors scheme noir pistachio grey gray monochrome black white theme"],
     ["appearance", "frost", "Frosted panels", "Surfaces", "solid subtle glassy opacity blur"],
     ["appearance", "shadows", "Drop shadows", "Surfaces", "depth"],
     ["appearance", "wallpaper", "Wallpaper", "Desktop", "background image"],

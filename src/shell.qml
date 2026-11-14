@@ -14,6 +14,7 @@ ShellRoot {
     readonly property var background: [Drives, LocalSend, Clocks]
 
     Binding { target: Theme; property: "tui"; value: ShellSettings.appearanceStyle === "tui" }
+    Binding { target: Theme; property: "noir"; value: ShellSettings.colourScheme === "noir" }
 
     // frosted panels: how opaque the bar and panels are
     Binding {

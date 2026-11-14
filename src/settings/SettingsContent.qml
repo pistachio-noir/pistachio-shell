@@ -130,7 +130,8 @@ Column {
     function buildGroups(page = root.page) {
         if (page === "appearance") return [
             group("Style", [
-                { id: "style", kind: "choice", title: "Style", subtitle: () => "Applied live across the shell.", choices: () => [{value:"classic",title:"Classic"},{value:"tui",title:"TUI"}], value: () => ShellSettings.appearanceStyle, set: ShellSettings.setAppearanceStyle }
+                { id: "style", kind: "choice", title: "Style", subtitle: () => "Applied live across the shell.", choices: () => [{value:"classic",title:"Classic"},{value:"tui",title:"TUI"}], value: () => ShellSettings.appearanceStyle, set: ShellSettings.setAppearanceStyle },
+                { id: "colours", kind: "choice", title: "Colours", subtitle: () => "Pistachio Noir, or Noir in greys with one red for errors.", choices: () => [{value:"pistachio",title:"Pistachio Noir"},{value:"noir",title:"Noir"}], value: () => ShellSettings.colourScheme, set: ShellSettings.setColourScheme }
             ]),
             group("Surfaces", [
                 { id: "frost", kind: "choice", title: "Frosted panels", subtitle: () => "Choose how much of the desktop shows through.", choices: () => [{value:"solid",title:"Solid"},{value:"subtle",title:"Subtle"},{value:"glassy",title:"Glassy"}], value: () => !ShellSettings.frosted ? "solid" : ShellSettings.glassy ? "glassy" : "subtle", set: v => { ShellSettings.setGlassy(v === "glassy"); ShellSettings.setFrosted(v !== "solid"); } },

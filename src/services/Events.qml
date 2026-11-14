@@ -59,6 +59,8 @@ Singleton {
     function colourFor(uid: string): color {
         const cal = calendars.find(c => c.uid === uid);
         const accents = [Theme.sageBlue, Theme.teal, Theme.lavender, Theme.clay, Theme.gold, Theme.terracotta];
+        if (Theme.noir) // Noir keeps its one colour for errors
+            return Theme.subtext;
         if (!cal || !cal.color)
             return Theme.sageBlue;
         const c = Qt.color(cal.color);

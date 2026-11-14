@@ -25,6 +25,7 @@ Singleton {
         property int nightFrom: 1200 // minutes after midnight: 20:00
         property int nightTo: 420 // 07:00
         property string appearanceStyle: "classic"
+        property string colourScheme: "pistachio" // or "noir" (owner's call, 14 November 2026)
         property bool tuiTrayOpen // TUI strip: tray icons and minimised windows shown (owner's call: collapsed by default)
         property bool shadows: true // drop shadows under panels and popups
         property bool quietFullscreen: true // toasts wait while a fullscreen window has focus

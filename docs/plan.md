@@ -55,6 +55,7 @@ One config folder, split by what each file is for: a theme singleton, services t
 │  ├─ Drives.qml  removable drives: pistachio-devices (rust/) mounts them, lsblk lists the mounted ones, eject
 │  ├─ LocalSend.qml  LocalSend, through pistachio-localsend (rust/): devices nearby, sending, receiving (only while the app is installed)
 │  ├─ SettingsHub.qml  settings-window navigation, validated text edits and folder/source actions
+│  ├─ Preferences.qml  prefs.py  settings export/import to ~/.config/pistachio-shell/settings.toml, with a review before Apply
 ├─ bar/                 Bar, Workspaces, WindowTitle, ClockChip, StatusChip, TrayPill (+ TrayMenu), MediaPill
 ├─ panels/              QuickSettings, NotificationCentre, Calendar (+ calendar.js, MonthPage), PowerMenu, PolkitDialog, WindowSwitcher, Wallpaper (the desktop) and DesktopIcons, WallpaperSwitcher, WeatherPanel
 ├─ popups/              Toasts, Osd (+ PrivacyWatch, its mic and screen sharing cues), ScreenshotPicker, PistachioRain (the easter egg)

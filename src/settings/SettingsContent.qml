@@ -117,10 +117,11 @@ Column {
 
     MicCheckCard { width:parent.width;visible:root.page === "sound" && root.soundTab === "devices" }
     ResetSection { width:parent.width;page:root.page;visible:SettingsReset.available(root.page) }
+    ImportReview { width:parent.width;visible:root.page === "about" && Preferences.reviewing }
 
     function group(title, rows) { return { title: title, rows: rows }; }
     function toggle(id, title, subtitle, get, set) { return { id: id, kind: "toggle", title: title, subtitle: () => subtitle, checked: get, toggle: () => set(!get()) }; }
-    function action(id, title, subtitle, button, run) { return { id: id, kind: "action", title: title, subtitle: () => subtitle, button: button, run: run }; }
+    function action(id, title, subtitle, button, run) { return { id: id, kind: "action", title: title, subtitle: typeof subtitle === "function" ? subtitle : () => subtitle, button: button, run: run }; }
     // value and subtitle may be functions, read live by the row: a page whose readings change (System
     // monitor) must not rebuild its groups for it, or they're made anew and rise in again each time
     // "1.2% · 620 MB" for a share of the CPU (0–1, -1 while unknown) and memory in MB
@@ -128,11 +129,14 @@ Column {
     function read(id, title, value, subtitle) { return { id: id, title: title, value: typeof value === "function" ? value : () => value, subtitle: typeof subtitle === "function" ? subtitle : () => subtitle || "" }; }
     function time(id, title, get, set) { return { id: id, kind: "time", title: title, value: get, set: set }; }
     function buildGroups(page = root.page) {
-        if (page === "appearance") return [
+        // Experimental (owner's call, 15 November 2026): the newer looks, moved out of Appearance
+        if (page === "experimental") return [
             group("Style", [
                 { id: "style", kind: "choice", title: "Style", subtitle: () => "Applied live across the shell.", choices: () => [{value:"classic",title:"Classic"},{value:"tui",title:"TUI"}], value: () => ShellSettings.appearanceStyle, set: ShellSettings.setAppearanceStyle },
                 { id: "colours", kind: "choice", title: "Colours", subtitle: () => "Pistachio Noir, or Noir in greys with one red for errors.", choices: () => [{value:"pistachio",title:"Pistachio Noir"},{value:"noir",title:"Noir"}], value: () => ShellSettings.colourScheme, set: ShellSettings.setColourScheme }
-            ]),
+            ])
+        ];
+        if (page === "appearance") return [
             group("Surfaces", [
                 { id: "frost", kind: "choice", title: "Frosted panels", subtitle: () => "Choose how much of the desktop shows through.", choices: () => [{value:"solid",title:"Solid"},{value:"subtle",title:"Subtle"},{value:"glassy",title:"Glassy"}], value: () => !ShellSettings.frosted ? "solid" : ShellSettings.glassy ? "glassy" : "subtle", set: v => { ShellSettings.setGlassy(v === "glassy"); ShellSettings.setFrosted(v !== "solid"); } },
                 toggle("shadows", "Drop shadows", "Soft depth around panels and popups.", () => ShellSettings.shadows, ShellSettings.setShadows)
@@ -219,7 +223,9 @@ Column {
         if (page === "localsend" && LocalSend.available) return [group("",[toggle("receive","Receive files",LocalSend.summary,()=>LocalSend.wanted,LocalSend.setReceive)]),group("This device",[action("name","Device name",LocalSend.name,"Change",()=>SettingsHub.beginEdit("name")),action("folder","Save received files to",LocalSend.folderShown,"Change",LocalSend.pickFolder)]),group("Incoming requests",[toggle("known","Accept known devices","Skip asking for devices you have accepted before.",()=>LocalSend.acceptKnown,LocalSend.setAcceptKnown)])];
         // only which disks there are shapes the page; the readings are read by the rows themselves
         if (page === "system") return [group("Storage",SystemStats.diskMounts.map(m=>read("storage",m === "/" ? "System disk" : "Home",()=>{ const d=SystemStats.disks.find(x=>x.mount===m); return d ? `${SystemStats.gigabytes(d.free)} free of ${SystemStats.gigabytes(d.size)}` : "—"; },m))),group("Shell",[read("shell","Pistachio Noir",()=>root.usage(SystemStats.shellCpu,SystemStats.shellMem),"CPU and memory, including its helpers."),read("hyprland","Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.hyprCpu,SystemStats.hyprMem) : "—","The compositor."),read("desktop","Shell and Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.shellCpu < 0 || SystemStats.hyprCpu < 0 ? -1 : SystemStats.shellCpu+SystemStats.hyprCpu,SystemStats.shellMem+SystemStats.hyprMem) : "—","Both together.")]),group("Removable drives",Drives.mounted.map(d=>action("drive:"+d.path,d.name,`${d.mountpoint} · ${d.size}`,"Eject",()=>Drives.eject(d))))];
-        if (page === "about") return [group("",[read("branch","Branch",About.branch || "—",About.branch ? About.moodLong : ""),read("build","Build",About.commit || "Reading…",[About.date,About.subject,About.changed ? `${About.changed} changed files` : ""].filter(Boolean).join(" · ")),read("quickshell","Quickshell",About.quickshell || "—"),read("hyprland","Hyprland",About.hyprland || "—"),read("qt","Qt",About.qt || "—"),action("source","Source code","The shell and its design boards.","View source",SettingsHub.openSource)]),group("",[action("showoff","Showoff mode","Arrange the desktop for a setup screenshot.","Start showoff",()=>SettingsHub.showoffRequested())])];
+        if (page === "about") return [group("",[read("branch","Branch",About.branch || "—",About.branch ? About.moodLong : ""),read("build","Build",About.commit || "Reading…",[About.date,About.subject,About.changed ? `${About.changed} changed files` : ""].filter(Boolean).join(" · ")),read("quickshell","Quickshell",About.quickshell || "—"),read("hyprland","Hyprland",About.hyprland || "—"),read("qt","Qt",About.qt || "—"),action("source","Source code","The shell and its design boards.","View source",SettingsHub.openSource)]),
+            // export and import (owner's call, 15 November 2026): one file, a review before anything changes
+            group("Your settings",[action("export","Export settings",()=>Preferences.status && !Preferences.reviewing ? Preferences.status : `Every preference and the launcher's pins, aliases and presets, to ${Preferences.shownPath}.`,"Export",Preferences.exportNow),action("import","Import settings",`Read ${Preferences.shownPath} and review the changes before they apply.`,"Review import",Preferences.review)])];
         return [];
     }
 }

@@ -41,7 +41,8 @@ ShellRoot {
             hide();input.wait(80);
             check(!bar.window.shown && bar.window.exclusiveZone===0 && bar.window.visible,"TUI hides for fullscreen/Zen/Overview, keeping its edge");
             bar.window.peek();input.wait(40);
-            check(bar.window.shown,"peek reveals the hidden strip");
+            if(FocusMode.zen) check(!bar.window.shown && bar.window.mask.height===0,"Zen keeps the strip away: no peek, no edge");
+            else check(bar.window.shown,"peek reveals the hidden strip");
             bar.window.revealed=false;Compositor.fullscreen=false;FocusMode.zen=false;bar.overviewOpen=false;input.wait(40);
             check(bar.window.shown && bar.window.exclusiveZone===41,"strip back and reserving");
         }

@@ -197,7 +197,7 @@ ShellRoot {
         check(need("settings-header").height===52, "TUI header matches board height");
         check(need("toggle-shadows").contentItem.text.includes("["), "TUI toggle draws bracket state");
         LocalSend.available=true;
-        for (const name of ["appearance","display","sound","notifications","focus","integrations","bluetooth","network","localsend","lens","apps","system","health","about"]) {
+        for (const name of ["appearance","display","sound","notifications","focus","integrations","bluetooth","network","localsend","lens","apps","system","health","experimental","about"]) {
             page(name);input.wait(90);
             check(need("settings-page-content").opacity > 0.99, "TUI page fade finishes quickly: "+name);
             capture("tui-"+name);
@@ -263,7 +263,7 @@ ShellRoot {
         const wasTick=ShellSettings.volumeTick;click(need("toggle-tick"));
         check(ShellSettings.volumeTick!==wasTick, "TUI search control applies real preference");
         tuiSearch.text="";
-        page("appearance");const styleChoice=need("choice-style");scrollInto(styleChoice);click(styleChoice);
+        page("experimental");const styleChoice=need("choice-style");scrollInto(styleChoice);click(styleChoice);
         input.keyClick(Qt.Key_Up);input.keyClick(Qt.Key_Return);input.wait(150);
         check(!Theme.tui && ShellSettings.appearanceStyle==="classic", "Appearance selector switches to Classic live");
         click(styleChoice);input.keyClick(Qt.Key_Down);input.keyClick(Qt.Key_Return);input.wait(150);

@@ -13,6 +13,7 @@ var pages = [
     ["integrations", "Integrations", "Other apps the shell works with.", "Shell", "layers"],
     ["system", "System monitor", "A quiet look at what your desktop is doing.", "Shell", "cpu"],
     ["health", "Shell health", "Local helpers, dependencies and CLI sign-in status.", "Shell", "info"],
+    ["experimental", "Experimental", "Newer looks: the TUI style and the Noir colours.", "Shell", "flask"],
     ["about", "About", "Made for your desktop.", "Shell", "info"]
 ];
 var settings = [
@@ -42,8 +43,8 @@ var settings = [
     ["sound","mic-check","Microphone check","Devices","test sample record meter playback"],
     ["sound","player","Media player","Devices","mpris auto selection"],
     ["network","ipv4","IP addresses","Connection details","ipv4 ipv6 gateway dns ethernet copy"],
-    ["appearance", "style", "Style", "Style", "classic tui appearance terminal look"],
-    ["appearance", "colours", "Colours", "Style", "colours colors scheme noir pistachio grey gray monochrome black white theme"],
+    ["experimental", "style", "Style", "Style", "classic tui appearance terminal look"],
+    ["experimental", "colours", "Colours", "Style", "colours colors scheme noir pistachio grey gray monochrome black white theme"],
     ["appearance", "frost", "Frosted panels", "Surfaces", "solid subtle glassy opacity blur"],
     ["appearance", "shadows", "Drop shadows", "Surfaces", "depth"],
     ["appearance", "wallpaper", "Wallpaper", "Desktop", "background image"],
@@ -86,7 +87,9 @@ var settings = [
     ["system", "hyprland", "Hyprland", "System monitor", "compositor cpu memory usage resources"],
     ["about", "branch", "Branch", "About", "git main experimental stable unstable"],
     ["about", "build", "Build and source code", "About", "version quickshell hyprland qt"],
-    ["about", "showoff", "Showoff mode", "About", "screenshot"]
+    ["about", "export", "Export settings", "Your settings", "backup save toml file config dotfile"],
+    ["about", "import", "Import settings", "Your settings", "restore load toml file config dotfile"],
+    // Showoff's About entry was removed (owner's call, 15 November 2026); showoff itself stays: IPC `showoff toggle`
 ];
 function page(id) { return pages.find(p => p[0] === id) || pages[0]; }
 function search(query, localSend, cider, brightness) {

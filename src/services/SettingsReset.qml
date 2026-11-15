@@ -8,7 +8,8 @@ Singleton {
     id: root
     property string reviewing
     readonly property var defaults: ({
-        appearance: {appearanceStyle:"classic",colourScheme:"pistachio",tuiTrayOpen:false,frosted:false,frostStyle:"subtle",shadows:true,desktopIcons:true,workspaceOsd:true,tabbedOsd:true},
+        experimental: {appearanceStyle:"classic",colourScheme:"pistachio",tuiTrayOpen:false},
+        appearance: {frosted:false,frostStyle:"subtle",shadows:true,desktopIcons:true,workspaceOsd:true,tabbedOsd:true},
         display: {nightSchedule:false,nightFrom:1200,nightTo:420},
         sound: {headphonesTakeOver:true,volumeTick:true},
         notifications: {dnd:false,dndSchedule:false,dndFollowsNight:false,dndFrom:1320,dndTo:420,quietFullscreen:true,quietCalls:true,notificationSound:true,notificationRules:{}},

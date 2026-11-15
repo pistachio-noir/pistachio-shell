@@ -21,19 +21,20 @@ PanelWindow {
     onHidingChanged: if (hiding) revealed = false
     function startIntro() {}
     function endIntro() {}
-    function peek() { revealed = true; leave.interval = 2000; leave.restart(); }
+    function peek() { if (FocusMode.zen) return; revealed = true; leave.interval = 2000; leave.restart(); }
     anchors { top:true;left:true;right:true }
     implicitHeight: Theme.tuiBarHeight
     exclusiveZone: hiding ? 0 : Theme.tuiBarHeight
     color: "transparent"
-    mask: Region { width: root.width; height: root.shown ? root.height : 2 }
+    // Zen (on its own or with Focus) has no edge to reveal it from (owner's report, 15 November 2026)
+    mask: Region { width: root.width; height: root.shown ? root.height : FocusMode.zen ? 0 : 2 }
     Timer { id:leave;interval:400;onTriggered:if(!edge.hovered)root.revealed=false }
     // the edge strip and the bar itself: hovering either keeps it out
     Item {
         anchors.fill:parent
         HoverHandler {
             id:edge
-            onHoveredChanged:{ if(hovered){ if(root.hiding)root.revealed=true; leave.stop(); } else { leave.interval=400; leave.restart(); } }
+            onHoveredChanged:{ if(hovered){ if(root.hiding&&!FocusMode.zen)root.revealed=true; leave.stop(); } else { leave.interval=400; leave.restart(); } }
         }
     }
     Binding { target:root.contentItem;property:"opacity";value:root.progress }

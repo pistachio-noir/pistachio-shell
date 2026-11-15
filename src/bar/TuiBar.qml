@@ -21,7 +21,8 @@ PanelWindow {
     onHidingChanged: if (hiding) revealed = false
     function startIntro() {}
     function endIntro() {}
-    function peek() { if (FocusMode.zen) return; revealed = true; leave.interval = 2000; leave.restart(); }
+    // `bar peek` works in Zen too (owner's call, 15 November 2026); only the top edge stays quiet there
+    function peek() { revealed = true; leave.interval = 2000; leave.restart(); }
     anchors { top:true;left:true;right:true }
     implicitHeight: Theme.tuiBarHeight
     exclusiveZone: hiding ? 0 : Theme.tuiBarHeight

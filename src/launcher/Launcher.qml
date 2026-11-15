@@ -453,6 +453,10 @@ PanelWindow {
     function card(name: string, q: string, rows): var {
         if (q && !Fuzzy.match(q, name) && !rows.some(r => Fuzzy.match(q, r.title)))
             return [];
+        // a search keeps only the rows it matches (owner's request, 15 November 2026: "zen" showed
+        // every quick control to scroll through); the card's own name still shows all of it
+        if (q && !Fuzzy.match(q, name))
+            rows = rows.filter(r => Fuzzy.match(q, r.title));
         return rows.map((r, i) => Object.assign({}, r, { card: rows.length === 1 ? "single" : i === 0 ? "top" : i === rows.length - 1 ? "bottom" : "middle" }));
     }
 
@@ -977,10 +981,19 @@ PanelWindow {
             const frequent=frequentRows(3);
             rows = [section("Quick controls"), { kind: "controls", key: "controls" }].concat(frequent.length ? [section("Frequent")].concat(frequent) : []).concat(w.length ? [section("Open windows")].concat(w) : []);
         } else {
+            // a search that names a quick control ("zen", "focus", "night") puts the controls first, so
+            // the selection lands on that switch and Enter toggles it
+            const words = q.trim().toLowerCase();
+            const controlFirst = systemRows(q).some(r => r.kind !== "settingslink" && (r.title ?? "").toLowerCase().split(/\s+/).some(w => w.startsWith(words)));
             const a = appRows(q, 5), w = windowRows(q, 3), named = namedRows(q), presets = presetRows(q), projects = projectRows(q), codeProjects = codeProjectRows(q), games = gameRows(q);
             rows = calcRows(q).concat(a.length ? [section("Applications")].concat(a) : [], games.length ? [section("Games")].concat(games) : [], projects.length ? [section("CLion projects")].concat(projects) : [], codeProjects.length ? [section("VS Code")].concat(codeProjects) : []).concat(w.length ? [section("Windows")].concat(w) : [])
                 .concat(named.length ? [section("Workspaces")].concat(named) : [], presets.length ? [section("Presets")].concat(presets) : [])
                 .concat(powerRows(q), systemRows(q));
+            if (controlFirst) {
+                const controls = systemRows(q);
+                rows = rows.filter(r => !controls.some(c => c.key === r.key)).filter((r, i, all) => r.kind !== "section" || (all[i + 1] && all[i + 1].kind !== "section"));
+                rows = calcRows(q).concat(controls, rows.filter(r => !calcRows(q).some(c => c.key === r.key)));
+            }
         }
         if ((mode === "all" || mode === "apps") && !q && !editing && !confirming) {
             const pins=LauncherTools.pins.map(d => LauncherTools.resolve(d)).filter(r => r);

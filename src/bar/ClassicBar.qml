@@ -33,7 +33,7 @@ PanelWindow {
     // cross the gap to the tray pill, and while a panel or a tray menu is open.
     property bool overviewOpen // the Overview hides the bar, and the workspace OSD stays quiet
     property real sessionPillWidth // Zen's session pill, while it shows: the minimised pill sits beside it
-    readonly property bool shown: !held && (!fullscreen && (!overlapped || pointed || linger.running || peekTimer.running) || tray.menuOpen || media.cardOpen || (quickSettings?.open ?? false) || (centre?.open ?? false) || Showoff.active)
+    readonly property bool shown: !held && (!fullscreen && (!overlapped || pointed || linger.running || peekTimer.running) || FocusMode.zen && peekTimer.running || tray.menuOpen || media.cardOpen || (quickSettings?.open ?? false) || (centre?.open ?? false) || Showoff.active)
 
     // The startup animation (owner's request, after phase 8; shell.qml): as the shell starts, the bar
     // and its pills wait as the handle while the wallpaper fades in, then grow out of it. Not on a

@@ -1,12 +1,13 @@
 # Handoff for coding agents (Codex and others)
 
-Written by Claude Code on 10 November 2026. The owner is handing this repo to you for a while.
+Written by Claude Code on 10 November 2026; current task and handoff updated by Codex on 18 November 2026.
 
 ## 1. Read first, in this order
 
 1. `CLAUDE.md` — the project's rules. **Everything in it applies to you too**: the decisions that must not be reopened, the style rules (colours only from `Theme.qml`, pistachio only for active state, Manrope/JetBrains Mono, radii 28/20/round), the working rules (verify every Quickshell type against https://quickshell.org/docs/v0.3.2/, live-reload quirks, run `qs -c pistachio` and read its log), and the long "Gotchas" list. Skim the gotchas before writing QML; most were learnt the hard way.
-2. `README.md` — install, IPC commands (`psc <target> <function>`), keybinds. Keep it in step with anything you add.
-3. `docs/plan.md` — architecture, folder layout, theme tokens, motion.
+2. `CLAUDE-HANDOFF.md` — read the current-state section for recent work, checks and remaining hand tests; historical sections are context.
+3. `README.md` — install, IPC commands (`psc <target> <function>`), keybinds. Keep it in step with anything you add.
+4. `docs/plan.md` — architecture, folder layout, theme tokens, motion.
 
 ## 2. What the project is
 
@@ -48,42 +49,11 @@ Running: `pgrep -ax qs` first (the owner may already run it; never start a secon
 
 **Safety habits:** check `pgrep -ax qs` before starting a shell; never toggle Ethernet; don't disconnect Bluetooth devices the owner is using; at most one wrong password in a row for polkit/lock tests (pam_faillock); keep a TTY in mind when testing the lock; ask before stopping plasmashell or other system services.
 
-## 4. Your task: build Pistachio Lens
+## 4. Current task and state
 
-The owner approved building it. Plan agreed with the owner on 9 November 2026:
+There is no further approved implementation task as of 18 November 2026. Respond to the owner's current request; otherwise wait for their next direction. Pistachio Lens was built; its original 9 November plan is historical and later decisions in `CLAUDE.md` supersede it. Do not rebuild it from that plan.
 
-**What it is:** snip an area of the screen, then ask Claude about it in a card, through the Claude Code CLI.
-
-**Boards (visual source of truth):** `design/02-LensPrompt.html`, `03-LensThinking.html`, `04-LensAnswer.html`, `05-LensAnswerImage.html`, `06-LensError.html`. Open them in a browser; match sizes, radii, spacing and colours (via `Theme.qml` tokens, never hex).
-
-**Starting a snip**
-- A "Lens" choice in the screenshot picker (`popups/ScreenshotPicker.qml`), key **L**, plus IPC `screenshot lens` (`psc screenshot lens`).
-- You drag out an area exactly as the existing Region mode does (reuse `services/Screenshots.qml`'s region capture; see the ShaderEffectSource/grabToImage gotcha in CLAUDE.md).
-
-**The card**
-- Prompt state (board 02): the snip's thumbnail and pixel size, an "Ask about this…" input, chips **Explain, Fix it, Translate, Summarise, Extract text**. A chip sends at once.
-- Reading state (03): "Claude is reading…".
-- Answer (04/05): Markdown with code blocks, "Answered in N s", a follow-up input. Board 05 shows Claude suggesting actions.
-- Error (06): with Try again.
-- Esc closes; a click outside does not. It holds the keyboard, so mind the gotchas about exclusive keyboard layers.
-- Drop shadow per the style rules, frosted setting respected (namespace `pistachio-panel`).
-
-**Backend: Claude Code CLI** (owner chose it over the API). Put it in a new service, e.g. `services/Lens.qml` (+ a small helper script if useful), not in the UI:
-```
-claude -p "<prompt + path to snip>" --model <model> --effort <effort> \
-  --output-format json --allowedTools Read
-```
-- `Read` is the only tool allowed (so Claude can open the PNG).
-- Parse the JSON result; keep its `session_id`. Follow-ups use `--resume <session_id>`.
-- **Extract text** also goes through Claude (not tesseract).
-- Check the CLI flags with `claude --help` on the machine before relying on them.
-- No streaming, no history UI (out of scope).
-
-**Settings:** a "pistachio-lens" group in the launcher's Shell settings (`services/ShellSettings.qml` + where its cards are drawn): **Model** (default Haiku 5.5, `claude-haiku-5-5`) and **Effort** (default `medium`), both picked from lists.
-
-**Saved chats:** automatic, in `~/lens-chats/<date time first-question>/` with `snip.png` and `chat.md` (Markdown, image linked at the top), rewritten after each answer.
-
-**When done:** add `Lens` to CLAUDE.md's service list (rule 4), document the IPC/keys in README, add a test list to today's `todos/TODO_*.md`, run the shell and check the log is clean, compare against the boards, and give the owner a commit message as text.
+Recent work includes the phone Pomodoro preview, fun About page, interactive desktop cat and project Git status. Read the current-state section of `CLAUDE-HANDOFF.md` and `todos/TODO_17-11-26.md` for details and outstanding hand checks. Check the branch and working tree yourself: on 18 November the branch was `experimental`, HEAD `6acd2f6`, with substantial intentional uncommitted work. Preserve it; never stage or commit unless the owner explicitly asks. Never work on main.
 
 ## 5. Other open threads (don't start without asking)
 

@@ -1,6 +1,7 @@
 pragma Singleton
 
 import Quickshell
+import Quickshell.Io
 import qs
 import QtQuick
 
@@ -45,6 +46,17 @@ Singleton {
     property bool editBusy
     property int editGeneration
     property var forgetDevice: null
+    property string restartMode
+
+    function restartShell(mode: string) {
+        if (mode === "restart" || mode === "force-restart")
+            Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/psc", mode]);
+    }
+
+    IpcHandler {
+        target: "shell"
+        function restart(): void { root.restartShell("restart"); }
+    }
 
     function beginEdit(key: string) {
         cancelEdit();

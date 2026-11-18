@@ -9,6 +9,7 @@ psc: Pistachio Shell Control, short for "qs -c $config ..."
 
   psc                          run the shell in this terminal (its log shows here)
   psc start | stop | restart   run it in the background, stop it, or both
+  psc force-restart            kill the shell and its helpers, then start it
   psc <target> <function> ...  call the shell, e.g. "psc launcher toggle"
   psc ipc show                 list every target and function
   psc log [-f]                 print (or follow) the log
@@ -47,11 +48,25 @@ stop() {
     done
 }
 
+force_stop() {
+    old=$(pids)
+    for pid in $old; do
+        for child in $(pgrep -P "$pid" 2>/dev/null); do
+            [ "$child" = "$$" ] || kill -KILL "$child" 2>/dev/null || true
+        done
+        kill -KILL "$pid" 2>/dev/null || true
+    done
+    for pid in $old; do
+        gone "$pid" 50 || { echo "psc: couldn't stop shell $pid" >&2; return 1; }
+    done
+}
+
 case "$1" in
     "") exec qs -c "$config" ;;
     start) exec qs -c "$config" -n -d ;; # -n: not if it's already running
     stop) stop ;;
     restart) stop && exec qs -c "$config" -n -d ;;
+    force-restart) force_stop && exec qs -c "$config" -n -d ;;
     help | -h | --help) usage ;;
     ipc | log | list | kill | msg | -*) exec qs -c "$config" "$@" ;;
     *) exec qs -c "$config" ipc call "$@" ;;

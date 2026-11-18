@@ -74,7 +74,7 @@ FloatingWindow {
             Qt.callLater(root.scrollToTarget);
         }
         function onOpenedChanged() {
-            if (!SettingsHub.opened) { root.aboutPresses=0; root.funAbout=false; SettingsHub.cancelEdit(); SettingsHub.forgetDevice=null; Bluetooth.setScanning(false); if (Bluetooth.request) Bluetooth.answer(false,""); }
+            if (!SettingsHub.opened) { root.aboutPresses=0; root.funAbout=false; SettingsHub.cancelEdit(); SettingsHub.forgetDevice=null; SettingsHub.restartMode=""; Bluetooth.setScanning(false); if (Bluetooth.request) Bluetooth.answer(false,""); }
         }
     }
     Timer { id: focusLater; interval: Theme.motionDuration + 40; onTriggered: if (SettingsHub.opened) root.contentItem.Window.window?.requestActivate() }

@@ -199,6 +199,10 @@ Column {
             group("Desktop cat", [
                 toggle("desktop-cat", "Desktop cat", "Meoww", () => ShellSettings.desktopCat, ShellSettings.setDesktopCat)
             ]),
+            group("Shell", [
+                action("restart-shell", "Restart shell", "Restart the shell and its helpers.", "Restart", () => SettingsHub.restartMode = "restart"),
+                action("force-restart-shell", "Force restart shell", "Immediately stop the shell and its helpers.", "Force restart", () => SettingsHub.restartMode = "force-restart")
+            ]),
             group("Phone preview", [
                 toggle("phone-preview", "Phone timer preview", "Share the active Focus or Pomodoro timer on your local network.", () => ShellSettings.phonePreview, ShellSettings.setPhonePreview)
             ])

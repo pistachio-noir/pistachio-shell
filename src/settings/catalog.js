@@ -44,6 +44,8 @@ var settings = [
     ["sound","player","Media player","Devices","mpris auto selection"],
     ["network","ipv4","IP addresses","Connection details","ipv4 ipv6 gateway dns ethernet copy"],
     ["experimental", "style", "Style", "Style", "classic tui appearance terminal look"],
+    ["experimental", "restart-shell", "Restart shell", "Shell", "restart reload"],
+    ["experimental", "force-restart-shell", "Force restart shell", "Shell", "restart force kill helpers"],
     ["experimental", "monochrome-wallpaper", "Monochrome wallpaper", "Style", "wallpaper monochrome grayscale greyscale noir background"],
     ["experimental", "clipboard-history", "Clipboard history", "Clipboard history", "clipboard copy paste history cliphist"],
     ["experimental", "desktop-cat", "Desktop cat", "Desktop cat", "cat pet pixel desktop"],

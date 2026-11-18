@@ -191,7 +191,7 @@ For the other tests in `tests/` you also need `libnotify` (`notify-send`); `test
 
 ### Updating and restarting
 
-The shell reloads by itself when a file in `src/` changes, so pulling new code or editing it takes effect at once. To restart it fully, run `psc restart`. `psc log -f` follows the log of the running shell.
+The shell reloads by itself when a file in `src/` changes, so pulling new code or editing it takes effect at once. To restart it fully, run `psc restart` or `psc shell restart`. Settings → Experimental offers Restart and Force restart with confirmation. Force restart immediately kills the shell and its child processes before starting it again; active timers, transfers and other ongoing shell tasks end. `psc log -f` follows the log of the running shell.
 
 ## psc
 
@@ -203,6 +203,7 @@ The shell reloads by itself when a file in `src/` changes, so pulling new code o
 | `psc start` | `qs -c pistachio -n -d`: runs it in the background, unless it's already running |
 | `psc stop` | `qs kill -c pistachio`, then waits until it has exited, forcing it after 5 s if it hangs |
 | `psc restart` | `psc stop`, then `psc start` |
+| `psc force-restart` | kills the shell and its child processes, then starts it |
 | `psc <target> <function> [args]` | `qs -c pistachio ipc call <target> <function> [args]`, e.g. `psc launcher toggle` |
 | `psc ipc show`, `psc log -f`, `psc list`, `psc kill` | the same `qs` subcommand for this config |
 

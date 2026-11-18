@@ -14,39 +14,43 @@ Basic.Popup {
     modal: true
     focus: true
     closePolicy: Basic.Popup.NoAutoClose
-    visible: SettingsHub.opened && (SettingsHub.editKey !== "" || Bluetooth.request !== null || SettingsHub.forgetDevice !== null)
+    visible: SettingsHub.opened && (SettingsHub.editKey !== "" || Bluetooth.request !== null || SettingsHub.forgetDevice !== null || SettingsHub.restartMode !== "")
     readonly property var request: Bluetooth.request
     readonly property bool pairing: request !== null
     readonly property bool forgetting: !pairing && SettingsHub.forgetDevice !== null
+    readonly property bool restarting: !pairing && !forgetting && SettingsHub.restartMode !== ""
     readonly property bool needsCode: pairing && (request.kind === "pin" || request.kind === "passkey")
     readonly property bool displayCode: pairing && request.kind.startsWith("display")
     readonly property string code: pairing ? request.code : ""
     readonly property bool valid: pairing ? !needsCode || (request.kind === "pin" ? /^[A-Za-z0-9]{1,16}$/.test(field.text) : /^\d{1,6}$/.test(field.text)) : field.text.trim() !== ""
     readonly property string title: pairing ? (request.kind === "service" ? `Let ${Bluetooth.requestName} use ${Bluetooth.serviceName(request.uuid)}?` : `${displayCode ? "Pairing" : "Pair"} with ${Bluetooth.requestName}${displayCode ? "" : "?"}`)
-        : forgetting ? `Forget ${Bluetooth.name(SettingsHub.forgetDevice)}?` : ({weather:"Weather location",cider:"Cider token",name:"Device name"})[SettingsHub.editKey] || "Change setting"
+        : forgetting ? `Forget ${Bluetooth.name(SettingsHub.forgetDevice)}?` : restarting ? (SettingsHub.restartMode === "force-restart" ? "Force restart shell?" : "Restart shell?") : ({weather:"Weather location",cider:"Cider token",name:"Device name"})[SettingsHub.editKey] || "Change setting"
     readonly property string description: pairing ? request.kind === "confirm" ? "Pair only if the device shows the same code."
         : request.kind === "service" ? "The device is paired but not trusted, so it asks each time."
         : displayCode ? "Type this code on the device, then press Enter on it."
         : needsCode ? "Enter the code shown on your device or in its manual."
         : "The device asks to pair with this computer."
         : forgetting ? "You will need to pair this device again to reconnect."
+        : restarting ? "Active timers and transfers will end."
         : SettingsHub.editKey === "weather" ? "Choose a city. We’ll check it before saving."
         : SettingsHub.editKey === "cider" ? "Open Cider and paste its API token. It is checked before saving." : "The name other devices see when you share files."
 
     function cancel() {
         if (pairing) Bluetooth.answer(false, "");
         else if (forgetting) SettingsHub.forgetDevice = null;
+        else if (restarting) SettingsHub.restartMode = "";
         else SettingsHub.cancelEdit();
     }
     function submit() {
         if (forgetting) { Bluetooth.forget(SettingsHub.forgetDevice); SettingsHub.forgetDevice = null; }
+        else if (restarting) { const mode = SettingsHub.restartMode; SettingsHub.restartMode = ""; SettingsHub.restartShell(mode); }
         else if (!valid || SettingsHub.editBusy || displayCode) return;
         else if (pairing) Bluetooth.answer(true, field.text);
         else SettingsHub.saveEdit(field.text);
     }
     function fill() {
         field.text = pairing ? "" : SettingsHub.editKey === "weather" ? Weather.city : SettingsHub.editKey === "name" ? LocalSend.name : "";
-        if (needsCode || !pairing && !forgetting) { field.forceActiveFocus(); field.selectAll(); }
+        if (needsCode || !pairing && !forgetting && !restarting) { field.forceActiveFocus(); field.selectAll(); }
         else cancelButton.forceActiveFocus();
     }
     onOpened: fill()
@@ -69,7 +73,7 @@ Basic.Popup {
         Basic.TextField {
             id: field
             objectName: "settings-edit-field"
-            visible: root.needsCode || !root.pairing && !root.forgetting
+            visible: root.needsCode || !root.pairing && !root.forgetting && !root.restarting
             width:parent.width;height:52;leftPadding:16;rightPadding:16
             color:Theme.textBright;selectionColor:Theme.overlay2;selectedTextColor:Theme.textBright
             placeholderText:root.needsCode?"Code":SettingsHub.editKey==="weather"?"City":"Enter a value…"
@@ -87,7 +91,7 @@ Basic.Popup {
         Row {
             anchors.right:parent.right;spacing:10
             SettingsButton { id:cancelButton;text:root.pairing&&root.request.kind==="service"?"Decline":"Cancel";onClicked:root.cancel() }
-            SettingsButton { visible:!root.displayCode;text:root.forgetting?"Forget":SettingsHub.editBusy?"Checking…":root.pairing?root.request.kind==="service"?"Allow":"Pair":"Save";active:!root.forgetting;danger:root.forgetting;enabled:(root.forgetting||root.valid)&&!SettingsHub.editBusy;onClicked:root.submit() }
+            SettingsButton { visible:!root.displayCode;text:root.restarting?"Restart":root.forgetting?"Forget":SettingsHub.editBusy?"Checking…":root.pairing?root.request.kind==="service"?"Allow":"Pair":"Save";active:!root.forgetting&&!root.restarting;danger:root.forgetting||root.restarting;enabled:(root.restarting||root.forgetting||root.valid)&&!SettingsHub.editBusy;onClicked:root.submit() }
         }
     }
 }

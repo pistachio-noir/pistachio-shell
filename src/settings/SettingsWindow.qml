@@ -28,6 +28,8 @@ FloatingWindow {
     Connections { target:Theme;function onTuiChanged(){SystemStats.setWatching(Theme.tui || root.statsWanted);} }
     Component.onCompleted: SystemStats.setWatching(Theme.tui || statsWanted)
     onMinimizedChanged: if (minimized) Bluetooth.setScanning(false)
+    property int aboutPresses
+    property bool funAbout
     readonly property alias dialog: settingsDialog
     property var results: Catalog.search(searchField.text, LocalSend.available, Cider.installed, Brightness.available)
 
@@ -72,7 +74,7 @@ FloatingWindow {
             Qt.callLater(root.scrollToTarget);
         }
         function onOpenedChanged() {
-            if (!SettingsHub.opened) { SettingsHub.cancelEdit(); SettingsHub.forgetDevice=null; Bluetooth.setScanning(false); if (Bluetooth.request) Bluetooth.answer(false,""); }
+            if (!SettingsHub.opened) { root.aboutPresses=0; root.funAbout=false; SettingsHub.cancelEdit(); SettingsHub.forgetDevice=null; Bluetooth.setScanning(false); if (Bluetooth.request) Bluetooth.answer(false,""); }
         }
     }
     Timer { id: focusLater; interval: Theme.motionDuration + 40; onTriggered: if (SettingsHub.opened) root.contentItem.Window.window?.requestActivate() }
@@ -167,7 +169,7 @@ FloatingWindow {
                                 leftPadding:Theme.tui?16:39;rightPadding:8
                                 contentItem:Text{text:parent.text;font:parent.font;color:parent.active?Theme.bg:Theme.subtext;verticalAlignment:Text.AlignVCenter;elide:Text.ElideRight;Behavior on color { ColorAnimation { duration: Theme.hoverDuration; easing.type: Theme.easing } }}
                                 Icon{visible:!Theme.tui;x:12;anchors.verticalCenter:parent.verticalCenter;size:17;paths:Icons[modelData[4]]||Icons.sliders;color:parent.active?Theme.bg:Theme.subtext;Behavior on color { ColorAnimation { duration: Theme.hoverDuration; easing.type: Theme.easing } }}
-                                onClicked:root.navigate(modelData[0],"")
+                                onClicked:{ if(modelData[0]==="about" && !root.funAbout && ++root.aboutPresses>=10) root.funAbout=true; root.navigate(modelData[0],""); }
                             }
                         }
                     }
@@ -187,6 +189,7 @@ FloatingWindow {
                     x:Theme.tui?24:26;y:Theme.tui?16:24;width:scroll.width-(Theme.tui?48:52);spacing:Theme.tui?8:14
                     SettingsContent {
                         id:pageContent
+                        funAbout:root.funAbout
                         objectName:"settings-page-content"
                         width:parent.width
                         visible:!searchField.text.trim()

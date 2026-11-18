@@ -1,11 +1,13 @@
 import qs
 import qs.components
+import qs.panels
 import qs.services
 import QtQuick
 import "catalog.js" as Catalog
 
 Column {
     id: root
+    property bool funAbout
     property string page: SettingsHub.page
     property string soundTab: "devices"
     property bool discovering
@@ -52,10 +54,63 @@ Column {
             }
         }
     }
+    Column {
+        objectName: "about-fun"
+        visible: root.page === "about" && root.funAbout
+        width: parent.width
+        spacing: Theme.tui ? 12 : 16
+
+        Rectangle {
+            width:parent.width; height: Math.max(128, hero.implicitHeight + 32)
+            color:Theme.overlay; radius:Theme.tui ? 0 : Theme.tileRadius
+            border.width:Theme.tui ? 1 : 0; border.color:Theme.tuiBorder
+            Column {
+                id:hero; x:16; y:16; width:parent.width-144; spacing:8
+                SettingsText { width:parent.width; text:"THE CAT’S VERY OFFICIAL REPORT"; secondary:true; font.pixelSize:Theme.tui?Theme.tuiTextSize:11; font.letterSpacing:Theme.tui?0:0.6 }
+                SettingsText { width:parent.width; text:"Welcome to Pistachio Shell"; font.pixelSize:Theme.tui?Theme.tuiTextSize:20; font.weight:Font.ExtraBold }
+                SettingsText { width:parent.width; secondary:true; text:"A small desktop with suspiciously large plans." }
+                SettingsText { width:parent.width; secondary:true; text:"“I inspected the windows. Then I sat on the keyboard.” — The desktop cat" }
+            }
+            DesktopCat { anchors.right:parent.right; anchors.rightMargin:16; anchors.verticalCenter:parent.verticalCenter; active:root.page === "about" && root.funAbout }
+        }
+        SettingsText { width:parent.width; text:"Meet the crew"; font.pixelSize:Theme.tui?Theme.tuiTextSize:16; font.weight:Font.ExtraBold }
+        Rectangle {
+            width:parent.width; height:crew.implicitHeight + 20
+            color:Theme.overlay; radius:Theme.tui?0:Theme.tileRadius
+            border.width:Theme.tui?1:0; border.color:Theme.tuiBorder
+            Column {
+                id:crew; x:16; y:10; width:parent.width-32; spacing:0
+                Repeater {
+                    model:[
+                        ["You", "Captain of this operation, keeper of ideas and final decisions."],
+                        ["Claude", "Our dear helper, turning ideas into features and investigating suspicious logs."],
+                        ["Codex", "Our dear helper, building, testing and taking one more screenshot just to be sure."],
+                        ["The desktop cat", "Chief inspector of important things. Credentials: impeccable whiskers."]
+                    ]
+                    Column {
+                        required property var modelData
+                        required property int index
+                        width:crew.width; spacing:4
+                        Rectangle { width:parent.width; height:parent.index?1:0; color:Theme.overlay2 }
+                        Item { width:1; height:parent.index?8:2 }
+                        SettingsText { width:parent.width; text:parent.modelData[0]; font.weight:Font.ExtraBold }
+                        SettingsText { width:parent.width; text:parent.modelData[1]; secondary:true }
+                        Item { width:1; height:8 }
+                    }
+                }
+            }
+        }
+        SettingsText { width:parent.width; secondary:true; text:"Find things in the launcher, make room for Focus, capture a moment with Lens, or share nearby with LocalSend. Classic and TUI are both excellent nap spots." }
+        SettingsText { width:parent.width; secondary:true; text:"Built together with curiosity, patience, and a few rounds of ‘wait, why did the bar move?’" }
+        SettingsText { width:parent.width; text:"What’s under the shell?"; font.pixelSize:Theme.tui?Theme.tuiTextSize:16; font.weight:Font.ExtraBold }
+        SettingsText { width:parent.width; secondary:true; text:"Quickshell runs the panels, Hyprland wrangles the windows, and Qt holds the pixels together. The cat checked their papers and the current build below." }
+        SettingsText { width:parent.width; secondary:true; text:"Settings can be exported and reviewed before import. Tokens and history stay out of the suitcase; the cat promises not to press Apply for you." }
+    }
     Rectangle { visible:Theme.tui;width:parent.width;height:1;color:Theme.tuiBorder }
     AppearancePreview { width: parent.width; visible: root.page === "appearance" }
     Row {
-        width: parent.width; height: 82; spacing: 16; visible: root.page === "about"
+        objectName: "about-normal-header"
+        width: parent.width; height: 82; spacing: 16; visible: root.page === "about" && !root.funAbout
         Rectangle { visible:!Theme.tui;width:60;height:60;radius: Theme.tui ? 0 : (30);color:Theme.overlay;Icon{anchors.centerIn:parent;size:28;paths:Icons.sliders;color:Theme.clay} }
         Column { anchors.verticalCenter:parent.verticalCenter;spacing:4;SettingsText{text:"Pistachio Shell";font.pixelSize: Theme.tui ? Theme.tuiTextSize : 17;font.weight:Font.ExtraBold}SettingsText{text:"A shell for Hyprland.";secondary:true} }
         // the branch it runs from: main is stable, any other may not be (owner's request, 12 November 2026)
@@ -229,9 +284,9 @@ Column {
         if (page === "localsend" && LocalSend.available) return [group("",[toggle("receive","Receive files",LocalSend.summary,()=>LocalSend.wanted,LocalSend.setReceive)]),group("This device",[action("name","Device name",LocalSend.name,"Change",()=>SettingsHub.beginEdit("name")),action("folder","Save received files to",LocalSend.folderShown,"Change",LocalSend.pickFolder)]),group("Incoming requests",[toggle("known","Accept known devices","Skip asking for devices you have accepted before.",()=>LocalSend.acceptKnown,LocalSend.setAcceptKnown)])];
         // only which disks there are shapes the page; the readings are read by the rows themselves
         if (page === "system") return [group("Storage",SystemStats.diskMounts.map(m=>read("storage",m === "/" ? "System disk" : "Home",()=>{ const d=SystemStats.disks.find(x=>x.mount===m); return d ? `${SystemStats.gigabytes(d.free)} free of ${SystemStats.gigabytes(d.size)}` : "—"; },m))),group("Shell",[read("shell","Pistachio Noir",()=>root.usage(SystemStats.shellCpu,SystemStats.shellMem),"CPU and memory, including its helpers."),read("hyprland","Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.hyprCpu,SystemStats.hyprMem) : "—","The compositor."),read("desktop","Shell and Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.shellCpu < 0 || SystemStats.hyprCpu < 0 ? -1 : SystemStats.shellCpu+SystemStats.hyprCpu,SystemStats.shellMem+SystemStats.hyprMem) : "—","Both together.")]),group("Removable drives",Drives.mounted.map(d=>action("drive:"+d.path,d.name,`${d.mountpoint} · ${d.size}`,"Eject",()=>Drives.eject(d))))];
-        if (page === "about") return [group("",[read("branch","Branch",About.branch || "—",About.branch ? About.moodLong : ""),read("build","Build",About.commit || "Reading…",[About.date,About.subject,About.changed ? `${About.changed} changed files` : ""].filter(Boolean).join(" · ")),read("quickshell","Quickshell",About.quickshell || "—"),read("hyprland","Hyprland",About.hyprland || "—"),read("qt","Qt",About.qt || "—"),action("source","Source code","The shell and its design boards.","View source",SettingsHub.openSource)]),
+        if (page === "about") return [group(root.funAbout ? "The cat’s build inspection" : "",[read("branch",root.funAbout ? "The branch we’re perched on" : "Branch",About.branch || "—",About.branch ? About.moodLong : ""),read("build",root.funAbout ? "Today’s shell specimen" : "Build",About.commit || "Reading…",[About.date,About.subject,About.changed ? `${About.changed} changed files` : ""].filter(Boolean).join(" · ")),read("quickshell",root.funAbout ? "Quickshell · panel wrangler" : "Quickshell",About.quickshell || "—"),read("hyprland",root.funAbout ? "Hyprland · window herder" : "Hyprland",About.hyprland || "—"),read("qt",root.funAbout ? "Qt · keeper of pixels" : "Qt",About.qt || "—"),action("source",root.funAbout ? "Peek behind the whiskers" : "Source code",root.funAbout ? "The shell and its design boards, no secret catnip required." : "The shell and its design boards.","View source",SettingsHub.openSource)]),
             // export and import (owner's call, 15 November 2026): one file, a review before anything changes
-            group("Your settings",[action("export","Export settings",()=>Preferences.status && !Preferences.reviewing ? Preferences.status : `Every preference and the launcher's pins, aliases and presets, to ${Preferences.shownPath}.`,"Export",Preferences.exportNow),action("import","Import settings",`Read ${Preferences.shownPath} and review the changes before they apply.`,"Review import",Preferences.review)])];
+            group(root.funAbout ? "Pack your settings" : "Your settings",[action("export",root.funAbout ? "Pack the suitcase" : "Export settings",()=>Preferences.status && !Preferences.reviewing ? Preferences.status : `Every preference and the launcher's pins, aliases and presets, to ${Preferences.shownPath}.`,"Export",Preferences.exportNow),action("import",root.funAbout ? "Unpack with care" : "Import settings",`Read ${Preferences.shownPath} and review the changes before they apply.`,"Review import",Preferences.review)])];
         return [];
     }
 }

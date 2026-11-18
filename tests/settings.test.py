@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MOCKS = {
     "Qalc": "property bool found:false",
     "Events": 'property bool available:false; property var calendars:[]',
-    "Clocks": 'property bool clocksInstalled:false',
-    "FocusMode": 'property bool zen:false;property bool focusing:false;property bool pomodoring:false;property var allowed:[];function setOption(k,v){Store.saved[k]=v;}function setAllowed(a,v){}function startZen(v){}function stopZen(){}function toggleFocus(){}function togglePomodoro(){}',
+    "Clocks": 'property bool clocksInstalled:false;property var ringing:null;',
+    "FocusMode": 'signal phaseFinished(string message);property bool zen:false;property bool focusing:false;property bool pomodoring:false;property var allowed:[];function setOption(k,v){Store.saved[k]=v;}function setAllowed(a,v){}function startZen(v){}function stopZen(){}function toggleFocus(){}function togglePomodoro(){}',
 
     "Compositor": 'property var windows: []; property int activeWorkspace: 1; function placeSettingsWindow(w,x,y) {}',
     "Session": 'property bool locked',
@@ -62,6 +62,8 @@ MOCKS = {
 with tempfile.TemporaryDirectory(prefix="pistachio-settings-test-") as directory:
     base = Path(directory)
     (base / "services").mkdir()
+    (base / "panels").mkdir()
+    shutil.copy(ROOT / "src/panels/DesktopCat.qml", base / "panels/DesktopCat.qml")
     for folder in ("settings", "components"):
         shutil.copytree(ROOT / "src" / folder, base / folder)
     shutil.copy(ROOT / "src/Theme.qml", base / "Theme.qml")

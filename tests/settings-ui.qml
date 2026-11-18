@@ -18,6 +18,7 @@ ShellRoot {
         return null;
     }
     function need(name) { const item=find(win.contentItem,name) || find(win.dialog.contentItem,name); if(!item) throw new Error("Missing "+name); return item; }
+    function hasText(item, value) { if (item.visible && item.text === value) return true; for (const child of item.children) if (hasText(child,value)) return true; return false; }
     function check(ok, why) { if(!ok) throw new Error(why); }
     function click(item) { try { input.mouseClick(item,item.width/2,item.height/2); } catch(e) { throw new Error("Click failed: "+item.objectName+" "+e.message); } input.wait(30); }
     function scrollInto(item) {
@@ -63,6 +64,19 @@ ShellRoot {
         Store.saved.notifications=oldNotifications;Store.fixtureWriteNow();
         check(Store.saved.shadows && ShellSettings.shadows,"newer preference must survive completion of an older save");
         for(const name of ["appearance","display","sound","notifications","bluetooth","network","localsend","lens","apps","system","health","about"]) page(name);
+        page("appearance");
+        const aboutNav=need("settings-nav-about");
+        for(let i=0;i<9;i++) click(aboutNav);
+        check(!find(win.contentItem,"about-fun"),"nine About presses do not reveal the surprise");
+        click(aboutNav);check(!!find(win.contentItem,"about-fun"),"tenth About press reveals surprise");capture("about-fun");
+        check(!find(win.contentItem,"about-normal-header"),"normal About header is hidden in fun mode");
+        check(need("label-branch").text === "The branch we’re perched on" && need("label-build").text === "Today’s shell specimen", "build details are presented in the cat report");
+        check(!!need("setting-quickshell") && !!need("setting-hyprland") && !!need("setting-qt") && !!need("action-source") && !!need("action-export") && !!need("action-import"),"versions and About actions remain available");
+        check(hasText(need("setting-branch"),About.branch) && hasText(need("setting-build"),About.commit) && hasText(need("setting-quickshell"),About.quickshell) && hasText(need("setting-hyprland"),About.hyprland) && hasText(need("setting-qt"),About.qt),"fun report shows real branch, build and versions");
+        scrollInto(need("setting-branch"));capture("about-build");
+        ShellSettings.setAppearanceStyle("tui");input.wait(100);check(!!need("about-fun") && !find(win.contentItem,"about-normal-header") && hasText(need("setting-build"),About.commit),"fun report and build details remain in TUI");ShellSettings.setAppearanceStyle("classic");input.wait(100);
+        page("appearance");page("about");check(!!find(win.contentItem,"about-fun"),"surprise persists across pages");
+        SettingsHub.opened=false;input.wait(250);page("about");check(!find(win.contentItem,"about-fun") && !!need("about-normal-header") && need("label-branch").text === "Branch","closing Settings restores normal About");
         page("health");click(need("action-health-check"));input.wait(500);
         check(SystemHealth.checked && SystemHealth.rows.some(r=>r.id==="shell" && r.status==="Running"),"local shell/helper check returns allowlisted real service status");
         click(need("action-diagnostics"));check(Clipboard.copied.startsWith("Pistachio Noir diagnostics") && !Clipboard.copied.includes("/home/") && !Clipboard.copied.includes("192.168."),"diagnostics copy excludes identities and network details");

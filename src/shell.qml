@@ -72,6 +72,7 @@ ShellRoot {
     LauncherExtras {}
     RecordingTools {}
     AlarmPopup {} // timers done and Clocks' alarms ringing
+    PhonePreview {}
     SessionPill { id: sessionPill } // a Pomodoro's time while Zen hides the bar
     PistachioRain {
         id: rain

@@ -8,7 +8,7 @@ Singleton {
     id: root
     property string reviewing
     readonly property var defaults: ({
-        experimental: {appearanceStyle:"classic",colourScheme:"pistachio",tuiTrayOpen:false},
+        experimental: {appearanceStyle:"classic",colourScheme:"pistachio",tuiTrayOpen:false,phonePreview:false},
         appearance: {frosted:false,frostStyle:"subtle",shadows:true,desktopIcons:true,workspaceOsd:true,tabbedOsd:true},
         display: {nightSchedule:false,nightFrom:1200,nightTo:420},
         sound: {headphonesTakeOver:true,volumeTick:true},
@@ -18,7 +18,7 @@ Singleton {
         localsend: {localsendName:"",localsendFolder:"",localsendAcceptKnown:false}
     })
     readonly property var names: ({
-        appearanceStyle:"Style",colourScheme:"Colours",tuiTrayOpen:"Tray icons shown (TUI)",nightSchedule:"Night light schedule",nightFrom:"Night light start",nightTo:"Night light end",frosted:"Frosted panels",frostStyle:"Frost style",shadows:"Drop shadows",desktopIcons:"Desktop icons",workspaceOsd:"Workspace OSD",tabbedOsd:"Tabbed OSD",headphonesTakeOver:"Headphones take over",volumeTick:"Volume tick",dnd:"Do not disturb",dndSchedule:"Quiet schedule",dndFollowsNight:"Follow night light",dndFrom:"Quiet start",dndTo:"Quiet end",quietFullscreen:"Quiet in fullscreen",quietCalls:"Quiet during calls",notificationSound:"Notification sound",notificationRules:"App notification rules",lensProvider:"Preferred provider",lensClaudeModel:"Claude model",lensClaudeEffort:"Claude effort",lensCodexModel:"Codex model",lensCodexEffort:"Codex effort",lensClaudeFallback:"Claude fallback",lensCodexFallback:"Codex fallback",lensSuggestCoding:"Coding suggestions",lensClaudeCodingModel:"Claude coding model",lensClaudeCodingEffort:"Claude coding effort",lensCodexCodingModel:"Codex coding model",lensCodexCodingEffort:"Codex coding effort",quickChatTile:"Quick chat in quick settings",terminal:"Terminal",weatherCity:"Weather location",localsendName:"Device name",localsendFolder:"Receive folder",localsendAcceptKnown:"Accept known devices"
+        phonePreview:"Phone timer preview",appearanceStyle:"Style",colourScheme:"Colours",tuiTrayOpen:"Tray icons shown (TUI)",nightSchedule:"Night light schedule",nightFrom:"Night light start",nightTo:"Night light end",frosted:"Frosted panels",frostStyle:"Frost style",shadows:"Drop shadows",desktopIcons:"Desktop icons",workspaceOsd:"Workspace OSD",tabbedOsd:"Tabbed OSD",headphonesTakeOver:"Headphones take over",volumeTick:"Volume tick",dnd:"Do not disturb",dndSchedule:"Quiet schedule",dndFollowsNight:"Follow night light",dndFrom:"Quiet start",dndTo:"Quiet end",quietFullscreen:"Quiet in fullscreen",quietCalls:"Quiet during calls",notificationSound:"Notification sound",notificationRules:"App notification rules",lensProvider:"Preferred provider",lensClaudeModel:"Claude model",lensClaudeEffort:"Claude effort",lensCodexModel:"Codex model",lensCodexEffort:"Codex effort",lensClaudeFallback:"Claude fallback",lensCodexFallback:"Codex fallback",lensSuggestCoding:"Coding suggestions",lensClaudeCodingModel:"Claude coding model",lensClaudeCodingEffort:"Claude coding effort",lensCodexCodingModel:"Codex coding model",lensCodexCodingEffort:"Codex coding effort",quickChatTile:"Quick chat in quick settings",terminal:"Terminal",weatherCity:"Weather location",localsendName:"Device name",localsendFolder:"Receive folder",localsendAcceptKnown:"Accept known devices"
     })
     function available(page: string): bool { return defaults[page] !== undefined; }
     function changes(page: string): var {

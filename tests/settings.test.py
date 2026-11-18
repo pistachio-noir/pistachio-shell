@@ -65,7 +65,7 @@ with tempfile.TemporaryDirectory(prefix="pistachio-settings-test-") as directory
     for folder in ("settings", "components"):
         shutil.copytree(ROOT / "src" / folder, base / folder)
     shutil.copy(ROOT / "src/Theme.qml", base / "Theme.qml")
-    for name in ("SettingsHub", "Store", "ShellSettings", "SettingsReset", "SystemHealth", "MicCheck"):
+    for name in ("SettingsHub", "Store", "ShellSettings", "SettingsReset", "SystemHealth", "MicCheck", "Preferences"):
         shutil.copy(ROOT / f"src/services/{name}.qml", base / f"services/{name}.qml")
     for name, body in MOCKS.items():
         (base / f"services/{name}.qml").write_text("pragma Singleton\nimport Quickshell\nimport QtQuick\nSingleton {\n" + body + "\n}\n")

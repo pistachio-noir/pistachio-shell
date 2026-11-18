@@ -47,7 +47,7 @@ PanelWindow {
 '''
  for name in ['QuickSettings','NotificationCentre','PowerMenu']:(base/f'panels/{name}.qml').write_text(panel)
  (base/'panels/LocalSendPage.qml').write_text('import QtQuick\nItem {implicitHeight:100;signal back;signal settingsRequested}\n')
- (base/'popups/Toasts.qml').write_text('import Quickshell\nPanelWindow {property int side:0;property int above:0;property int below:0;implicitWidth:400;implicitHeight:180;visible:false;exclusiveZone:0}\n')
+ (base/'popups/Toasts.qml').write_text('import Quickshell\nPanelWindow {property bool suppressNotifications:false;property bool phoneShown:false;property int side:0;property int above:0;property int below:0;implicitWidth:400;implicitHeight:180;visible:false;exclusiveZone:0}\n')
  (base/'popups/Osd.qml').write_text('import Quickshell\nPanelWindow {property int lift;property bool suppressed;property bool overviewOpen;visible:false;exclusiveZone:0}\n')
  shutil.copy(ROOT/'tests/bar-ui.qml',base/'shell.qml')
  env=dict(os.environ,XDG_RUNTIME_DIR=str(base/'runtime'),XDG_STATE_HOME=str(base/'state'),XDG_CACHE_HOME=str(base/'cache'))

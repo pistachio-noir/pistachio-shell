@@ -296,6 +296,13 @@ PanelWindow {
                     }
                 }
             }
+            IconButton {
+                visible: FocusMode.session !== null && ShellSettings.phonePreview
+                anchors.verticalCenter: parent.verticalCenter
+                icon: Icons.smartphone
+                Accessible.name: "View timer on phone"
+                onClicked: FocusMode.showPhone()
+            }
         }
 
         // while the screen is recorded (owner's pick, 8 November 2026): a red dot and the time; a click

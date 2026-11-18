@@ -129,9 +129,10 @@ Scope {
     }
     Toasts {
         id:toasts
+        suppressNotifications:centreWindow.open
         WlrLayershell.layer:Theme.tui?WlrLayer.Overlay:WlrLayer.Top
         exclusionMode:Theme.tui?ExclusionMode.Ignore:ExclusionMode.Normal
-        visible:Notifs.popups.length>0 && !centreWindow.open || LocalSend.toastShown
+        visible:Notifs.popups.length>0 && !centreWindow.open || LocalSend.toastShown || toasts.phoneShown
         anchors.bottom:!Theme.tui;anchors.top:Theme.tui;anchors.right:Theme.tui
         margins.bottom:Theme.tui?0:root.height+16-below
         margins.top:Theme.tui?Theme.tuiBarHeight+Theme.tuiPanelGap-above:0

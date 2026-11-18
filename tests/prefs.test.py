@@ -13,7 +13,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 HELPER = ROOT / "src/services/prefs.py"
 CTX = {"actions": ["settings", "lens"], "claudeModels": ["claude-haiku-5-5", "sonnet", "opus"], "codexModels": ["gpt-6-luna", "gpt-6.1-sol"]}
 VALUES = {
-    "frosted": True, "frostStyle": "glassy", "appearanceStyle": "tui", "colourScheme": "noir", "tuiTrayOpen": False,
+    "frosted": True, "frostStyle": "glassy", "appearanceStyle": "tui", "colourScheme": "noir", "tuiTrayOpen": False, "phonePreview": True,
     "nightLight": True, "temperature": 3750.0, "nightSchedule": True, "nightFrom": 1320, "nightTo": 420,
     "dnd": False, "dndFrom": 1320, "notificationRules": {"Vesktop": {"noToasts": True}, "Spotify": {"until": 9999999999999}},
     "focusMinutes": 60, "focusAllowed": ["Vesktop"], "pomodoroRounds": 4,
@@ -63,11 +63,11 @@ class Prefs(unittest.TestCase):
         self.assertIn("[[launcher.presets]]", text)
 
     def test_secrets_and_history_never_written(self):
-        values = dict(VALUES, ciderToken="secret-token", localsendKnown=["phone"], notifications=[{"summary": "hi"}],
+        values = dict(VALUES, ciderToken="secret-token", localsendKnown=["private-device-identifier"], notifications=[{"summary": "hi"}],
                       launches={"helium": 3}, recentCommands=["ls"], focusState={"x": 1}, wallpaper="/w.png", desktopPositions={"a": 1})
         self.export(values)
         text = self.path.read_text()
-        for leaked in ("secret-token", "phone", "summary", "recentCommands", "/w.png", "focusState"):
+        for leaked in ("secret-token", "private-device-identifier", "summary", "recentCommands", "/w.png", "focusState"):
             self.assertNotIn(leaked, text)
 
     def test_bad_and_unknown_values_are_skipped(self):

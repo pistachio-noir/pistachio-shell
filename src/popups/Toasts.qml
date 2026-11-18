@@ -14,6 +14,8 @@ PanelWindow {
     readonly property int side: Theme.shadowSmall.blur
     readonly property int above: Theme.shadowSmall.blur - Theme.shadowSmall.y
     readonly property int below: Theme.shadowSmall.blur + Theme.shadowSmall.y
+    readonly property bool phoneShown: phoneReveal.shown
+    property bool suppressNotifications
 
     exclusiveZone: 0
     implicitWidth: side + 400 + side
@@ -38,7 +40,56 @@ PanelWindow {
                 values: Notifs.popups
             }
 
-            Toast {}
+            Toast { visible: !root.suppressNotifications }
+        }
+
+        // The phone invitation shares the notification stack and its placement.
+        PanelFrame {
+            id: phoneToast
+            objectName: "phone-toast"
+            visible: phoneReveal.shown
+            width: parent.width
+            height: Math.max(Theme.tui ? 0 : phoneIcon.height, phoneContent.implicitHeight) + (Theme.tui ? 36 : 32)
+            radius: Theme.tui ? 0 : 24
+            color: Theme.surface
+            border.color: Theme.overlay2
+            title: Theme.tui ? "focus timer" : ""
+            detail: Theme.tui ? "now" : ""
+            active: false
+            opacity: phoneReveal.progress
+            transform: Translate { y: Theme.tui ? 0 : 12 * (1 - phoneReveal.progress) }
+            Accessible.role: Accessible.StatusBar
+            Accessible.name: "Focus timer is running"
+            property real remaining: 1
+            NumberAnimation { target: phoneToast; property: "remaining"; from: 1; to: 0; duration: FocusMode.phoneToastDuration; running: FocusMode.phoneToast }
+            Rectangle { x: 20; anchors.bottom: parent.bottom; anchors.bottomMargin: 6; width: (parent.width - 40) * phoneToast.remaining; height: Theme.tui ? 2 : 3; radius: Theme.tui ? 0 : 1.5; color: Theme.overlay2 }
+            Reveal { id: phoneReveal; open: FocusMode.phoneToast && FocusMode.session !== null && !Showoff.active }
+            Shadow { frostable: true; z: -1; kind: Theme.shadowSmall; anchors.fill: parent; radius: parent.radius }
+            Rectangle {
+                id: phoneIcon
+                visible: !Theme.tui
+                x: 16; y: 16; width: 40; height: 40; radius: 20
+                color: Theme.overlay
+                Icon { anchors.centerIn: parent; size: 20; paths: Icons.smartphone; color: Theme.subtext }
+            }
+            Column {
+                id: phoneContent
+                anchors.left: Theme.tui ? parent.left : phoneIcon.right
+                anchors.leftMargin: Theme.tui ? 16 : 14
+                anchors.right: parent.right; anchors.rightMargin: 16
+                y: Theme.tui ? 20 : 16
+                spacing: 10
+                Item {
+                    width: parent.width; height: phoneTitle.implicitHeight
+                    Text { id: phoneTitle; anchors.left: parent.left; anchors.right: phoneWhen.left; anchors.rightMargin: 8; text: "Focus timer is running"; elide: Text.ElideRight; color: Theme.textBright; font.family: Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : 14; font.weight: Font.Bold }
+                    Text { id: phoneWhen; visible: !Theme.tui; anchors.right: parent.right; anchors.baseline: phoneTitle.baseline; text: "now"; color: Theme.subtext; font.family: Theme.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold }
+                }
+                Row {
+                    spacing: 8
+                    ActionButton { text: "View on phone"; primary: true; onClicked: FocusMode.showPhone() }
+                    ActionButton { text: "Dismiss"; onClicked: FocusMode.phoneToast = false }
+                }
+            }
         }
 
         // LocalSend's request, transfer or message, nearest the bar (not a notification: it waits for an answer)

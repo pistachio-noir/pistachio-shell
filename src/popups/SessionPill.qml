@@ -85,6 +85,13 @@ PanelWindow {
             }
 
             PillButton {
+                visible: ShellSettings.phonePreview
+                paths: Icons.smartphone
+                label: "View on phone"
+                onClicked: FocusMode.showPhone()
+            }
+
+            PillButton {
                 paths: Icons.skipForward
                 label: FocusMode.working ? "Skip to the break" : "Skip to work"
                 onClicked: FocusMode.skip()

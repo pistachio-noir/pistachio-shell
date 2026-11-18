@@ -33,6 +33,78 @@ Singleton {
     readonly property var allowed: Store.saved.focusAllowed ?? []
     property real now: Date.now()
 
+    // The phone helper receives only this session's public countdown state.
+    property string phoneUrl
+    property string phoneQr
+    property string phoneQrError
+    property string phoneError
+    property bool phoneOpen
+    property bool phoneToast
+    readonly property int phoneToastDuration: 8000
+    property bool phoneReady
+    readonly property bool phoneWanted: ShellSettings.phonePreview && session !== null
+    property bool phoneRestartRequested
+    property bool phoneWasActive
+    function showPhone() { if (phoneWanted) { phoneToast = false; phoneOpen = true; } }
+    function sendPhone() {
+        if (phoneReady && session)
+            phoneHelper.write(JSON.stringify({phase: phaseName(), endsAt: session.endsAt || 0,
+                left: session.left || 0, paused: paused, bg: Theme.bg.toString(),
+                text: Theme.text.toString(), accent: Theme.pistachio.toString()}) + "\n");
+    }
+    onPhoneWantedChanged: {
+        const active = phoneWanted;
+        if (active && !phoneWasActive) {
+            phoneError = "";
+            if (phoneHelper.running) phoneRestartRequested = true;
+            else phoneHelper.running = true;
+            phoneToast = true;
+            phoneToastTimer.restart();
+        }
+        if (!active) {
+            phoneRestartRequested = false;
+            phoneHelper.running = false;
+            phoneOpen = false;
+            phoneToast = false;
+            phoneUrl = "";
+            phoneQr = "";
+            phoneQrError = "";
+            phoneReady = false;
+        }
+        phoneWasActive = active;
+        sendPhone();
+    }
+    Timer { id: phoneToastTimer; interval: root.phoneToastDuration; onTriggered: root.phoneToast = false }
+    Process {
+        id: phoneHelper
+        command: ["python3", Quickshell.shellPath("services/phone-timer.py")]
+        stdinEnabled: true
+        stdout: SplitParser {
+            onRead: line => {
+                if (!root.phoneWanted || root.phoneRestartRequested) return;
+                try {
+                    const data = JSON.parse(line);
+                    root.phoneError = data.error ?? "";
+                    root.phoneUrl = data.url ?? "";
+                    root.phoneQr = data.qr ?? "";
+                    root.phoneQrError = data.qrError ?? "";
+                    root.phoneReady = !!data.url;
+                    root.sendPhone();
+                } catch (e) { root.phoneError = "Could not read the phone server response."; }
+            }
+        }
+        stderr: SplitParser { onRead: line => console.warn("phone timer:", line) }
+        onExited: {
+            root.phoneReady = false;
+            root.phoneUrl = "";
+            root.phoneQr = "";
+            if (root.phoneWanted && root.phoneRestartRequested) {
+                root.phoneRestartRequested = false;
+                Qt.callLater(() => { if (root.phoneWanted && !phoneHelper.running) phoneHelper.running = true; });
+            } else if (root.phoneWanted && !root.phoneError) root.phoneError = "Phone server stopped.";
+        }
+    }
+
     signal announce(string title, string detail, bool on) // for the OSD
 
     function allows(app: string): bool {
@@ -214,6 +286,7 @@ Singleton {
         triggeredOnStart: true
         onTriggered: {
             root.now = Date.now();
+            root.sendPhone();
             if (root.session?.endsAt && root.now >= root.session.endsAt)
                 root.advance(true);
         }
@@ -221,6 +294,8 @@ Singleton {
 
     // after a restart, Zen's layout again (Hyprland forgets runtime settings on a config reload too:
     // Compositor reapplies it then)
-    Component.onCompleted: if (zen)
-        Compositor.zenLayout(true)
+    Component.onCompleted: {
+        if (zen) Compositor.zenLayout(true);
+        if (phoneWanted && !phoneHelper.running) phoneHelper.running = true;
+    }
 }

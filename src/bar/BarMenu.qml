@@ -30,6 +30,7 @@ PanelWindow {
         const out = [];
         // a Focus or Zen session (FocusMode)
         if (FocusMode.session) {
+            if (ShellSettings.phonePreview) out.push({ text: "View on phone", glyph: Icons.smartphone, run: () => FocusMode.showPhone() });
             out.push({ text: FocusMode.paused ? "Resume the session" : "Pause the session", glyph: FocusMode.working ? Icons.lightbulb : Icons.moon, run: () => FocusMode.pause() });
             if (FocusMode.session.pomodoro)
                 out.push({ text: FocusMode.working ? "Skip to the break" : "Skip to work", glyph: Icons.skipForward, run: () => FocusMode.skip() });

@@ -13,7 +13,7 @@ var pages = [
     ["integrations", "Integrations", "Other apps the shell works with.", "Shell", "layers"],
     ["system", "System monitor", "A quiet look at what your desktop is doing.", "Shell", "cpu"],
     ["health", "Shell health", "Local helpers, dependencies and CLI sign-in status.", "Shell", "info"],
-    ["experimental", "Experimental", "Newer looks: the TUI style and the Noir colours.", "Shell", "flask"],
+    ["experimental", "Experimental", "TUI style, colours and experimental features.", "Shell", "flask"],
     ["about", "About", "Made for your desktop.", "Shell", "info"]
 ];
 var settings = [
@@ -44,6 +44,7 @@ var settings = [
     ["sound","player","Media player","Devices","mpris auto selection"],
     ["network","ipv4","IP addresses","Connection details","ipv4 ipv6 gateway dns ethernet copy"],
     ["experimental", "style", "Style", "Style", "classic tui appearance terminal look"],
+    ["experimental", "phone-preview", "Phone timer preview", "Phone preview", "phone pomodoro focus timer qr local network share"],
     ["experimental", "colours", "Colours", "Style", "colours colors scheme noir pistachio grey gray monochrome black white theme"],
     ["appearance", "frost", "Frosted panels", "Surfaces", "solid subtle glassy opacity blur"],
     ["appearance", "shadows", "Drop shadows", "Surfaces", "depth"],

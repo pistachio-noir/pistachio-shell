@@ -164,6 +164,7 @@ PanelWindow {
             }
             TuiBarButton { visible:Clocks.stopwatch!==null;text:"sw";value:Clocks.clock(Clocks.elapsed());onClicked:button=>{if(button===Qt.RightButton){workspaceMenu.kind="clock";workspaceMenu.at=root.width-100;workspaceMenu.open=true;}else Clocks.pauseStopwatch();} }
             TuiBarButton { visible:FocusMode.session!==null;text:FocusMode.phaseName();value:FocusMode.clock(FocusMode.left());onClicked:button=>{if(button===Qt.RightButton){workspaceMenu.kind="clock";workspaceMenu.at=root.width-100;workspaceMenu.open=true;}else FocusMode.pause();} }
+            TuiBarButton { visible:FocusMode.session!==null && ShellSettings.phonePreview;text:"phone";Accessible.name:"View timer on phone";onClicked:FocusMode.showPhone() }
                 }
             }
         }

@@ -48,6 +48,8 @@ var settings = [
     ["experimental", "force-restart-shell", "Force restart shell", "Shell", "restart force kill helpers"],
     ["experimental", "monochrome-wallpaper", "Monochrome wallpaper", "Style", "wallpaper monochrome grayscale greyscale noir background"],
     ["experimental", "clipboard-history", "Clipboard history", "Clipboard history", "clipboard copy paste history cliphist"],
+    ["experimental", "game-mode", "Game mode", "Game mode", "game gaming fullscreen steam animations blur quiet"],
+    ["experimental", "game-classes", "Extra game windows", "Game mode", "game window class steam"],
     ["experimental", "desktop-cat", "Desktop cat", "Desktop cat", "cat pet pixel desktop"],
     ["experimental", "phone-preview", "Phone timer preview", "Phone preview", "phone pomodoro focus timer qr local network share"],
     ["experimental", "colours", "Colours", "Style", "colours colors scheme noir pistachio grey gray monochrome black white theme"],

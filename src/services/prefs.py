@@ -80,6 +80,13 @@ def names_list(limit):
     return check
 
 
+def game_classes(v, _ctx):
+    # as GameMode.parseClasses: up to 20 lowercase window classes of letters, digits, . _ -
+    if isinstance(v, list) and len(v) <= 20 and all(isinstance(x, str) and re.fullmatch(r"[a-z0-9._-]{1,100}", x) for x in v):
+        return list(dict.fromkeys(v))
+    raise ValueError("expected up to 20 lowercase window classes")
+
+
 def integrations(v, _ctx):
     v = names_list(len(INTEGRATIONS))(v, _ctx)
     unknown = [x for x in v if x not in INTEGRATIONS]
@@ -163,6 +170,8 @@ SCHEMA = [
     ("experimental", "desktop_cat", "desktopCat", bool_),
     ("experimental", "clipboard_history", "clipboardHistory", bool_),
     ("experimental", "monochrome_wallpaper", "monochromeWallpaper", bool_),
+    ("experimental", "game_mode", "gameMode", bool_),
+    ("experimental", "game_classes", "gameClasses", game_classes),
     ("display", "night_light", "nightLight", bool_), ("display", "night_warmth", "temperature", integer(2500, 6500)),
     ("display", "night_schedule", "nightSchedule", bool_), ("display", "night_from", "nightFrom", time), ("display", "night_to", "nightTo", time),
     ("sound", "headphones_take_over", "headphonesTakeOver", bool_), ("sound", "volume_tick", "volumeTick", bool_),

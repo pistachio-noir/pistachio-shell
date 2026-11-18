@@ -26,6 +26,10 @@ Singleton {
     function setClipboardHistory(value: bool) { Store.saved.clipboardHistory = value; }
     readonly property bool phonePreview: Store.saved.phonePreview === true
     function setPhonePreview(value: bool) { Store.saved.phonePreview = value; }
+    readonly property bool gameMode: Store.saved.gameMode === true
+    function setGameMode(value: bool) { Store.saved.gameMode = value; }
+    readonly property var gameClasses: Array.from(Store.saved.gameClasses ?? [])
+    function setGameClasses(list: var) { Store.saved.gameClasses = list; }
     readonly property bool tuiTrayOpen: Store.saved.tuiTrayOpen === true
     function setTuiTrayOpen(value: bool) {
         Store.saved.tuiTrayOpen = value;

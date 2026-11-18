@@ -148,6 +148,18 @@ PanelWindow {
         }
     }
 
+    // Game mode (owner's request, 18 November 2026): the same card as Zen's as it starts and ends
+    Connections {
+        target: GameMode
+
+        function onActiveChanged() {
+            root.modeTitle = GameMode.active ? "Game mode on" : "Game mode off";
+            root.modeDetail = GameMode.active ? "Toasts wait · no animations or blur" : "Animations and blur are back";
+            root.modeOn = GameMode.active;
+            root.show("mode");
+        }
+    }
+
     // (not as the setting is read at startup: settling covers that)
     Connections {
         target: Compositor

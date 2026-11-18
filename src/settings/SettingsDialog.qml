@@ -22,9 +22,9 @@ Basic.Popup {
     readonly property bool needsCode: pairing && (request.kind === "pin" || request.kind === "passkey")
     readonly property bool displayCode: pairing && request.kind.startsWith("display")
     readonly property string code: pairing ? request.code : ""
-    readonly property bool valid: pairing ? !needsCode || (request.kind === "pin" ? /^[A-Za-z0-9]{1,16}$/.test(field.text) : /^\d{1,6}$/.test(field.text)) : field.text.trim() !== ""
+    readonly property bool valid: pairing ? !needsCode || (request.kind === "pin" ? /^[A-Za-z0-9]{1,16}$/.test(field.text) : /^\d{1,6}$/.test(field.text)) : field.text.trim() !== "" || SettingsHub.editKey === "games"
     readonly property string title: pairing ? (request.kind === "service" ? `Let ${Bluetooth.requestName} use ${Bluetooth.serviceName(request.uuid)}?` : `${displayCode ? "Pairing" : "Pair"} with ${Bluetooth.requestName}${displayCode ? "" : "?"}`)
-        : forgetting ? `Forget ${Bluetooth.name(SettingsHub.forgetDevice)}?` : restarting ? (SettingsHub.restartMode === "force-restart" ? "Force restart shell?" : "Restart shell?") : ({weather:"Weather location",cider:"Cider token",name:"Device name"})[SettingsHub.editKey] || "Change setting"
+        : forgetting ? `Forget ${Bluetooth.name(SettingsHub.forgetDevice)}?` : restarting ? (SettingsHub.restartMode === "force-restart" ? "Force restart shell?" : "Restart shell?") : ({weather:"Weather location",cider:"Cider token",name:"Device name",games:"Extra game windows"})[SettingsHub.editKey] || "Change setting"
     readonly property string description: pairing ? request.kind === "confirm" ? "Pair only if the device shows the same code."
         : request.kind === "service" ? "The device is paired but not trusted, so it asks each time."
         : displayCode ? "Type this code on the device, then press Enter on it."
@@ -32,6 +32,7 @@ Basic.Popup {
         : "The device asks to pair with this computer."
         : forgetting ? "You will need to pair this device again to reconnect."
         : restarting ? "Active timers and transfers will end."
+        : SettingsHub.editKey === "games" ? "Window classes, separated by commas. Find one with hyprctl activewindow."
         : SettingsHub.editKey === "weather" ? "Choose a city. We’ll check it before saving."
         : SettingsHub.editKey === "cider" ? "Open Cider and paste its API token. It is checked before saving." : "The name other devices see when you share files."
 
@@ -49,7 +50,7 @@ Basic.Popup {
         else SettingsHub.saveEdit(field.text);
     }
     function fill() {
-        field.text = pairing ? "" : SettingsHub.editKey === "weather" ? Weather.city : SettingsHub.editKey === "name" ? LocalSend.name : "";
+        field.text = pairing ? "" : SettingsHub.editKey === "weather" ? Weather.city : SettingsHub.editKey === "name" ? LocalSend.name : SettingsHub.editKey === "games" ? ShellSettings.gameClasses.join(", ") : "";
         if (needsCode || !pairing && !forgetting && !restarting) { field.forceActiveFocus(); field.selectAll(); }
         else cancelButton.forceActiveFocus();
     }

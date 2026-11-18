@@ -73,6 +73,13 @@ Singleton {
     function saveEdit(input: string) {
         if (!editKey || editBusy) return;
         const value = input.trim();
+        if (editKey === "games") { // extra game windows: checked here, an empty list clears it
+            const parsed = GameMode.parseClasses(value);
+            if (parsed.error) { editError = parsed.error; return; }
+            ShellSettings.setGameClasses(parsed.list);
+            cancelEdit();
+            return;
+        }
         if (!value) { editError = "Enter a value first."; return; }
         const key = editKey, generation = ++editGeneration;
         editBusy = true;

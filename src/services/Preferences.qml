@@ -26,7 +26,7 @@ Singleton {
     readonly property var titles: ({
         frosted: "Frosted panels", frostStyle: "Frost style", shadows: "Drop shadows", desktopIcons: "Desktop icons",
         workspaceOsd: "Workspace OSD", tabbedOsd: "Tabbed OSD",
-        desktopCat: "Desktop cat", clipboardHistory: "Clipboard history", monochromeWallpaper: "Monochrome wallpaper", phonePreview: "Phone timer preview", appearanceStyle: "Style", colourScheme: "Colours", tuiTrayOpen: "Tray icons shown (TUI)",
+        desktopCat: "Desktop cat", clipboardHistory: "Clipboard history", monochromeWallpaper: "Monochrome wallpaper", phonePreview: "Phone timer preview", gameMode: "Game mode", gameClasses: "Extra game windows", appearanceStyle: "Style", colourScheme: "Colours", tuiTrayOpen: "Tray icons shown (TUI)",
         nightLight: "Night light", temperature: "Night light warmth", nightSchedule: "Night light schedule",
         nightFrom: "Night light start", nightTo: "Night light end",
         headphonesTakeOver: "Headphones take over", volumeTick: "Volume tick",

@@ -199,6 +199,10 @@ Column {
             group("Desktop cat", [
                 toggle("desktop-cat", "Desktop cat", "Meoww", () => ShellSettings.desktopCat, ShellSettings.setDesktopCat)
             ]),
+            group("Game mode", [
+                toggle("game-mode", "Game mode", "While a fullscreen game is focused: quiet notifications, no animations or blur.", () => ShellSettings.gameMode, ShellSettings.setGameMode),
+                action("game-classes", "Extra game windows", () => ShellSettings.gameClasses.length ? ShellSettings.gameClasses.join(", ") : "Steam, Sober and gamescope only", "Change", () => SettingsHub.beginEdit("games"))
+            ]),
             group("Shell", [
                 action("restart-shell", "Restart shell", "Restart the shell and its helpers.", "Restart", () => SettingsHub.restartMode = "restart"),
                 action("force-restart-shell", "Force restart shell", "Immediately stop the shell and its helpers.", "Force restart", () => SettingsHub.restartMode = "force-restart")

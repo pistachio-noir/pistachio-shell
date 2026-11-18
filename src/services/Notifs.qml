@@ -14,7 +14,7 @@ Singleton {
     readonly property bool dnd: Store.saved.dnd
     // the same while a fullscreen window has focus or an app records from the mic (a call), if the
     // shell settings say so
-    readonly property bool quiet: dnd || ShellSettings.quietFullscreen && Compositor.fullscreen || ShellSettings.quietCalls && Audio.recorders.length > 0 || Showoff.active
+    readonly property bool quiet: dnd || ShellSettings.quietFullscreen && Compositor.fullscreen || ShellSettings.quietCalls && Audio.recorders.length > 0 || Showoff.active || GameMode.active
     // Do not disturb's schedule (owner's request, after phase 8): on at dndFrom, off at dndTo, with its
     // own times or night light's. Like night light's, it only acts at those two moments, so switching
     // by hand holds until the next one; when the shell starts or the times change, it is set to match.

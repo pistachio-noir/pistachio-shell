@@ -240,6 +240,40 @@ Singleton {
         }
     }
 
+    // Game mode (GameMode.qml): animations and blur off while a fullscreen game is focused. The values
+    // before are read once and kept in Store, so a restart mid-game still puts them back; runtime only.
+    function gameLayout(on: bool) {
+        if (!Hyprland.usingLua)
+            return;
+        if (on && !gameSavedHere)
+            gameReader.running = true;
+        else if (on)
+            hl(`hl.config({ animations = { enabled = false }, decoration = { blur = { enabled = false } } })`);
+        else if (gameSavedHere) {
+            const g = Store.saved.gameLayoutSaved;
+            hl(`hl.config({ animations = { enabled = ${!!g.animations} }, decoration = { blur = { enabled = ${!!g.blur} } } })`);
+            Store.saved.gameLayoutSaved = null;
+        }
+    }
+
+    Process {
+        id: gameReader
+        command: ["sh", "-c", "hyprctl getoption animations:enabled -j; hyprctl getoption decoration:blur:enabled -j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const parts = text.trim().split(/\n(?=\{)/).map(t => JSON.parse(t));
+                    const on = p => !!(p.bool ?? p.int);
+                    Store.saved.gameLayoutSaved = { animations: on(parts[0]), blur: on(parts[1]), instance: root.hyprInstance };
+                    if (GameMode.active)
+                        root.gameLayout(true);
+                } catch (e) {
+                    console.warn("game layout:", e, text);
+                }
+            }
+        }
+    }
+
     Process {
         id: zenReader
         command: ["sh", "-c", "hyprctl getoption general:gaps_in -j; hyprctl getoption general:gaps_out -j; hyprctl getoption general:border_size -j"]
@@ -508,6 +542,8 @@ Singleton {
                 root.styleGroups();
                 if (FocusMode.zen) // a config reload brings the gaps back
                     root.zenLayout(true);
+                if (GameMode.active) // and the animations and blur
+                    root.gameLayout(true);
                 const settings = root.windows.find(w => w.title === "Pistachio Settings" && w.pid === Quickshell.processId);
                 if (settings) root.styleSettingsWindow(settings.address);
             }
@@ -532,6 +568,17 @@ Singleton {
         interval: 50 // one refresh per burst of events
         onTriggered: Hyprland.refreshToplevels()
     }
+
+    // a shell that stopped mid-game left Hyprland's animations and blur off: put them back once Store
+    // has loaded, unless a game is in front again
+    // (only values saved in this Hyprland session: after a logout or reboot its own config is the truth,
+    // so older ones are dropped; and only once Hyprland is known to read Lua, or nothing is sent)
+    readonly property string hyprInstance: Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") ?? ""
+    readonly property bool gameSavedHere: !!Store.saved.gameLayoutSaved && Store.saved.gameLayoutSaved.instance === hyprInstance
+    readonly property bool gameRestoreDue: Store.ready && gameSavedHere && !GameMode.active && Hyprland.usingLua
+    onGameRestoreDueChanged: if (gameRestoreDue) Qt.callLater(() => { if (root.gameRestoreDue) root.gameLayout(false); })
+    readonly property bool gameSavedStale: Store.ready && !!Store.saved.gameLayoutSaved && !gameSavedHere
+    onGameSavedStaleChanged: if (gameSavedStale) Store.saved.gameLayoutSaved = null
 
     Component.onCompleted: {
         Hyprland.refreshToplevels();

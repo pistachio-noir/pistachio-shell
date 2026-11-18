@@ -43,6 +43,7 @@ ShellRoot {
     function runChecks() {
         check(ShellSettings.appearanceStyle === "classic", "missing style defaults to Classic");
         check(!ShellSettings.phonePreview, "phone preview defaults off");
+        check(!ShellSettings.gameMode && ShellSettings.gameClasses.length === 0, "game mode defaults off with no extra classes");
         check(!ShellSettings.desktopCat, "desktop cat defaults off");
         check(!ShellSettings.clipboardHistory, "clipboard history defaults off");
         check(!ShellSettings.monochromeWallpaper, "monochrome wallpaper defaults off");
@@ -179,6 +180,15 @@ ShellRoot {
         check(SettingsHub.editError==="No place found"&&Weather.city==="Before","invalid city preserves setting and error");
         SettingsHub.saveEdit("Valid");Weather.pending({name:"After"},"");input.wait(20);
         check(Weather.city==="After"&&SettingsHub.editKey==="","valid city saved");
+        page("experimental");scrollInto(need("toggle-game-mode"));click(need("toggle-game-mode"));input.wait(20);check(ShellSettings.gameMode,"game mode switch turns on");
+        click(need("action-game-classes"));input.wait(50);check(SettingsHub.editKey==="games","extra game windows edit opens");
+        need("settings-edit-field").text="Minecraft, foo";input.keyClick(Qt.Key_Return);input.wait(20);
+        check(SettingsHub.editKey===""&&JSON.stringify(ShellSettings.gameClasses)==='["minecraft","foo"]',"game classes saved lowercase");
+        SettingsHub.beginEdit("games");SettingsHub.saveEdit("bad class!");input.wait(20);
+        check(SettingsHub.editError!==""&&SettingsHub.editKey==="games"&&ShellSettings.gameClasses.length===2,"bad class refused, list kept");
+        SettingsHub.saveEdit("");input.wait(20);
+        check(SettingsHub.editKey===""&&ShellSettings.gameClasses.length===0,"empty input clears game classes");
+        ShellSettings.setGameMode(false);
         for(const kind of ["confirm","authorize","service","pin","passkey","display-pin","display-passkey"]) {
             Bluetooth.ask(kind);input.wait(40);
             check(SettingsHub.page==="bluetooth","pairing opens Settings");

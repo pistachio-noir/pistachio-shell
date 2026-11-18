@@ -30,6 +30,9 @@ Singleton {
         property bool monochromeWallpaper // optional grayscale wallpaper in Noir
         property bool clipboardHistory // clipboard history is opt-in
         property bool phonePreview // local phone timer preview is opt-in
+        property bool gameMode // game mode is opt-in (Experimental)
+        property var gameClasses: [] // extra game window classes, lowercase
+        property var gameLayoutSaved: null // Hyprland's animations/blur before game mode, while it runs
         property bool tuiTrayOpen // TUI strip: tray icons and minimised windows shown (owner's call: collapsed by default)
         property bool shadows: true // drop shadows under panels and popups
         property bool quietFullscreen: true // toasts wait while a fullscreen window has focus

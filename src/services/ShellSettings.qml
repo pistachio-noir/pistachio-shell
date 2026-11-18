@@ -15,6 +15,8 @@ Singleton {
     }
     readonly property bool desktopCat: Store.saved.desktopCat === true
     function setDesktopCat(value: bool) { Store.saved.desktopCat = value; }
+    readonly property bool clipboardHistory: Store.saved.clipboardHistory === true
+    function setClipboardHistory(value: bool) { Store.saved.clipboardHistory = value; }
     readonly property bool phonePreview: Store.saved.phonePreview === true
     function setPhonePreview(value: bool) { Store.saved.phonePreview = value; }
     readonly property bool tuiTrayOpen: Store.saved.tuiTrayOpen === true

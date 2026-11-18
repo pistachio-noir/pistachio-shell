@@ -161,6 +161,7 @@ SCHEMA = [
     ("experimental", "tui_tray_open", "tuiTrayOpen", bool_),
     ("experimental", "phone_preview", "phonePreview", bool_),
     ("experimental", "desktop_cat", "desktopCat", bool_),
+    ("experimental", "clipboard_history", "clipboardHistory", bool_),
     ("display", "night_light", "nightLight", bool_), ("display", "night_warmth", "temperature", integer(2500, 6500)),
     ("display", "night_schedule", "nightSchedule", bool_), ("display", "night_from", "nightFrom", time), ("display", "night_to", "nightTo", time),
     ("sound", "headphones_take_over", "headphonesTakeOver", bool_), ("sound", "volume_tick", "volumeTick", bool_),

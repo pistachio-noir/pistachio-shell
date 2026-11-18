@@ -240,4 +240,8 @@ None right now.
 - The TUI strip's top-edge reveal never fired (owner's report, 14 November 2026): while hidden the strip's content, its edge HoverHandler included, slid 41 px up out of the window, so the 2 px input strip had nothing under it. Sliding it 2 px short then looped: content moving under a still pointer made Qt report a leave, and the revealed strip hid again. It now only fades (content stays put); traced with a timestamped hover log while moving the cursor with `hyprctl dispatch 'hl.dsp.cursor.move({ x = 900, y = 0 })'`. Synthetic moves on a machine in use mix with the owner's own mouse, so the final hover check is by hand.
 - A launcher context-menu entry that closes the menu (`root.menu = null`) destroys itself, and `root` is undefined in what runs after it ("ReferenceError: root is not defined", 13 November): keep the launcher in a local first (`const launcher = root`).
 
+- Clipboard history (18 November 2026, owner’s call): `Clipboard` runs `wl-paste --type text --watch cliphist store` only while enabled in Settings → Experimental (default off); disabling keeps the existing history; `;` searches cliphist previews, Enter restores an item, and Clear requires confirmation. Cliphist stores history on disk; it can contain secrets.
+
+- Launcher Classic rows (18 November 2026): each new result kind needs an entry in the Classic Loader’s `sourceComponent` map; otherwise its zero-height delegate collapses the results despite TUI rendering it. The launcher regression checks clipboard row height in both styles.
+
 - Cat palette (18 November 2026, owner’s call): desktop cat illustration uses fixed Theme.catOutline/Fur/Eyes/Cheeks in both colour schemes; the speech bubble follows the general palette.

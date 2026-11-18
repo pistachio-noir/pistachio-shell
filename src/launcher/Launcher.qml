@@ -113,6 +113,8 @@ PanelWindow {
     // and Hyprland's binds, each time the cheat sheet opens
     readonly property bool cheatWanted: open && (mode === "all" || mode === "apps") && query.startsWith("?")
     onCheatWantedChanged: if (cheatWanted) Compositor.loadBinds()
+    readonly property bool clipboardWanted: open && (mode === "all" || mode === "apps") && query.startsWith(";")
+    onClipboardWantedChanged: if (clipboardWanted) Clipboard.loadHistory()
     // and look through the home folder only while a "/" search is
     readonly property bool filesWanted: open && (mode === "all" || mode === "apps") && query.startsWith("/")
     onFilesWantedChanged: {
@@ -337,6 +339,7 @@ PanelWindow {
             ["@", "Search the web with DuckDuckGo"],
             [":", "Emoji; Enter copies one"],
             ["?", "This cheat sheet"],
+            [";", "Clipboard history; Enter copies an item"],
             ["12*3", "A calculation: the answer shows at the top"]
         ].concat([["ask", "Ask AI: the quick chat above the bar, with a question or without"]], Apps.claudeApp ? [["claude", "Ask Claude: a new chat in Claude Desktop"]] : [],
             Cider.installed && Cider.enabled ? [["m", "Apple Music in Cider: Enter plays, Shift+Enter plays next"]] : [],
@@ -1187,6 +1190,13 @@ PanelWindow {
         } else if (row.kind === "tldrman") {
             Quickshell.execDetached(Apps.inTerminal(["man", row.page], false, `man ${row.page}`));
             open = false;
+        } else if (row.kind === "clipboard") {
+            Clipboard.restoreHistory(row.clipId);
+            open = false;
+        } else if (row.kind === "clipboard-clear") {
+            confirming = { id:"clear-clipboard", title:"Clear history", icon:Icons.close, danger:true, question:"Clear clipboard history?", confirm:"All saved clipboard items will be deleted.", run:() => Clipboard.clearHistory() };
+            current = 0;
+            column = 0;
         } else if (row.kind === "tldr") {
             Clipboard.copyText(row.command);
             open = false;
@@ -1865,7 +1875,7 @@ PanelWindow {
                     property bool quick
                     readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["shellaction", "settingslink", "lenschoice", "lensoption", "app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude", "ask"].includes(root.rows[root.current].kind))
+                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["shellaction", "settingslink", "lenschoice", "lensoption", "app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "clipboard", "clipboard-clear", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude", "ask"].includes(root.rows[root.current].kind))
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -2085,6 +2095,8 @@ PanelWindow {
                                 project: resultView,
                                 game: resultView,
                                 process: resultView,
+                                clipboard: resultView,
+                                "clipboard-clear": resultView,
                                 tldr: resultView,
                                 music: resultView,
                                 aboutline: resultView,

@@ -190,7 +190,7 @@ Singleton {
     // Hyprland's own tab bar on groups, in the Pistachio look (owner's call, 9 November 2026: the shell's
     // strip, a layer above every window, covered windows and lagged when things moved): filled pill
     // tabs, the shown one pistachio with bg text, the rest overlay with subtext, Manrope titles; the
-    // group's border as the owner's window border. Set at runtime (the config file is untouched), at
+    // window and group borders follow the palette (owner’s call, 18 November 2026). Set at runtime (the config file is untouched), at
     // startup and after each config reload, which would undo it.
     function hex(c: color, alpha: real): string {
         const two = v => Math.round(v * 255).toString(16).padStart(2, "0");
@@ -202,8 +202,7 @@ Singleton {
     function styleGroups() {
         if (!Hyprland.usingLua)
             return; // a hyprland.conf: the README gives its lines
-        hl(`hl.config({ group = { groupbar = { gradients = true, gradient_rounding = 11, gradient_round_only_edges = false, rounding = 11, height = 22, indicator_height = 0, gaps_in = 4, gaps_out = 4, font_family = "${Theme.fontUi}", font_size = 11, font_weight_active = "heavy", font_weight_inactive = "bold", text_color = "${hex(Theme.bg, 1)}", text_color_inactive = "${hex(Theme.subtext, 1)}", col = { active = "${hex(Theme.pistachio, 1)}", inactive = "${hex(Theme.overlay, 1)}", locked_active = "${hex(Theme.clay, 1)}", locked_inactive = "${hex(Theme.overlay2, 1)}" } } } })`);
-        borderReader.running = true;
+        hl(`hl.config({ general = { col = { active_border = "${hex(Theme.pistachio, 238 / 255)}", inactive_border = "rgba(00000000)" } }, group = { col = { border_active = "${hex(Theme.pistachio, 238 / 255)}", border_inactive = "rgba(00000000)" }, groupbar = { gradients = true, gradient_rounding = 11, gradient_round_only_edges = false, rounding = 11, height = 22, indicator_height = 0, gaps_in = 4, gaps_out = 4, font_family = "${Theme.fontUi}", font_size = 11, font_weight_active = "heavy", font_weight_inactive = "bold", text_color = "${hex(Theme.bg, 1)}", text_color_inactive = "${hex(Theme.subtext, 1)}", col = { active = "${hex(Theme.pistachio, 1)}", inactive = "${hex(Theme.overlay, 1)}", locked_active = "${hex(Theme.clay, 1)}", locked_inactive = "${hex(Theme.overlay2, 1)}" } } } })`);
     }
 
     // At login the shell can start before it knows Hyprland's config is Lua (`usingLua` false at
@@ -264,19 +263,6 @@ Singleton {
 
     function hl(lua: string) {
         Quickshell.execDetached(["hyprctl", "eval", lua]);
-    }
-
-    // the group's border: the owner's own window border colours, read from Hyprland
-    Process {
-        id: borderReader
-        command: ["sh", "-c", "hyprctl getoption general:col.active_border | head -1; hyprctl getoption general:col.inactive_border | head -1"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const colours = text.split("\n").map(l => (/gradient data: ([0-9a-f]{8})/.exec(l) ?? [])[1]).map(v => v ? `rgba(${v.slice(2)}${v.slice(0, 2)})` : "");
-                if (colours[0])
-                    root.hl(`hl.config({ group = { col = { border_active = "${colours[0]}", border_inactive = "${colours[1] || "rgba(00000000)"}" } } })`);
-            }
-        }
     }
 
     // For keybinds: qs -c pistachio ipc call window minimize (the focused window), window restore (the

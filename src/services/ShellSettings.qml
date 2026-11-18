@@ -1,10 +1,15 @@
 pragma Singleton
 
 import Quickshell
+import Quickshell.Io
 import QtQuick
 
 // The shell's own look, set in the launcher (System, Shell settings) and kept in Store.
 Singleton {
+    readonly property string publishedScheme: Store.ready ? colourScheme : ""
+    onPublishedSchemeChanged: if (publishedScheme) themePublisher.exec(["python3", Quickshell.shellPath("services/shared-theme.py"), publishedScheme])
+    property Process themePublisher: Process {}
+
     readonly property string appearanceStyle: Store.saved.appearanceStyle === "tui" ? "tui" : "classic"
     function setAppearanceStyle(value: string) {
         if (value === "classic" || value === "tui") Store.saved.appearanceStyle = value;

@@ -244,4 +244,6 @@ None right now.
 
 - Launcher Classic rows (18 November 2026): each new result kind needs an entry in the Classic Loader’s `sourceComponent` map; otherwise its zero-height delegate collapses the results despite TUI rendering it. The launcher regression checks clipboard row height in both styles.
 
+- Launcher clock commands (18 November 2026, owner’s call): `timer`, `alarm` and `stopwatch` show actions before Enter; clock prompts and keyword results share input validation. Stopwatch start never resets an existing stopwatch.
+
 - Cat palette (18 November 2026, owner’s call): desktop cat illustration uses fixed Theme.catOutline/Fur/Eyes/Cheeks in both colour schemes; the speech bubble follows the general palette.

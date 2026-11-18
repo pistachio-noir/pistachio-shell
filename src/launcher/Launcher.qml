@@ -221,6 +221,52 @@ PanelWindow {
         }, Compositor.nameOf(id));
     }
 
+    function timerInput(text: string): var {
+        const words = text.trim().split(/\s+/);
+        let n = words.length;
+        while (n > 0 && Clocks.parseDuration(words.slice(0, n).join(" ")) <= 0) n--;
+        return n ? { ms: Clocks.parseDuration(words.slice(0, n).join(" ")), label: words.slice(n).join(" ") } : null;
+    }
+
+    function alarmInput(text: string): var {
+        const m = /^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?\s*(.*)$/i.exec(text.trim());
+        if (!m) return null;
+        let hour = parseInt(m[1]);
+        const minute = m[2] ? parseInt(m[2]) : 0;
+        if (minute >= 60 || (m[3] ? hour < 1 || hour > 12 : hour > 23)) return null;
+        if (m[3]) hour = hour % 12 + (m[3].toLowerCase() === "pm" ? 12 : 0);
+        return { hour: hour, minute: minute, label: m[4] };
+    }
+
+    function clockRows(q: string): var {
+        const m = /^(timer|alarm|stopwatch)(?:\s+(.*))?$/i.exec(q.trim());
+        if (!m) return [];
+        const kind = m[1].toLowerCase(), arg = (m[2] || "").trim();
+        let title, action;
+        if (kind === "timer") {
+            const v = arg ? timerInput(arg) : null;
+            if (arg && !v) return [{kind:"empty", key:"clock-invalid", title:"Try timer 5m tea or timer 1h 30m"}];
+            title = arg ? `Start timer · ${arg}` : "Set a timer…";
+            action = arg ? () => { Clocks.startTimer(v.ms, v.label); open = false; } : askTimer;
+        } else if (kind === "alarm") {
+            const v = arg ? alarmInput(arg) : null;
+            if (arg && !v) return [{kind:"empty", key:"clock-invalid", title:"Try alarm 7:30 wake up"}];
+            title = arg ? `Set alarm · ${arg}` : "Set an alarm…";
+            action = arg ? () => { Clocks.addAlarm(v.hour, v.minute, v.label); open = false; } : askAlarm;
+        } else {
+            const watch = Clocks.stopwatch, running = !!watch?.since;
+            const choice = arg.toLowerCase() || (!watch ? "start" : running ? "pause" : "resume");
+            if (choice === "start" && !watch) { title="Start stopwatch"; action=Clocks.startStopwatch; }
+            else if (choice === "pause" && running) { title="Pause stopwatch"; action=Clocks.pauseStopwatch; }
+            else if (choice === "resume" && watch && !running) { title="Resume stopwatch"; action=Clocks.pauseStopwatch; }
+            else if (choice === "stop" && watch) { title="Stop stopwatch"; action=Clocks.stopStopwatch; }
+            else if (choice === "lap" && running) { title="Record stopwatch lap"; action=Clocks.lap; }
+            else return [{kind:"empty", key:"clock-invalid", title:"Stopwatch: start, pause, resume, lap or stop (when available)"}];
+            const run = action; action = () => { run(); open = false; };
+        }
+        return [{kind:"clock-command", key:"clock-command", title:title, glyph:Icons.clock, run:action}];
+    }
+
     // From the clock's menu (owner's request, 9 November 2026): a timer's length and label ("25m tea",
     // "1h 30m", "90s", "10"), an alarm's time and label ("7:30 wake up", "6pm", "18:45")
     function askTimer() {
@@ -232,14 +278,7 @@ PanelWindow {
             placeholder: "25m tea",
             close: true,
             hint: () => "How long, and a name if you like: 25m tea, 1h 30m, 90s. Enter starts it.",
-            check: (text, then) => {
-                const words = text.trim().split(/\s+/);
-                let n = words.length;
-                while (n > 0 && Clocks.parseDuration(words.slice(0, n).join(" ")) <= 0)
-                    n--;
-                const ms = n ? Clocks.parseDuration(words.slice(0, n).join(" ")) : 0;
-                then(ms > 0 ? { ms: ms, label: words.slice(n).join(" ") } : null, "Say how long: 25m, 1h 30m, 90s.");
-            },
+            check: (text, then) => then(timerInput(text), "Say how long: 25m, 1h 30m, 90s."),
             apply: v => Clocks.startTimer(v.ms, v.label)
         }, "");
     }
@@ -253,14 +292,7 @@ PanelWindow {
             placeholder: "7:30 wake up",
             close: true,
             hint: () => "A time, and a name if you like: 7:30 wake up, 6pm, 18:45. It rings once, and shows in GNOME Clocks too.",
-            check: (text, then) => {
-                const m = /^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?\s*(.*)$/i.exec(text.trim());
-                let h = m ? parseInt(m[1]) : -1;
-                const min = m && m[2] ? parseInt(m[2]) : 0;
-                if (m && m[3])
-                    h = h % 12 + (m[3].toLowerCase() === "pm" ? 12 : 0);
-                then(m && h >= 0 && h < 24 && min < 60 ? { hour: h, minute: min, label: m[4] } : null, "Say when: 7:30, 6pm, 18:45.");
-            },
+            check: (text, then) => then(alarmInput(text), "Say when: 7:30, 6pm, 18:45."),
             apply: v => Clocks.addAlarm(v.hour, v.minute, v.label)
         }, "");
     }
@@ -340,12 +372,15 @@ PanelWindow {
             [":", "Emoji; Enter copies one"],
             ["?", "This cheat sheet"],
             [";", "Clipboard history; Enter copies an item"],
+            ["timer", "Start a timer, e.g. timer 5m tea"],
+            ["alarm", "Set an alarm, e.g. alarm 7:30 wake up"],
+            ["stopwatch", "Start or control the stopwatch"],
             ["12*3", "A calculation: the answer shows at the top"]
         ].concat([["ask", "Ask AI: the quick chat above the bar, with a question or without"]], Apps.claudeApp ? [["claude", "Ask Claude: a new chat in Claude Desktop"]] : [],
             Cider.installed && Cider.enabled ? [["m", "Apple Music in Cider: Enter plays, Shift+Enter plays next"]] : [],
             Qalc.installed ? [["=", "libqalculate: equations, units, currencies, bases; Enter copies"]] : [],
             [["kill", "Your running programs; Enter ends one"]], ShellSettings.integration("tldr") ? [["tldr", "Examples for a command; Enter copies one"]] : [])
-            .map(([k, t], i) => row("prefix", i, [k], t, { prefix: k === "12*3" ? "" : ["ask", "claude", "m", "kill", "tldr"].includes(k) ? k + " " : k }));
+            .map(([k, t], i) => row("prefix", i, [k], t, { prefix: k === "12*3" ? "" : ["ask", "claude", "m", "kill", "tldr", "timer", "alarm", "stopwatch"].includes(k) ? k + " " : k }));
         const keys = [
             [["Tab"], "Next mode; Shift+Tab goes back"],
             [["↑", "↓"], "Move between results (or Ctrl+K, Ctrl+J)"],
@@ -942,7 +977,15 @@ PanelWindow {
         if (confirming)
             return [{ kind: "confirm", key: "confirm:" + confirming.id, action: confirming, question: { icon: confirming.icon, danger: confirming.danger ?? false, title: confirming.question ?? `${confirming.title}?`, text: confirming.confirm, choices: ["Cancel", confirming.title] } }];
         let rows;
-        if (q.startsWith(":") && (mode === "all" || mode === "apps")) {
+        if (/^(timer|alarm|stopwatch)(\s|$)/i.test(q) && (mode === "all" || mode === "apps")) {
+            rows = clockRows(q);
+        } else if (q.startsWith(";") && (mode === "all" || mode === "apps")) {
+            const term = q.slice(1).trim();
+            const items = (ShellSettings.clipboardHistory ? Clipboard.history : []).filter(item => !term || Fuzzy.match(term, item.text));
+            rows = !ShellSettings.clipboardHistory ? [section("Clipboard history"), {kind:"empty", key:"clipboard-off", title:"Enable clipboard history in Settings → Experimental"}] : [section("Clipboard history")].concat(items.map(item => ({kind:"clipboard", key:"clipboard:" + item.id, title:item.text, glyph:Icons.clipboard, clipId:item.id})),
+                !term && Clipboard.history.length ? [{kind:"clipboard-clear", key:"clipboard-clear", title:"Clear clipboard history", glyph:Icons.close}] : [],
+                !items.length ? [{kind:"empty", key:"clipboard-empty", title:term ? "No matching items" : "Clipboard history is empty"}] : []);
+        } else if (q.startsWith(":") && (mode === "all" || mode === "apps")) {
             rows = emojiRows(q.slice(1).trim());
         } else if (q.startsWith("$") && (mode === "all" || mode === "apps")) {
             rows = commandRows(q.slice(1).trim());
@@ -1089,7 +1132,9 @@ PanelWindow {
     }
 
     function activate(row, col: int, shift: bool) {
-        if (row.kind === "shellaction") {
+        if (row.kind === "clock-command") {
+            row.run();
+        } else if (row.kind === "shellaction") {
             open=false; LauncherTools.activateAction(row.descriptor);
         } else if (Theme.tui && row.kind === "btlink") {
             field.text="";mode="bluetooth";resetSelection();
@@ -1875,7 +1920,7 @@ PanelWindow {
                     property bool quick
                     readonly property bool glideShown: root.selectable(root.current) && !["controls", "workspaces", "confirm", "pairing", "edit"].includes(root.rows[root.current].kind)
                     // the ↵ chip rides on it, shown on result rows (ResultRow leaves it room)
-                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["shellaction", "settingslink", "lenschoice", "lensoption", "app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "clipboard", "clipboard-clear", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude", "ask"].includes(root.rows[root.current].kind))
+                    readonly property bool enterShown: glideShown && ((root.rows[root.current].prefix ?? "") !== "" || ["shellaction", "settingslink", "lenschoice", "lensoption", "app", "appaction", "window", "device", "btlink", "btdevice", "power", "emoji", "wplink", "setting", "termlink", "terminal", "showoff", "aboutlink", "abouturl", "wsname", "preset", "presetsave", "presetdelete", "project", "game", "process", "clock-command", "clipboard", "clipboard-clear", "tldr", "tldrman", "qalc", "music", "command", "file", "notification", "web", "drive", "claude", "ask"].includes(root.rows[root.current].kind))
                     // Opening and switching mode: for a moment, new rows rise into place one after
                     // another and the chip jumps to its row instead of gliding.
                     property bool entering
@@ -2095,6 +2140,7 @@ PanelWindow {
                                 project: resultView,
                                 game: resultView,
                                 process: resultView,
+                                "clock-command": resultView,
                                 clipboard: resultView,
                                 "clipboard-clear": resultView,
                                 tldr: resultView,

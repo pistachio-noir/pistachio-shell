@@ -27,11 +27,43 @@ ShellRoot {
   try {
    root.tui=true;
    if(name!=="switcher") {
-    launcher.show(name==="scan"||name==="pairing"?"bluetooth":name==="bounds"?"workspaces":name==="pins"?"all":"apps");
+    launcher.show(name==="scan"||name==="pairing"?"bluetooth":name==="bounds"?"workspaces":name==="pins"||name==="git"?"all":"apps");
     input.tryVerify(()=>launcher.contentItem.Window.active,1500);input.wait(100);
    }
    const field=find(launcher.contentItem,"launcher-field");
-   if(name==="scan") {
+   if(name==="clocks") {
+    field.text="timer 5m tea";input.wait(100);let r=launcher.rows.find(x=>x.kind==="clock-command");check(r && r.title.includes("5m"),"timer preview");launcher.activate(r,0,false);check(Clocks.lastTimer.ms===300000 && Clocks.lastTimer.label==="tea","timer starts with label");
+    launcher.show("apps");field.text="alarm 7:30 wake up";input.wait(100);r=launcher.rows.find(x=>x.kind==="clock-command");check(!!r,"alarm preview");launcher.activate(r,0,false);check(Clocks.lastAlarm.hour===7 && Clocks.lastAlarm.minute===30 && Clocks.lastAlarm.label==="wake up","alarm created");
+    launcher.show("apps");field.text="alarm 29:99";input.wait(100);check(!launcher.rows.some(x=>x.kind==="clock-command"),"invalid alarm cannot be created");
+    field.text="stopwatch start";input.wait(100);r=launcher.rows.find(x=>x.kind==="clock-command");launcher.activate(r,0,false);check(Clocks.stopwatch && Clocks.stopwatch.since,"start stopwatch");
+    launcher.show("apps");field.text="stopwatch start";input.wait(100);check(!launcher.rows.some(x=>x.kind==="clock-command"),"start cannot reset running stopwatch");
+    field.text="stopwatch pause";input.wait(100);r=launcher.rows.find(x=>x.kind==="clock-command");launcher.activate(r,0,false);check(Clocks.stopwatch && !Clocks.stopwatch.since,"pause stopwatch");
+    root.tui=false;input.wait(200);launcher.show("apps");field.text="timer 5m tea";input.wait(300);
+    check(find(launcher.contentItem,"launcher-results").contentHeight>=50,"Classic clock result has visible height");
+   } else if(name==="clipboard") {
+    ShellSettings.clipboardHistory=false;field.text=";";input.wait(100);check(launcher.rows.some(r=>r.title && r.title.includes("Settings")),"disabled history explains how to enable it");
+    ShellSettings.clipboardHistory=true;
+    Clipboard.history=[{id:"7",text:"alpha text"},{id:"8",text:"beta words"}];
+    field.text=";beta";input.wait(100);
+    const item=launcher.rows.find(r=>r.kind==="clipboard");
+    check(item && item.clipId==="8" && !launcher.rows.some(r=>r.clipId==="7"),"clipboard search filters history");
+    launcher.activate(item,0,false);check(Clipboard.restored==="8","clipboard selection restores item");
+    launcher.show("apps");field.text=";";input.wait(100);
+    launcher.activate(launcher.rows.find(r=>r.kind==="clipboard-clear"),0,false);
+    check(launcher.confirming && !Clipboard.cleared,"clear requires confirmation");
+    launcher.confirming.run();check(Clipboard.cleared,"clear confirmation clears history");
+    launcher.open=false;root.tui=false;input.wait(300);launcher.show("apps");input.wait(100);
+    field.text=";";input.wait(350);
+    const results=find(launcher.contentItem,"launcher-results");
+    check(results.contentHeight >= 140 && results.height >= 140,"Classic clipboard rows have visible height");
+   } else if(name==="git") {
+    Library.vscode=true;Library.codeProjects=[{name:"Project",path:"/tmp/project",git:{branch:"feature/cat",dirty:true}}];
+    const rows=launcher.codeProjectRows("code");check(rows.length===1 && rows[0].subtitle.includes("● feature/cat"),"project displays Git branch and dirty dot");
+    field.text="code";input.wait(150);const projectIndex=launcher.rows.findIndex(r=>r.kind==="project");check(projectIndex>=0,"project present in search model");find(launcher.contentItem,"launcher-results").positionViewAtIndex(projectIndex,ListView.Contain);input.wait(150);const project=findRow(launcher.contentItem,"project");check(project && project.detail().includes("● feature/cat"),"TUI project row renders Git status");capture("git-project");
+    Library.clion=true;Library.projects=[{name:"C project",path:"/tmp/c-project",git:{branch:"main",dirty:false}}];check(launcher.projectRows("clion")[0].subtitle.includes("main"),"CLion project displays branch");Library.clion=false;Library.projects=[];
+    Library.codeProjects=[{name:"Project",path:"/tmp/project",git:null}];check(!launcher.codeProjectRows("code")[0].subtitle.includes("●"),"non-repository has no dirty dot");
+    Library.vscode=false;Library.codeProjects=[];
+   } else if(name==="scan") {
     check(Bluetooth.scanning,"opening Bluetooth starts discovery");
     launcher.open=false;input.wait(100);check(!Bluetooth.scanning,"closing Bluetooth stops discovery");
    } else if(name==="pairing") {

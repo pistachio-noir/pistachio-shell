@@ -263,6 +263,7 @@ PanelWindow {
                 path: Wallpapers.current
                 layer.enabled: true
                 layer.effect: MultiEffect {
+                    saturation: Theme.noir && ShellSettings.monochromeWallpaper ? -1 : 0
                     blurEnabled: true
                     blur: 1
                     blurMax: 48

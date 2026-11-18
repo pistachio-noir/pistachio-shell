@@ -27,6 +27,7 @@ Singleton {
         property string appearanceStyle: "classic"
         property string colourScheme: "pistachio" // or "noir" (owner's call, 14 November 2026)
         property bool desktopCat // optional pixel cat on empty workspaces
+        property bool monochromeWallpaper // optional grayscale wallpaper in Noir
         property bool clipboardHistory // clipboard history is opt-in
         property bool phonePreview // local phone timer preview is opt-in
         property bool tuiTrayOpen // TUI strip: tray icons and minimised windows shown (owner's call: collapsed by default)

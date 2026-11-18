@@ -516,3 +516,5 @@ The shell publishes Colours to `$XDG_CONFIG_HOME/pistachio/shared-theme` (normal
 Neovim can follow the same choice with the files in `extras/neovim`: its existing Pistachio Noir colourscheme has a matching Noir palette, and `pistachio-shared.lua` checks the shared choice while Neovim is open. `extras/neovim/install.sh` installs these into the matching Neovim config and backs up the current init and colourscheme; it expects the existing `vim.cmd("colorscheme pistachio-noir")` line. The fallback is Pistachio when the shared file is absent.
 
 Hyprland’s active window and group borders follow the shell’s Colours setting live: pistachio in Pistachio Noir, light grey in Noir; inactive borders stay transparent. Applied at runtime and after Hyprland reloads.
+
+Settings → Experimental → Monochrome wallpaper optionally desaturates the desktop wallpaper and its live switcher preview while Noir is selected (off by default). The desktop cat keeps its original colours in both schemes. Switching back restores the original colours; wallpaper files are never modified.

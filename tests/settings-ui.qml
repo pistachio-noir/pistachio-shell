@@ -45,6 +45,7 @@ ShellRoot {
         check(!ShellSettings.phonePreview, "phone preview defaults off");
         check(!ShellSettings.desktopCat, "desktop cat defaults off");
         check(!ShellSettings.clipboardHistory, "clipboard history defaults off");
+        check(!ShellSettings.monochromeWallpaper, "monochrome wallpaper defaults off");
         ShellSettings.setAppearanceStyle("tui");
         check(ShellSettings.appearanceStyle === "tui" && Theme.tui, "style applies live");
         // Native fixture stubs compositor remapping; exercise watcher-only lifecycle offscreen.

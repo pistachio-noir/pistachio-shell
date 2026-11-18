@@ -252,4 +252,8 @@ None right now.
 
 - Kitty shared theme (18 November 2026, owner’s call): original Kitty config backed up at `~/.config/kitty-backup-20261118-142356`. Preserve the original `pistachio-noir.conf`; `extras/kitty-noir.conf` is the new Noir palette. Installed `kitty.conf` includes `pistachio-shared.conf`. Parser validated both themes without bad lines; live reload requests sent and Pistachio restored.
 
+- Noir wallpaper (18 November 2026, owner’s call): WallpaperView uses a MultiEffect layer with saturation -1 only in Noir with Experimental → Monochrome wallpaper enabled (default off, saved/reset/exported), covering the desktop and live preview; originals stay untouched. Native isolated pixel test confirmed coloured → equal-RGB grayscale → original colour. Capture the parent container to test layer effects: grabToImage on the source item excludes its layer effect.
+
 - Cat palette (18 November 2026, owner’s call): desktop cat illustration uses fixed Theme.catOutline/Fur/Eyes/Cheeks in both colour schemes; the speech bubble follows the general palette.
+
+- Overview wallpaper (18 November 2026): its `layer.effect` replaces WallpaperView’s grayscale effect with blur, so the overriding MultiEffect must also bind saturation to Noir and the monochrome toggle. `tests/overview-wallpaper.test.py` reproduced the coloured Noir backdrop before the fix and passed afterward with native pixels; disabling restores colour.

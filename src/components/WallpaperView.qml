@@ -1,12 +1,16 @@
 import qs
 import qs.services
 import QtQuick
+import QtQuick.Effects
 
 // A wallpaper filling this item, in its fit (Wallpapers.fitOf), cross-fading to the next: each new one
 // fades in over whatever shows, and the ones under it go once it covers them, so stepping through
 // quickly stays smooth. For the desktop (panels/Wallpaper.qml) and the switcher's live preview.
 Item {
     id: root
+
+    layer.enabled: Theme.noir && ShellSettings.monochromeWallpaper
+    layer.effect: MultiEffect { saturation: -1 }
 
     property string path // "" fades to nothing
     property int fadeDuration: Theme.growDuration

@@ -190,6 +190,9 @@ Column {
                 { id: "style", kind: "choice", title: "Style", subtitle: () => "Applied live across the shell.", choices: () => [{value:"classic",title:"Classic"},{value:"tui",title:"TUI"}], value: () => ShellSettings.appearanceStyle, set: ShellSettings.setAppearanceStyle },
                 { id: "colours", kind: "choice", title: "Colours", subtitle: () => "Pistachio Noir, or Noir in greys with one red for errors.", choices: () => [{value:"pistachio",title:"Pistachio Noir"},{value:"noir",title:"Noir"}], value: () => ShellSettings.colourScheme, set: ShellSettings.setColourScheme }
             ]),
+            group("Wallpaper", [
+                toggle("monochrome-wallpaper", "Monochrome wallpaper", "Desaturate the wallpaper in Noir. Original image stays unchanged.", () => ShellSettings.monochromeWallpaper, ShellSettings.setMonochromeWallpaper)
+            ]),
             group("Clipboard history", [
                 toggle("clipboard-history", "Clipboard history", "Save copied text on disk; it may include secrets.", () => ShellSettings.clipboardHistory, ShellSettings.setClipboardHistory)
             ]),

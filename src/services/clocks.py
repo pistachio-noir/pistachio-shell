@@ -5,6 +5,8 @@
   clocks.py list                      [{"id", "name", "hour", "minute", "days", "active"}]
   clocks.py add HOUR MINUTE [NAME]    a one-time alarm, active
   clocks.py set ID active|inactive
+  clocks.py stop ID                    stop the matching GNOME alarm, if running
+  clocks.py snooze ID                  snooze the matching GNOME alarm, if running
   clocks.py remove ID
 """
 
@@ -19,9 +21,15 @@ settings = Gio.Settings.new("org.gnome.clocks")
 
 def read():
     out = []
-    for a in settings.get_value("alarms").unpack():
+    alarms = settings.get_value("alarms")
+    for index, a in enumerate(alarms.unpack()):
+        raw = {}
+        entry = alarms.get_child_value(index)
+        for field in range(entry.n_children()):
+            pair = entry.get_child_value(field)
+            raw[pair.get_child_value(0).get_string()] = pair.get_child_value(1).get_variant()
         out.append({"id": a.get("id", ""), "name": a.get("name", ""), "hour": int(a.get("hour", 0)), "minute": int(a.get("minute", 0)),
-                    "days": list(a.get("days", [])), "active": bool(a.get("active", True)), "raw": a})
+                    "days": list(a.get("days", [])), "active": "ring_time" in a or bool(a.get("active", False)), "raw": raw})
     return out
 
 
@@ -29,10 +37,12 @@ def write(alarms):
     items = []
     for a in alarms:
         raw = dict(a["raw"])
-        raw.update({"id": a["id"], "name": a["name"], "hour": a["hour"], "minute": a["minute"], "days": a["days"], "active": a["active"]})
-        items.append({k: GLib.Variant({"id": "s", "name": "s", "hour": "i", "minute": "i", "days": "ai", "active": "b",
-                                       "snooze_minutes": "i", "ring_minutes": "i"}.get(k, "s"), v) for k, v in raw.items()
-                      if k in ("id", "name", "hour", "minute", "days", "active", "snooze_minutes", "ring_minutes")})
+        raw.update({"id": GLib.Variant("s", a["id"]), "name": GLib.Variant("s", a["name"]),
+                    "hour": GLib.Variant("i", a["hour"]), "minute": GLib.Variant("i", a["minute"]),
+                    "days": GLib.Variant("ai", a["days"]), "active": GLib.Variant("b", a["active"])})
+        if not a["active"]:
+            raw.pop("ring_time", None)
+        items.append(raw)
     settings.set_value("alarms", GLib.Variant("aa{sv}", items))
     Gio.Settings.sync()
 
@@ -48,6 +58,22 @@ elif cmd == "set":
         if a["id"] == sys.argv[2]:
             a["active"] = sys.argv[3] == "active"
     write(alarms)
+elif cmd in ("stop", "snooze"):
+    alarm_id = sys.argv[2]
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    owner = bus.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+                          "NameHasOwner", GLib.Variant("(s)", ("org.gnome.clocks",)), GLib.VariantType("(b)"),
+                          Gio.DBusCallFlags.NONE, 1000, None).unpack()[0]
+    if owner:
+        bus.call_sync("org.gnome.clocks", "/org/gnome/clocks", "org.gtk.Actions", "Activate",
+                      GLib.Variant("(sava{sv})", (cmd + "-alarm", [GLib.Variant("s", alarm_id)], {})),
+                      None, Gio.DBusCallFlags.NONE, 2000, None)
+    elif cmd == "stop":
+        for a in alarms:
+            if a["id"] == alarm_id and not a["days"]:
+                a["active"] = False
+                write(alarms)
+                break
 elif cmd == "remove":
     write([a for a in alarms if a["id"] != sys.argv[2]])
 print(json.dumps([{k: v for k, v in a.items() if k != "raw"} for a in read()]))

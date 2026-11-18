@@ -104,16 +104,36 @@ Singleton {
     // the popup's buttons
     function stopRinging() {
         const r = ringing;
-        ringing = null;
-        if (r?.kind === "alarm" && r.once)
-            setAlarm(r.id, false); // a one-time alarm is done, as in Clocks
+        if (!r)
+            return;
+        if (r.kind !== "alarm") {
+            ringing = null;
+            return;
+        }
+        tellClocks("stop", r);
     }
 
     function snooze() {
         const r = ringing;
-        ringing = null;
-        if (r)
+        if (!r)
+            return;
+        if (r.kind !== "alarm") {
+            ringing = null;
             snoozed = snoozed.concat([{ at: Date.now() + 10 * 60000, ring: r }]);
+            return;
+        }
+        tellClocks("snooze", r);
+    }
+
+    // GNOME Clocks rings its own bell for its alarms: Stop and Snooze go to it too (its stop-alarm and
+    // snooze-alarm actions), and the popup closes once it has answered, or failed to (a hung Clocks
+    // must not leave the popup up for good).
+    function tellClocks(action: string, r) {
+        if (stopper.running)
+            return;
+        stopper.action = action;
+        stopper.ring = r;
+        stopper.exec({ command: ["python3", "-I", Quickshell.shellPath("services/clocks.py"), action, r.id] });
     }
 
     property var snoozed: [] // { at, ring }
@@ -133,6 +153,23 @@ Singleton {
                     console.warn("clocks:", text);
                 }
             }
+        }
+    }
+
+    Process {
+        id: stopper
+        property string action
+        property var ring: null
+        onExited: code => {
+            const r = ring;
+            ring = null;
+            if (code !== 0)
+                console.warn("clocks: GNOME Clocks did not take", action, "for alarm", r?.id);
+            if (root.ringing?.id === r?.id)
+                root.ringing = null;
+            if (action === "snooze" && r)
+                root.snoozed = root.snoozed.concat([{ at: Date.now() + 10 * 60000, ring: r }]);
+            root.run(["list"]);
         }
     }
 

@@ -14,6 +14,8 @@ import glob
 import json
 import os
 import re
+import subprocess
+from concurrent.futures import ThreadPoolExecutor
 import urllib.parse
 import xml.etree.ElementTree as ET
 
@@ -98,4 +100,33 @@ def steam():
     return sorted(games, key=lambda g: g["name"].lower())
 
 
-print(json.dumps({"clion": clion(), "vscode": vscode(), "steam": steam()}))
+def git_status(path):
+    if not os.path.isdir(path):
+        return None
+    try:
+        result = subprocess.run(['git', '--no-optional-locks', '-C', path, '-c', 'core.fsmonitor=false', 'status', '--porcelain=v1', '--branch', '--untracked-files=normal'], capture_output=True, text=True, timeout=1, check=True)
+        lines = result.stdout.splitlines()
+        if not lines or not lines[0].startswith('## '):
+            return None
+        header = lines[0][3:]
+        branch = header.removeprefix('No commits yet on ').removeprefix('Initial commit on ').split('...')[0]
+        if branch.startswith('HEAD '):
+            branch = 'detached HEAD'
+        return {'branch': branch, 'dirty': len(lines) > 1}
+    except (OSError, subprocess.SubprocessError, UnicodeError):
+        return None
+
+
+def with_git(*lists):
+    projects = [p for group in lists for p in group]
+    paths = list(dict.fromkeys(p['path'] for p in projects))
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        states = dict(zip(paths, pool.map(git_status, paths)))
+    for project in projects:
+        project['git'] = states[project['path']]
+
+
+if __name__ == '__main__':
+    clion_projects, code_projects = clion(), vscode()
+    with_git(clion_projects, code_projects)
+    print(json.dumps({'clion': clion_projects, 'vscode': code_projects, 'steam': steam()}))

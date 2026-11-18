@@ -548,12 +548,17 @@ PanelWindow {
 
     // Other apps' things (owner's picks, 8 November 2026): CLion's recent projects and the games, found
     // by name in All and Apps ("clion" lists every project, "games" every game)
+    function projectSubtitle(p, ide: string): string {
+        const git = p.git;
+        return ide + (git ? ` · ${git.dirty ? "● " : ""}${git.branch}` : "") + " · " + p.path.replace(Quickshell.env("HOME"), "~");
+    }
+
     function projectRows(q: string): var {
         if (!Library.clion)
             return [];
         const all = Fuzzy.match(q, "clion") && q.length >= 3;
         return Library.projects.filter(p => all || Fuzzy.match(q, p.name)).slice(0, all ? 12 : 4).map(p => ({
-            kind: "project", key: "project:" + p.path, title: p.name, subtitle: "CLion · " + p.path.replace(Quickshell.env("HOME"), "~"), icon: Apps.icon(Library.clion?.icon ?? "clion"), glyph: Icons.fileCode, project: p
+            kind: "project", key: "project:" + p.path, title: p.name, subtitle: projectSubtitle(p, "CLion"), icon: Apps.icon(Library.clion?.icon ?? "clion"), glyph: Icons.fileCode, project: p
         }));
     }
 
@@ -564,7 +569,7 @@ PanelWindow {
             return [];
         const all = (Fuzzy.match(q, "vscode") && q.length >= 3) || Fuzzy.fold(q) === "code";
         return Library.codeProjects.filter(p => all || Fuzzy.match(q, p.name)).slice(0, all ? 12 : 4).map(p => ({
-            kind: "project", key: "code:" + p.path, title: p.name, subtitle: "VS Code · " + p.path.replace(Quickshell.env("HOME"), "~"), icon: Apps.icon(Library.vscode?.icon ?? "vscode"), glyph: Icons.fileCode, project: p
+            kind: "project", key: "code:" + p.path, title: p.name, subtitle: projectSubtitle(p, "VS Code"), icon: Apps.icon(Library.vscode?.icon ?? "vscode"), glyph: Icons.fileCode, project: p
         }));
     }
 

@@ -5,15 +5,15 @@ import Quickshell.Io
 import QtQuick
 
 // Export and import of the shell's preferences (owner's call, 15 November 2026): a one-off snapshot in
-// ~/.config/pistachio-shell/settings.toml, written and read by prefs.py, which owns the TOML layout and
+// ~/.config/pistachio/pistachio-shell/settings.toml, written and read by prefs.py, which owns the TOML layout and
 // checks every value. Import never writes straight away: it lists what would change (old → new) and
 // applies only on Apply, like the page reset. Never the Cider token, LocalSend's known devices,
 // notification or usage history, running state, the wallpaper or desktop icon positions.
 Singleton {
     id: root
 
-    readonly property string path: `${Quickshell.env("HOME")}/.config/pistachio-shell/settings.toml`
-    readonly property string shownPath: "~/.config/pistachio-shell/settings.toml"
+    readonly property string path: `${Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config"}/pistachio/pistachio-shell/settings.toml`
+    readonly property string shownPath: Quickshell.env("XDG_CONFIG_HOME") ? path : "~/.config/pistachio/pistachio-shell/settings.toml"
     property bool busy
     property string status // the last export's or import's outcome, shown under its row
     property bool failed // the status is an error

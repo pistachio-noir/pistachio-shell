@@ -34,7 +34,7 @@ def run(*args):
 class Prefs(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
-        self.path = pathlib.Path(self.dir.name) / "pistachio-shell" / "settings.toml"
+        self.path = pathlib.Path(self.dir.name) / "pistachio" / "pistachio-shell" / "settings.toml"
 
     def tearDown(self):
         self.dir.cleanup()

@@ -2,7 +2,7 @@
 """Export and import the shell's preferences as TOML (services/Preferences.qml).
 
 Owner's call, 15 November 2026: a one-off snapshot of every Settings preference and the launcher's
-customisations in ~/.config/pistachio-shell/settings.toml. Never the Cider token, LocalSend's known
+customisations in ~/.config/pistachio/pistachio-shell/settings.toml. Never the Cider token, LocalSend's known
 devices, notification or usage history, running state, the wallpaper or desktop icon positions.
 
   prefs.py export PATH JSON   JSON = {"values": {storeKey: value}}; writes PATH (the old file kept as

@@ -106,6 +106,7 @@ Singleton {
     }
 
     signal announce(string title, string detail, bool on) // for the OSD
+    signal phaseFinished(string message)
 
     function allows(app: string): bool {
         return !zen && allowed.includes(app);
@@ -258,6 +259,7 @@ Singleton {
             return;
         Quickshell.execDetached(["pw-play", Quickshell.shellPath("sounds/notification.wav")]);
         if (!session.pomodoro) {
+            if (onTime) phaseFinished("Focus complete!");
             const owner = session.owner;
             save({ session: null });
             if (state.zenByFocus)
@@ -273,6 +275,7 @@ Singleton {
             phase = "work";
             round = session.phase === "long" ? 1 : round + 1;
         }
+        if (onTime) phaseFinished(phase === "work" ? "Back to work!" : "Break time!");
         const length = 60000 * (phase === "work" ? minutes("pomodoroWork") : phase === "long" ? minutes("pomodoroLongBreak") : minutes("pomodoroBreak"));
         now = Date.now();
         save({ session: Object.assign({}, session, { phase: phase, round: round, endsAt: now + length, left: 0, length: length }) });

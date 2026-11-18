@@ -36,6 +36,12 @@ Singleton {
     readonly property color tuiHover: bgAlt
     readonly property string fontTui: "JetBrainsMono Nerd Font"
 
+    // The desktop cat keeps its original illustration palette in both schemes.
+    readonly property color catOutline: "#A3B08F"
+    readonly property color catFur: "#E5E9D8"
+    readonly property color catEyes: "#15170F"
+    readonly property color catCheeks: "#D9975A"
+
     readonly property color bg: noir ? "#111111" : "#15170F"
     readonly property color bgAlt: noir ? "#1A1A1A" : "#1D2016"
     readonly property color overlay: noir ? "#262626" : "#2A2F1F"

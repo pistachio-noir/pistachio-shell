@@ -1,12 +1,14 @@
 import qs
 import qs.launcher
 import qs.components
+import qs.panels
 import Quickshell
 import Quickshell.Io
 import QtQuick
 import QtTest
 Scope {
     property string tapped
+    DesktopCat { id: cat; parent:win.contentItem; active:false }
     Switch { id: probeSwitch; parent:win.contentItem;y:100;checked:true }
     Slider { id: probeSlider;parent:win.contentItem;x:80;y:100;width:240; from:2500;to:6500;value:4500 }
 
@@ -18,6 +20,14 @@ Scope {
     }
     PanelFrame { id:frame;parent:win.contentItem;width:192;height:80;title:"A very long window title that must stay inside the frame";detail:"workspace information";visible:false }
     TestCase { id:input; when:false }
+    function checkCat() {
+        if(cat.visible || cat.animating) throw Error("disabled desktop cat remains idle");
+        cat.active=true;input.wait(100);cat.pet();if(cat.happy)throw Error("decorative cat cannot be petted");cat.interactive=true;if(!cat.visible || !cat.animating)throw Error("active desktop cat animates");
+        cat.pet();if(!cat.happy)throw Error("pet makes cat happy");
+        cat.active=false;input.wait(50);if(cat.happy)throw Error("hidden cat clears interaction");cat.active=true;
+        const path=Quickshell.env("PISTACHIO_CAT_SHOT");if(path){cat.grabToImage(r=>r.saveToFile(path));input.wait(200);}
+        cat.active=false;input.wait(50);if(cat.visible || cat.animating)throw Error("hidden desktop cat stops animating");
+    }
     IpcHandler {
         target:"layoutTest"
         function ready():bool {return true;}
@@ -39,6 +49,7 @@ Scope {
                     }
                     if (tapped!=="Esc") throw Error("wrapped hint must remain clickable");
                 }
+                checkCat();
                 Theme.tui=true;input.wait(100);
                 for(const tab of frame.children){if(tab.width===undefined||!tab.visible)continue;const at=tab.mapToItem(frame,0,0);if(at.x<0||at.x+tab.width>frame.width)throw Error("long title/detail escape frame");}
                 const state=input.findChild(probeSwitch,"switch-state");

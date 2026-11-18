@@ -13,7 +13,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 HELPER = ROOT / "src/services/prefs.py"
 CTX = {"actions": ["settings", "lens"], "claudeModels": ["claude-haiku-5-5", "sonnet", "opus"], "codexModels": ["gpt-6-luna", "gpt-6.1-sol"]}
 VALUES = {
-    "frosted": True, "frostStyle": "glassy", "appearanceStyle": "tui", "colourScheme": "noir", "tuiTrayOpen": False, "phonePreview": True,
+    "frosted": True, "frostStyle": "glassy", "appearanceStyle": "tui", "colourScheme": "noir", "tuiTrayOpen": False, "phonePreview": True, "desktopCat": True,
     "nightLight": True, "temperature": 3750.0, "nightSchedule": True, "nightFrom": 1320, "nightTo": 420,
     "dnd": False, "dndFrom": 1320, "notificationRules": {"Vesktop": {"noToasts": True}, "Spotify": {"until": 9999999999999}},
     "focusMinutes": 60, "focusAllowed": ["Vesktop"], "pomodoroRounds": 4,

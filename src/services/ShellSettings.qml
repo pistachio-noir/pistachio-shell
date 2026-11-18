@@ -13,6 +13,8 @@ Singleton {
     function setColourScheme(value: string) {
         if (value === "pistachio" || value === "noir") Store.saved.colourScheme = value;
     }
+    readonly property bool desktopCat: Store.saved.desktopCat === true
+    function setDesktopCat(value: bool) { Store.saved.desktopCat = value; }
     readonly property bool phonePreview: Store.saved.phonePreview === true
     function setPhonePreview(value: bool) { Store.saved.phonePreview = value; }
     readonly property bool tuiTrayOpen: Store.saved.tuiTrayOpen === true

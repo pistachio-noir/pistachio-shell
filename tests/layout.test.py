@@ -2,9 +2,10 @@
 import os,pathlib,shutil,subprocess,tempfile,time
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='pistachio-layout-') as d:
- base=pathlib.Path(d);(base/'launcher').mkdir();(base/'components').mkdir();
+ base=pathlib.Path(d);(base/'launcher').mkdir();(base/'components').mkdir();(base/'panels').mkdir();shutil.copy(ROOT/'src/panels/DesktopCat.qml',base/'panels/DesktopCat.qml');
  for name in ['ActionButton.qml','Icon.qml','Switch.qml','Slider.qml','PanelFrame.qml']:shutil.copy(ROOT/'src/components'/name,base/'components'/name)
- (base/'runtime').mkdir(mode=0o700)
+ (base/'runtime').mkdir(mode=0o700);(base/'services').mkdir()
+ for name,body in {'Clocks':'property var ringing: null','FocusMode':'signal phaseFinished(string message)'}.items():(base/f'services/{name}.qml').write_text('pragma Singleton\nimport Quickshell\nimport QtQuick\nSingleton { '+body+' }\n')
  shutil.copy(ROOT/'src/Theme.qml',base/'Theme.qml');shutil.copy(ROOT/'src/launcher/KeyHints.qml',base/'launcher/KeyHints.qml');shutil.copy(ROOT/'tests/layout-ui.qml',base/'shell.qml')
  env=dict(os.environ,QT_QPA_PLATFORM='offscreen',XDG_RUNTIME_DIR=str(base/'runtime'),XDG_CACHE_HOME=str(base/'cache'));env.pop('WAYLAND_DISPLAY',None);env.pop('DISPLAY',None)
  with (base/'log').open('w+') as log:

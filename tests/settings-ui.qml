@@ -42,6 +42,7 @@ ShellRoot {
     function runChecks() {
         check(ShellSettings.appearanceStyle === "classic", "missing style defaults to Classic");
         check(!ShellSettings.phonePreview, "phone preview defaults off");
+        check(!ShellSettings.desktopCat, "desktop cat defaults off");
         ShellSettings.setAppearanceStyle("tui");
         check(ShellSettings.appearanceStyle === "tui" && Theme.tui, "style applies live");
         // Native fixture stubs compositor remapping; exercise watcher-only lifecycle offscreen.

@@ -1,5 +1,6 @@
 import qs
 import qs.components
+import qs.panels
 import qs.services
 import Quickshell
 import Quickshell.Io
@@ -77,6 +78,16 @@ PanelWindow {
         }
     }
 
+    DesktopCat {
+        id: desktopCat
+        interactive: true
+        anchors.right: parent.right
+        anchors.rightMargin: 80
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 100
+        active: ShellSettings.desktopCat && Compositor.workspaces.some(w => w.active) && !Compositor.fullscreen && !Compositor.windows.some(w => w.workspace === Compositor.activeWorkspace && !w.floating && !w.hidden && !w.minimized)
+    }
+
     // The wallpaper dims a little while night light is on (owner's pick, 31 October 2026), so the
     // desktop isn't the brightest thing on screen late at night; the icons stay as they are
     Rectangle {
@@ -106,6 +117,8 @@ PanelWindow {
     DesktopIcons {
         id: desktop
         anchors.fill: parent
+        onCatHover: (position, inside) => desktopCat.hovered = inside && desktopCat.visible && desktopCat.contains(desktopCat.mapFromItem(desktop, position.x, position.y))
+        onCatClick: position => { if (desktopCat.visible && desktopCat.contains(desktopCat.mapFromItem(desktop, position.x, position.y))) desktopCat.pet(); }
         onRenameRequested: item => root.renameRequested(item)
         onNewFolderRequested: cell => root.newFolderRequested(cell)
         onWallpapersRequested: root.wallpapersRequested()
@@ -125,6 +138,18 @@ PanelWindow {
         function off(): void {
             Desktop.setEnabled(false);
         }
+    }
+
+    // Zen hides desktop icons and their background handler, so the cat needs its own small target.
+    MouseArea {
+        anchors.fill: desktopCat
+        enabled: FocusMode.zen && !Showoff.active && desktopCat.visible
+        visible: enabled
+        hoverEnabled: true
+        onEntered: desktopCat.hovered = true
+        onExited: desktopCat.hovered = false
+        onEnabledChanged: if (!enabled) desktopCat.hovered = false
+        onClicked: desktopCat.pet()
     }
 
     // their menu also goes with a click in a window

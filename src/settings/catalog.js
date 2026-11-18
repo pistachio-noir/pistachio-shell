@@ -44,6 +44,7 @@ var settings = [
     ["sound","player","Media player","Devices","mpris auto selection"],
     ["network","ipv4","IP addresses","Connection details","ipv4 ipv6 gateway dns ethernet copy"],
     ["experimental", "style", "Style", "Style", "classic tui appearance terminal look"],
+    ["experimental", "desktop-cat", "Desktop cat", "Desktop cat", "cat pet pixel desktop"],
     ["experimental", "phone-preview", "Phone timer preview", "Phone preview", "phone pomodoro focus timer qr local network share"],
     ["experimental", "colours", "Colours", "Style", "colours colors scheme noir pistachio grey gray monochrome black white theme"],
     ["appearance", "frost", "Frosted panels", "Surfaces", "solid subtle glassy opacity blur"],

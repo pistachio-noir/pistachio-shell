@@ -149,6 +149,8 @@ Item {
             selection = [best.name];
     }
     signal newFolderRequested(var cell)
+    signal catHover(point position, bool inside)
+    signal catClick(point position)
     signal wallpapersRequested
 
     function cellAt(x: real, y: real): var {
@@ -226,13 +228,16 @@ Item {
         property point pressedAt
 
         anchors.fill: parent
+        hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onExited: root.catHover(Qt.point(0, 0), false)
         onPressed: mouse => {
             root.forceActiveFocus(); // for the keys, once the layer has the keyboard
             pressedAt = Qt.point(mouse.x, mouse.y);
             root.boxBase = root.selection;
         }
         onPositionChanged: mouse => {
+            root.catHover(Qt.point(mouse.x, mouse.y), true);
             if (pressedButtons === Qt.LeftButton && (root.box || Math.hypot(mouse.x - pressedAt.x, mouse.y - pressedAt.y) > 6))
                 root.drawBox(pressedAt, Qt.point(mouse.x, mouse.y), !!(mouse.modifiers & Qt.ControlModifier));
         }
@@ -242,6 +247,8 @@ Item {
                 root.menu = null;
                 return;
             }
+            if (mouse.button === Qt.LeftButton && Math.hypot(mouse.x - pressedAt.x, mouse.y - pressedAt.y) <= 6)
+                root.catClick(Qt.point(mouse.x, mouse.y));
             if (!(mouse.button === Qt.LeftButton && (mouse.modifiers & Qt.ControlModifier)))
                 root.selection = [];
             root.menu = mouse.button === Qt.RightButton ? { item: null, x: mouse.x, y: mouse.y, cell: root.cellAt(mouse.x, mouse.y) } : null;

@@ -18,14 +18,7 @@ QtObject {
     readonly property bool codex: FirstRun.found.codex === true
     readonly property bool checked: Object.keys(FirstRun.found).length > 0
 
-    // TEMPORARY dry run (FirstRun.dryRun): choices land here, over the live values, and go nowhere else
-    property var dryValues: ({})
-    readonly property Connections dryReset: Connections {
-        target: FirstRun
-        function onDryRunChanged() { root.dryValues = ({}); }
-    }
-    readonly property var values: Object.assign({}, liveValues, FirstRun.dryRun ? dryValues : {})
-    readonly property var liveValues: ({
+    readonly property var values: ({
         colourScheme: ShellSettings.colourScheme,
         frostStyle: !ShellSettings.frosted ? "off" : ShellSettings.glassy ? "glassy" : "subtle",
         shadows: ShellSettings.shadows,
@@ -151,12 +144,6 @@ QtObject {
     ]
 
     function setValue(key: string, value) {
-        if (FirstRun.dryRun) { // TEMPORARY
-            const next = Object.assign({}, dryValues);
-            next[key] = value;
-            dryValues = next;
-            return;
-        }
         const node = list => list.find(n => n.id === value);
         switch (key) {
         case "colourScheme": ShellSettings.setColourScheme(value); break;
@@ -199,7 +186,7 @@ QtObject {
             else if (action === "playNotificationSound") FirstRun.playSound();
             else if (action === "restoreReview") Preferences.review("");
             else if (action === "restoreChoose") FirstRun.chooseRestoreFile();
-            else if (action === "restoreApply") { if (!FirstRun.dryRun) Preferences.apply(); else Preferences.cancel(); } // TEMPORARY dry-run guard
+            else if (action === "restoreApply") Preferences.apply();
             else if (action === "restoreCancel") Preferences.cancel();
         }
         function onFinished(destination) { FirstRun.finish(destination); }

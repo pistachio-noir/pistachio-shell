@@ -62,13 +62,8 @@ Singleton {
     }
 
     // shell: back to the desktop; settings: Settings opens; skip: the same as shell, said differently
-    // TEMPORARY dry run (owner's request, 19 November 2026; remove after the owner's try): `setup dryRun`
-    // opens setup with every choice kept in the window only; nothing reaches the shell's settings
-    property bool dryRun
-
     function finish(destination: string) {
-        if (!dryRun) Store.saved.setupDone = true;
-        dryRun = false;
+        Store.saved.setupDone = true;
         opened = false;
         unload.restart();
         Preferences.cancel();
@@ -201,9 +196,8 @@ Singleton {
 
     IpcHandler {
         target: "setup"
-        function open(): void { root.dryRun = false; root.open(); }
-        function dryRun(): void { root.dryRun = true; root.open(); } // TEMPORARY
+        function open(): void { root.open(); }
         function close(): void { if (root.opened) root.finish("skip"); }
-        function status(): string { return JSON.stringify({ open: root.opened, done: root.done, check: root.checkState, dryRun: root.dryRun }); }
+        function status(): string { return JSON.stringify({ open: root.opened, done: root.done, check: root.checkState }); }
     }
 }

@@ -84,7 +84,6 @@ ShellRoot {
         function act(name: string, payload: string): void { view.actionRequested(name, payload); }
         function finish(destination: string): void { view.finished(destination); }
         function open(): void { FirstRun.open(); }
-        function dry(): void { FirstRun.dryRun = true; FirstRun.open(); } // TEMPORARY
     }
 }
 '''
@@ -269,23 +268,7 @@ def restore_missing(first, call, get, wait, state_file, base):
     return "restore says when there's no export"
 
 
-def dry_run(first, call, get, wait, state_file, base):  # TEMPORARY, with `setup dryRun`
-    assert first["opened"] and not first["done"], first
-    call("dry")
-    wait(lambda s: s["opened"], "dry run open")
-    for key, value in (("colourScheme", "noir"), ("shadows", False), ("weatherLocation", "Gdańsk")):
-        call("value", key, json.dumps(value))
-    s = wait(lambda s: s["values"]["colourScheme"] == "noir", "the shown choice")
-    assert s["colours"] == "pistachio" and s["shadows"] and s["city"] == "Warsaw" and not s["values"]["shadows"], s
-    call("finish", "skip")
-    s = wait(lambda s: not s["opened"], "close")
-    time.sleep(0.6)
-    assert s["done"] is False and not (state_file() or {}).get("setupDone"), "a dry run never marks setup done"
-    return "dry run changes nothing"
-
-
 results = [
-    run(dry_run),
     run(fresh_start),
     run(conflict, owner="mako"),
     run(required_missing, doctor=[dict(DOCTOR[1], found=False)] + DOCTOR[2:]),

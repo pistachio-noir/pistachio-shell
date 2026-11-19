@@ -8,12 +8,12 @@ if ! command -v qs >/dev/null; then
     exit 0
 fi
 LENS_TEST_DIR=$(mktemp -d)
+LENS_TEST_PID=
 cleanup() {
-    kill "$LENS_TEST_PID" 2>/dev/null || true
-    wait "$LENS_TEST_PID" 2>/dev/null || true
+    if [ -n "$LENS_TEST_PID" ]; then kill "$LENS_TEST_PID" 2>/dev/null || true; wait "$LENS_TEST_PID" 2>/dev/null || true; fi
     rm -rf "$LENS_TEST_DIR"
 }
-ln -s "$LENS_TEST_ROOT/src/services" "$LENS_TEST_DIR/services"
+trap cleanup EXIT HUP INT TERM
 ln -s "$LENS_TEST_ROOT/src/Theme.qml" "$LENS_TEST_DIR/Theme.qml"
 ln -s "$LENS_TEST_ROOT/src/components" "$LENS_TEST_DIR/components"
 cp "$LENS_TEST_ROOT/tests/lens-state.qml" "$LENS_TEST_DIR/shell.qml"
@@ -22,7 +22,9 @@ mkdir -m 700 "$LENS_TEST_DIR/runtime"
 python3 -B - "$LENS_TEST_ROOT" "$LENS_TEST_DIR" <<'PY'
 import json, pathlib, runpy, sys
 root, base = map(pathlib.Path, sys.argv[1:])
-fake = runpy.run_path(str(root / 'tests/lens.test.py'))['FAKE']
+bridge = runpy.run_path(str(root / 'tests/lens.test.py'))
+bridge['copy_services'](root, base)
+fake = bridge['FAKE']
 (base / 'bin').mkdir()
 for name in ('claude', 'codex'):
     script = base / 'bin' / name
@@ -31,20 +33,8 @@ for name in ('claude', 'codex'):
 script = base / 'bin/zenity'
 script.write_text('#!/bin/sh\ncase "$*" in *image*) printf "%s\\n" "$LENS_TEST_IMAGE" ;; *) printf "%s\\n" "$LENS_TEST_ATTACHMENT" ;; esac\n')
 script.chmod(0o755)
-script = base / 'bin/python3'
-script.write_text('''#!/usr/bin/python3
-import os, pathlib, runpy, sys
-from unittest.mock import patch
-if len(sys.argv) == 3 and sys.argv[1] == '-I' and sys.argv[2].endswith('/lens.py'):
-    with patch('pathlib.Path.home', return_value=pathlib.Path(os.environ['LENS_TEST_HOME'])):
-        runpy.run_path(sys.argv[2], run_name='__main__')
-else:
-    os.execv('/usr/bin/python3', ['python3', *sys.argv[1:]])
-''')
-script.chmod(0o755)
 (base / 'control.json').write_text(json.dumps({'replacement': 'fixed\\n', 'task': 'coding'}))
 (base / 'example.rs').write_text('broken\\n')
-import base64
 import struct, zlib
 chunk = lambda tag, data: struct.pack('>I', len(data)) + tag + data + struct.pack('>I', zlib.crc32(tag + data))
 png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(b'\x00\x50\x60\x40')) + chunk(b'IEND', b'')
@@ -54,7 +44,11 @@ export LENS_TEST_CONTROL="$LENS_TEST_DIR/control.json"
 export LENS_TEST_RECORD="$LENS_TEST_DIR/calls.jsonl"
 export LENS_TEST_ATTACHMENT="$LENS_TEST_DIR/example.rs"
 export LENS_TEST_IMAGE="$LENS_TEST_DIR/image.png"
-export LENS_TEST_HOME="$LENS_TEST_DIR"
+export HOME="$LENS_TEST_DIR/home"
+export XDG_CONFIG_HOME="$LENS_TEST_DIR/config"
+export XDG_DATA_HOME="$LENS_TEST_DIR/data"
+export TMPDIR="$LENS_TEST_DIR"
+mkdir -m 700 "$HOME"
 export PATH="$LENS_TEST_DIR/bin:$PATH"
 export XDG_RUNTIME_DIR="$LENS_TEST_DIR/runtime"
 export XDG_STATE_HOME="$LENS_TEST_DIR/state"
@@ -63,7 +57,6 @@ export QT_QPA_PLATFORM=offscreen
 unset WAYLAND_DISPLAY DISPLAY
 qs -p "$LENS_TEST_DIR" >"$LENS_TEST_DIR/log" 2>&1 &
 LENS_TEST_PID=$!
-trap cleanup EXIT HUP INT TERM
 LENS_TEST_TRIES=0
 while [ "$LENS_TEST_TRIES" -lt 50 ]; do
     if LENS_TEST_RESULT=$(qs -p "$LENS_TEST_DIR" ipc call lensTest check 2>/dev/null); then

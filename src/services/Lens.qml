@@ -6,7 +6,7 @@ import Quickshell.Io
 import QtQuick
 
 // Owner's call, 10 November 2026: Claude Code or Codex, with independent settings and fallback.
-// The helper owns CLI sessions, attachment proposals and disk access. UI sends user actions here.
+// psc lens owns CLI sessions, attachment proposals and disk access. UI sends user actions here.
 Singleton {
     id: root
 
@@ -262,7 +262,7 @@ Singleton {
     }
     Process {
         id: helper
-        command: ["python3", "-I", Quickshell.shellPath("services/lens.py")]
+        command: [Quickshell.env("HOME") + "/.local/bin/psc", "lens"]
         stdinEnabled: true
         stdout: SplitParser {
             onRead: line => {

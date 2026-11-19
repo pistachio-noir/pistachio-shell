@@ -1,28 +1,30 @@
 #!/usr/bin/env python3
-"""The quick chat's helper (src/services/chat.py) against stand-in `claude` and `codex` programs that
+"""The quick chat's helper (`psc chat`) against stand-in `claude` and `codex` programs that
 answer in the CLIs' own event formats (captured from Claude Code and codex-cli 0.167 on 13 November
 2026). No real request is made; chats are saved under a temporary home."""
 
 import json
 import os
 import queue
+import signal
 import subprocess
-import sys
 import tempfile
 import threading
 import time
 import unittest
 from pathlib import Path
 
-HELPER = Path(__file__).resolve().parent.parent / "src" / "services" / "chat.py"
+PSC = os.environ.get("PSC") or str(Path(__file__).resolve().parents[1] / "rust/target/release/psc")
 
 FAKE = r'''#!/usr/bin/env python3
-import json, os, sys, time
+import json, os, signal, sys, time
 name = os.path.basename(sys.argv[0])
 log = os.environ["FAKE_LOG"]
-with open(log, "a") as f:
-    f.write(json.dumps({"cli": name, "argv": sys.argv[1:]}) + "\n")
 mode = open(os.environ["FAKE_MODE"]).read().strip()
+if mode == "stubborn":
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+with open(log, "a") as f:
+    f.write(json.dumps({"cli": name, "argv": sys.argv[1:], "pid": os.getpid()}) + "\n")
 def out(e):
     print(json.dumps(e), flush=True)
 if mode == "fail":
@@ -35,7 +37,7 @@ if name == "claude":
     for i, w in enumerate(words):
         out({"type": "stream_event", "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": w}}})
         time.sleep(0.08)
-        if mode == "slow" and i == 1:
+        if mode in ("slow", "stubborn") and i == 1:
             time.sleep(30)
     out({"type": "result", "subtype": "success", "is_error": False, "session_id": session, "result": "".join(words)})
 else:
@@ -51,16 +53,24 @@ class Helper:
     def __init__(self, test):
         self.test = test
         self.events = queue.Queue()
-        env = dict(os.environ, PATH=f"{test.bin}:{os.environ['PATH']}", QUICK_CHAT_HOME=str(test.home),
+        env = dict(os.environ, PATH=f"{test.bin}:{os.environ['PATH']}", HOME=str(test.home), QUICK_CHAT_HOME=str(test.home),
                    FAKE_LOG=str(test.log), FAKE_MODE=str(test.mode))
-        self.p = subprocess.Popen([sys.executable, "-I", str(HELPER)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        self.p = subprocess.Popen([PSC, "chat"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE, text=True, env=env)
+        test.addCleanup(self.close)
         threading.Thread(target=self.read, daemon=True).start()
         self.wait("ready")
 
     def read(self):
-        for line in self.p.stdout:
-            self.events.put(json.loads(line))
+        try:
+            for line in self.p.stdout:
+                try:
+                    self.events.put(json.loads(line))
+                except ValueError:
+                    self.events.put(line)
+                    return
+        finally:
+            self.events.put(None)
 
     def send(self, **message):
         self.p.stdin.write(json.dumps(message) + "\n")
@@ -74,6 +84,10 @@ class Helper:
                 m = self.events.get(timeout=max(0.05, end - time.time()))
             except queue.Empty:
                 break
+            if m is None:
+                self.test.fail(f"helper exited before {event}: {self.p.stderr.read()}")
+            if isinstance(m, str):
+                self.test.fail(f"expected {event} as JSON, got {m!r}")
             seen.append(m)
             if m["event"] == event:
                 m["_seen"] = seen
@@ -84,13 +98,22 @@ class Helper:
         self.send(cmd="ask", question=question, provider=provider, model="m-" + provider, effort="low", context=context or {})
 
     def close(self):
-        self.p.stdin.close()
-        self.p.wait(5)
+        if not self.p.stdin.closed:
+            self.p.stdin.close()
+        try:
+            self.p.wait(5)
+        except subprocess.TimeoutExpired:
+            self.p.kill()
+            self.p.wait()
+            raise
+        finally:
+            self.p.stdout.close()
+            self.p.stderr.close()
 
 
 class ChatHelperTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
+        self.tmp = Path(self.enterContext(tempfile.TemporaryDirectory()))
         self.bin, self.home = self.tmp / "bin", self.tmp / "home"
         self.bin.mkdir()
         self.home.mkdir()
@@ -100,11 +123,6 @@ class ChatHelperTest(unittest.TestCase):
         self.log, self.mode = self.tmp / "calls.jsonl", self.tmp / "mode"
         self.mode.write_text("ok")
         self.helper = Helper(self)
-
-    def tearDown(self):
-        if self.helper.p.poll() is None:
-            self.helper.close()
-        subprocess.run(["rm", "-rf", str(self.tmp)])
 
     def calls(self):
         return [json.loads(l) for l in self.log.read_text().splitlines()] if self.log.exists() else []
@@ -174,6 +192,22 @@ class ChatHelperTest(unittest.TestCase):
         self.helper.wait("answer")
         argv = self.calls()[1]["argv"]
         self.assertEqual(argv[argv.index("--image") + 1], str(folder / "picture-2.png"))
+
+    def test_reopening_an_archive_with_a_missing_picture_keeps_the_others(self):
+        picture = self.tmp / "copy.png"
+        picture.write_bytes(b"original")
+        for question in ("First picture", "Second picture"):
+            self.helper.ask(question, context={"images": [str(picture)]})
+            self.helper.wait("answer")
+        [folder] = self.chats()
+        (folder / "picture-1.png").unlink()
+        self.helper.send(cmd="open", id=folder.name)
+        self.helper.wait("loaded")
+        picture.write_bytes(b"new")
+        self.helper.ask("Third picture", context={"images": [str(picture)]})
+        self.helper.wait("answer")
+        self.assertEqual((folder / "picture-2.png").read_bytes(), b"original")
+        self.assertEqual((folder / "picture-3.png").read_bytes(), b"new")
 
     def test_an_unreachable_provider_is_told_and_the_question_kept(self):
         self.mode.write_text("fail")
@@ -265,9 +299,49 @@ class ChatHelperTest(unittest.TestCase):
         self.helper.wait("answer")
         self.assertIn("Conversation so far", self.calls()[-1]["argv"][self.calls()[-1]["argv"].index("-p") + 1])
 
+    def test_both_unavailable_returns_an_error_without_an_empty_chat(self):
+        self.mode.write_text("fail")
+        self.helper.send(cmd="ask", question="Both are offline", provider="claude", model="m-claude", effort="low",
+                         both={"model": "m-codex", "effort": "low"})
+        result = self.helper.wait("error", seconds=2)
+        self.assertTrue(result["unavailable"])
+        self.assertEqual(result["question"], "Both are offline")
+        self.assertEqual(self.chats(), [])
+
     def test_it_exits_when_the_shell_goes(self):
         self.helper.close()
         self.assertEqual(self.helper.p.returncode, 0)
+
+    def test_repeated_term_still_reaps_an_agent_that_ignores_term(self):
+        self.mode.write_text("stubborn")
+        self.helper.ask("wait forever")
+        self.helper.wait("delta")
+        pid = self.calls()[0]["pid"]
+        try:
+            self.helper.p.terminate()
+            time.sleep(0.2)
+            self.helper.p.terminate()
+            self.assertEqual(self.helper.p.wait(5), 0)
+            self.assertFalse(Path(f"/proc/{pid}").exists(), "provider was not reaped")
+        finally:
+            if Path(f"/proc/{pid}").exists():
+                os.kill(pid, signal.SIGKILL)
+
+    def test_fatal_history_error_reaps_the_active_agent(self):
+        self.mode.write_text("slow")
+        self.helper.ask("wait forever")
+        self.helper.wait("delta")
+        pid = self.calls()[0]["pid"]
+        try:
+            archive = self.home / "quick-chats"
+            archive.rename(self.home / "moved")
+            archive.write_text("history can't read this as a directory")
+            self.helper.send(cmd="history")
+            self.assertEqual(self.helper.p.wait(5), 1)
+            self.assertFalse(Path(f"/proc/{pid}").exists(), "provider was not reaped")
+        finally:
+            if Path(f"/proc/{pid}").exists():
+                os.kill(pid, signal.SIGKILL)
 
 
 if __name__ == "__main__":

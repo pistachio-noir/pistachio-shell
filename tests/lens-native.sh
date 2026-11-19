@@ -9,26 +9,23 @@ cleanup() {
     rm -rf "$LENS_NATIVE_DIR"
 }
 trap cleanup EXIT HUP INT TERM
-for LENS_NATIVE_PART in services components popups settings; do ln -s "$LENS_NATIVE_ROOT/src/$LENS_NATIVE_PART" "$LENS_NATIVE_DIR/$LENS_NATIVE_PART"; done
+ln -s "$LENS_NATIVE_ROOT/src/components" "$LENS_NATIVE_DIR/components"
+mkdir "$LENS_NATIVE_DIR/popups"
+cp "$LENS_NATIVE_ROOT/src/popups/LensCard.qml" "$LENS_NATIVE_DIR/popups/LensCard.qml"
 ln -s "$LENS_NATIVE_ROOT/src/Theme.qml" "$LENS_NATIVE_DIR/Theme.qml"
 cp "$LENS_NATIVE_ROOT/tests/lens-native.qml" "$LENS_NATIVE_DIR/shell.qml"
 python3 -B - "$LENS_NATIVE_ROOT" "$LENS_NATIVE_DIR" <<'PY'
 import json, pathlib, runpy, struct, sys, zlib
 root, base = map(pathlib.Path, sys.argv[1:])
 (base / 'bin').mkdir()
-fake = runpy.run_path(str(root / 'tests/lens.test.py'))['FAKE']
+bridge = runpy.run_path(str(root / 'tests/lens.test.py'))
+bridge['copy_services'](root, base)
+fake = bridge['FAKE']
 for name in ('claude', 'codex'):
     script = base / 'bin' / name
     script.write_text(fake); script.chmod(0o755)
 script = base / 'bin/zenity'
 script.write_text('#!/bin/sh\nprintf "%s\\n" "$LENS_TEST_IMAGE"\n'); script.chmod(0o755)
-script = base / 'bin/python3'
-script.write_text('''#!/usr/bin/python3
-import os, pathlib, runpy, sys
-from unittest.mock import patch
-with patch('pathlib.Path.home', return_value=pathlib.Path(os.environ['LENS_TEST_HOME'])):
-    runpy.run_path(sys.argv[-1], run_name='__main__')
-'''); script.chmod(0o755)
 chunk=lambda tag,data: struct.pack('>I',len(data))+tag+data+struct.pack('>I',zlib.crc32(tag+data))
 w,h=520,220
 pixels=b''.join(b'\0'+bytes((42,47,31))*w for _ in range(h))
@@ -38,7 +35,11 @@ png=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+ch
 PY
 export LENS_TEST_CONTROL="$LENS_NATIVE_DIR/control.json"
 export LENS_TEST_RECORD="$LENS_NATIVE_DIR/calls.jsonl"
-export LENS_TEST_HOME="$LENS_NATIVE_DIR"
+export HOME="$LENS_NATIVE_DIR/home"
+export XDG_CONFIG_HOME="$LENS_NATIVE_DIR/config"
+export XDG_DATA_HOME="$LENS_NATIVE_DIR/data"
+export TMPDIR="$LENS_NATIVE_DIR"
+mkdir -m 700 "$HOME"
 export LENS_TEST_IMAGE="$LENS_NATIVE_DIR/snip.png"
 export PATH="$LENS_NATIVE_DIR/bin:$PATH"
 export XDG_STATE_HOME="$LENS_NATIVE_DIR/state"
@@ -65,7 +66,7 @@ call('beginFixture',str(base/'snip.png'))
 wait(lambda s:s['ready'] and s['open'] and s['count']==1)
 call('questionFixture')
 time.sleep(.2)
-subprocess.run(['grim','/tmp/pistachio-lens-one-prompt.png'],check=True)
+subprocess.run(['grim',base/'lens-one-prompt.png'],check=True)
 buttons=json.loads(call('toolbarFixture'))
 assert len({round(buttons[label]['y'],1) for label in ['Add snip','Add image','Attach file','Ask both']})==1,buttons
 for count in (2,3):
@@ -73,10 +74,10 @@ for count in (2,3):
     buttons=json.loads(call('toolbarFixture'))
     assert len({round(buttons[label]['y'],1) for label in ['Add snip','Add image','Attach file','Ask both']})==1,buttons
 time.sleep(.4)
-subprocess.run(['grim','/tmp/pistachio-lens-prompt.png'],check=True)
+subprocess.run(['grim',base/'lens-prompt.png'],check=True)
 call('bothFixture'); wait(lambda s:s['state']=='answer' and s['combined'])
 time.sleep(.4)
-subprocess.run(['grim','/tmp/pistachio-lens-combined.png'],check=True)
+subprocess.run(['grim',base/'lens-combined.png'],check=True)
 geometry=json.loads(call('geometryFixture'))
 assert geometry['closeRight']<=geometry['headerWidth']+.5,geometry
 call('oneImageFixture');wait(lambda s:s['count']==1);time.sleep(.2)
@@ -84,12 +85,12 @@ buttons=json.loads(call('toolbarFixture'))
 assert len({round(buttons[label]['y'],1) for label in ['Add snip','Add image','Attach file']})==1,buttons
 assert abs(buttons['Ask ChatGPT instead']['y']-buttons['Ask both']['y'])<.5,buttons
 assert buttons['Ask both']['y']>buttons['Attach file']['y'],buttons
-subprocess.run(['grim','/tmp/pistachio-lens-one-answer.png'],check=True)
+subprocess.run(['grim',base/'lens-one-answer.png'],check=True)
 call('crowdedFixture');time.sleep(.2)
 geometry=json.loads(call('geometryFixture'))
 assert geometry['cardHeight']<=geometry['limit']+.5,geometry
 assert all(a['x']+a['width']<=geometry['actionsWidth']+.5 for a in geometry['actions']),geometry
-subprocess.run(['grim','/tmp/pistachio-lens-crowded.png'],check=True)
+subprocess.run(['grim',base/'lens-crowded.png'],check=True)
 calls=[json.loads(line) for line in (base/'calls.jsonl').read_text().splitlines()]
 assert [c['name'] for c in calls]==['claude','codex','claude'],calls
 assert calls[1]['args'].count('--image')==3
@@ -101,5 +102,5 @@ assert not unexpected,log
 warnings = sum('qt.qpa.wayland.textinput' in line for line in log.splitlines())
 print('lens: aligned attachment/agent rows for one/two/three images, prompt/answer/crowded bounds and close passed; no QML errors or warnings')
 if warnings: print('lens: %d transient Qt Wayland text-input focus warnings during chooser transitions' % warnings)
-print('Screenshots: /tmp/pistachio-lens-prompt.png /tmp/pistachio-lens-combined.png')
+assert len(list(base.glob('lens-*.png'))) == 5
 PY

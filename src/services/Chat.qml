@@ -7,7 +7,7 @@ import QtQuick
 
 // The quick chat (owner's call, 13 November 2026; boards design/QuickChat*.html): short questions to
 // Claude Code or Codex, the provider and model chosen in Settings → Lens (the same preferred provider,
-// models and efforts). services/chat.py runs the requests and saves each chat in ~/quick-chats/;
+// models and efforts). psc chat runs the requests and saves each chat in ~/quick-chats/;
 // popups/QuickChat.qml draws it above the bar. The helper runs while the chat is open and for five
 // minutes after it closes; opened again later, the same chat is loaded back from its folder.
 //
@@ -87,6 +87,7 @@ Singleton {
         }
         open = true;
         idle.stop();
+        helper.running = true;
         if (question)
             send(question);
         else
@@ -331,13 +332,10 @@ Singleton {
     }
 
     // the helper: up while the chat is open, and for five minutes after
-    property bool wanted
-    onOpenChanged: if (open) wanted = true
-
     Timer {
         id: idle
         interval: 5 * 60 * 1000
-        onTriggered: if (!root.open && !root.writing) root.wanted = false
+        onTriggered: if (!root.open && !root.writing) helper.running = false
     }
 
     Timer {
@@ -355,8 +353,7 @@ Singleton {
 
     Process {
         id: helper
-        running: root.wanted
-        command: ["python3", "-I", Quickshell.shellPath("services/chat.py")]
+        command: [Quickshell.env("HOME") + "/.local/bin/psc", "chat"]
         stdinEnabled: true
         stdout: SplitParser {
             onRead: line => {

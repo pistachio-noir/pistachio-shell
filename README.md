@@ -515,7 +515,7 @@ pistachio-shell/
 
 The shell publishes Colours to `$XDG_CONFIG_HOME/pistachio/shared-theme` (normally `~/.config/pistachio/shared-theme`), containing `pistachio` or `noir`. Pistachio Text, FM and Notes follow it live. Kitty also follows when its config includes `pistachio-shared.conf`; this selects `pistachio-noir.conf` or `noir.conf`, and the publisher reloads running Kitty processes with SIGUSR1.
 
-Neovim can follow the same choice with the files in `extras/neovim`: its existing Pistachio Noir colourscheme has a matching Noir palette, and `pistachio-shared.lua` checks the shared choice while Neovim is open. `extras/neovim/install.sh` installs these into the matching Neovim config and backs up the current init and colourscheme; it expects the existing `vim.cmd("colorscheme pistachio-noir")` line. The fallback is Pistachio when the shared file is absent.
+Neovim can follow the same choice with the files in `extras/neovim`: its existing Pistachio Noir colourscheme has a matching Noir palette, and `pistachio-shared.lua` checks the shared choice while Neovim is open. `extras/neovim/install.sh` installs these into the matching Neovim config and backs up the current init and colourscheme; it expects the existing `vim.cmd("colorscheme pistachio-noir")` line. The fallback is Pistachio when the shared file is absent. In Noir its code keeps a few muted colours so syntax stays readable; the editor itself stays grey.
 
 Hyprland’s active window and group borders follow the shell’s Colours setting live: pistachio in Pistachio Noir, light grey in Noir; inactive borders stay transparent. Applied at runtime and after Hyprland reloads.
 

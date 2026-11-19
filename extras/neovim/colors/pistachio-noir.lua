@@ -29,13 +29,16 @@ local c = {
   sage_blue      = "#7DA3B3",
   lavender       = "#AC8ED0",
 }
+c.string = c.pistachio
 
 if vim.g.pistachio_shared_scheme == "noir" then
   c = {
     bg = "#111111", bg_alt = "#1A1A1A", overlay = "#262626", overlay2 = "#333333",
     muted = "#5E5E5E", subtext = "#A6A6A6", text = "#E6E6E6", text_bright = "#F7F7F7",
     pistachio = "#BDBDBD", pistachio_deep = "#A6A6A6", terracotta = "#C9675C",
-    gold = "#D2D2D2", clay = "#C4C4C4", teal = "#C8C8C8", sage_blue = "#B4B4B4", lavender = "#BEBEBE",
+    -- code keeps muted hues so syntax stays readable (owner's call, 19 November 2026); the UI stays grey
+    gold = "#C8B892", clay = "#C4A48E", teal = "#98B4AE", sage_blue = "#9AAAB8", lavender = "#B2A4BE",
+    string = "#A9B89A",
   }
 end
 
@@ -86,8 +89,8 @@ hl(0, "WildMenu",       { fg = c.bg, bg = c.pistachio })
 -- Syntax ----------------------------------------------------------------------
 hl(0, "Comment",        { fg = c.muted, italic = true })
 hl(0, "Constant",       { fg = c.clay })
-hl(0, "String",         { fg = c.pistachio })
-hl(0, "Character",      { fg = c.pistachio })
+hl(0, "String",         { fg = c.string })
+hl(0, "Character",      { fg = c.string })
 hl(0, "Number",         { fg = c.clay })
 hl(0, "Boolean",        { fg = c.clay, bold = true })
 hl(0, "Float",          { fg = c.clay })
@@ -127,7 +130,7 @@ hl(0, "@variable.parameter",    { fg = c.subtext })
 hl(0, "@variable.member",       { fg = c.text })
 hl(0, "@constant",              { fg = c.clay })
 hl(0, "@constant.builtin",      { fg = c.clay, bold = true })
-hl(0, "@string",                { fg = c.pistachio })
+hl(0, "@string",                { fg = c.string })
 hl(0, "@string.escape",         { fg = c.pistachio_deep, bold = true })
 hl(0, "@number",                { fg = c.clay })
 hl(0, "@boolean",                { fg = c.clay, bold = true })
@@ -186,11 +189,11 @@ hl(0, "LspReferenceRead",           { bg = c.overlay })
 hl(0, "LspReferenceWrite",          { bg = c.overlay2 })
 
 -- Diff / git ------------------------------------------------------------------------
-hl(0, "DiffAdd",        { fg = c.pistachio, bg = c.bg_alt })
+hl(0, "DiffAdd",        { fg = c.string, bg = c.bg_alt })
 hl(0, "DiffChange",     { fg = c.gold, bg = c.bg_alt })
 hl(0, "DiffDelete",     { fg = c.terracotta, bg = c.bg_alt })
 hl(0, "DiffText",       { fg = c.text_bright, bg = c.overlay2 })
-hl(0, "GitSignsAdd",    { fg = c.pistachio })
+hl(0, "GitSignsAdd",    { fg = c.string })
 hl(0, "GitSignsChange", { fg = c.gold })
 hl(0, "GitSignsDelete", { fg = c.terracotta })
 

@@ -14,8 +14,9 @@ Singleton {
     readonly property int tuiLineHeight: 20
     readonly property int tuiButtonHeight: 32
     readonly property int tuiButtonPadding: 14
-    readonly property int tuiBarHeight: 41
-    readonly property int tuiBarCell: 40
+    readonly property int tuiBarHeight: 35
+    readonly property int tuiBarCellHeight: tuiBarHeight - 1
+    readonly property int tuiBarCellWidth: 40
     readonly property int tuiControlMeterWidth: 140
     readonly property int tuiLauncherWidth: 576
     readonly property int tuiLauncherTop: 104
@@ -36,11 +37,12 @@ Singleton {
     readonly property color tuiHover: bgAlt
     readonly property string fontTui: "JetBrainsMono Nerd Font"
 
-    // The desktop cat keeps its original illustration palette in both schemes.
-    readonly property color catOutline: "#A3B08F"
-    readonly property color catFur: "#E5E9D8"
-    readonly property color catEyes: "#15170F"
-    readonly property color catCheeks: "#D9975A"
+    // The cat's coats keep their colours across shell palettes.
+    readonly property var catSkins: [
+        {value: "cream", title: "Cream", outline: "#A3B08F", fur: "#E5E9D8", eyes: "#15170F", cheeks: "#D9975A"},
+        {value: "ginger", title: "Ginger", outline: "#895032", fur: "#E1A369", eyes: "#342417", cheeks: "#F0C996", stripes: "#AC653D"},
+        {value: "midnight", title: "Midnight", outline: "#798195", fur: "#333848", eyes: "#DDE5A9", cheeks: "#BB92AF"}
+    ]
 
     readonly property color bg: noir ? "#111111" : "#15170F"
     readonly property color bgAlt: noir ? "#1A1A1A" : "#1D2016"
@@ -84,6 +86,8 @@ Singleton {
     readonly property int screenshotTipWidth: 334
     readonly property int settingsWidth: 1040
     readonly property int settingsHeight: tui ? 800 : 760
+    readonly property int setupWidth: 880 // the first-run setup window (boards design/FirstRun/)
+    readonly property int setupHeight: 600
 
     // Drop shadows from the boards (CSS box-shadow: 0 <y> <blur> black at <alpha>), for panels and
     // popups; the bar and the tray pill stay flat (owner's call).

@@ -14,7 +14,7 @@ Rectangle {
     signal scrolled(real delta)
     implicitWidth: nameLabel.implicitWidth + valueLabel.implicitWidth + (text && value ? 6 : 0) + padding * 2
     width: Math.min(maximumWidth, implicitWidth)
-    height: Theme.tuiBarCell
+    height: Theme.tuiBarCellHeight
     color: active ? Theme.pistachio : mouse.containsMouse ? Theme.overlay : "transparent"
     Accessible.role: Accessible.Button
     Accessible.name: text + (value ? ", " + value : "")

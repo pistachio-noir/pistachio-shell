@@ -544,9 +544,12 @@ PanelWindow {
             { kind: "switch", key: "zen", title: "Zen mode", icon: Icons.moon, on: () => FocusMode.zen, status: () => FocusMode.zen ? (FocusMode.session?.owner === "zen" ? `${FocusMode.phaseName()} · ${FocusMode.clock(FocusMode.left())}` : "Bar hidden · toasts wait") : Store.saved.zenPomodoro ? "Off · with a Pomodoro" : "Off", toggle: () => FocusMode.toggleZen() },
             { kind: "switch", key: "pomodoro", title: "Pomodoro", icon: Icons.clock, on: () => FocusMode.pomodoring, status: () => FocusMode.pomodoring ? `${FocusMode.phaseName()} · ${FocusMode.clock(FocusMode.left())} left` : `Off · ${Store.saved.pomodoroWork}/${Store.saved.pomodoroBreak} min`, toggle: () => FocusMode.togglePomodoro() },
             { kind: "switch", key: "focus", title: "Focus session", icon: Icons.lightbulb, on: () => FocusMode.focusing, status: () => FocusMode.focusing ? `${FocusMode.phaseName()} · ${FocusMode.clock(FocusMode.left())} left` : Store.saved.focusPomodoro ? `Off · Pomodoro ${Store.saved.pomodoroWork}/${Store.saved.pomodoroBreak} min` : `Off · ${Store.saved.focusMinutes} min`, toggle: () => FocusMode.toggleFocus() });
+        const experimental = card("Experimental", q, [{ kind: "switch", key: "tui-hyprland", title: "Hyprland integration",
+            icon: Icons.sliders, on: () => ShellSettings.tuiHyprland, status: () => ShellSettings.tuiHyprland ? "On · square corners in TUI" : "Off · square corners in TUI",
+            toggle: () => ShellSettings.setTuiHyprland(!ShellSettings.tuiHyprland) }]);
         return card("Quick controls", q, quick).concat(card("Settings", q, [
             { kind: "settingslink", key: "settings", title: "Settings", subtitle: "Sound, Bluetooth, appearance, Lens and more", glyph: Icons.sliders }
-        ]));
+        ]), experimental.length ? [section("Experimental"), ...experimental] : []);
     }
 
     function bluetoothRows(q: string): var {
@@ -898,7 +901,7 @@ PanelWindow {
     }
 
     // Files and folders in the home folder after a "/" (owner's request, after phase 8), found by
-    // services/files.py (Files). Its answer to the last query stays until the next one comes, kept to
+    // `psc files` (Files). Its answer to the last query stays until the next one comes, kept to
     // what still matches, so typing narrows the list at once. A query with a "/" matches the path.
     function fileRows(q: string): var {
         const waiting = { kind: "empty", key: "empty", title: "Looking through your home folder…" };

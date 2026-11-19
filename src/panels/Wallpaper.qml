@@ -47,7 +47,9 @@ PanelWindow {
     // keyboard is told: the desktop takes it on a click, but only on a workspace without windows. An
     // on-demand layer may take the keyboard on hover too, and the desktop shows in the gaps between
     // windows, so a pointer resting there could pull typing away from a window.
-    WlrLayershell.keyboardFocus: Desktop.enabled && !(Compositor.workspaces.find(w => w.active)?.occupied ?? true) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: !Theme.tui && Desktop.enabled && !(Compositor.workspaces.find(w => w.active)?.occupied ?? true) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    mask: Theme.tui && !Showoff.active ? catRegion : null
+    Region { id: catRegion; item: desktopCat.visible ? desktopCat : null }
 
     // Showoff mode: the wallpaper settles in from a little closer as it starts, and a click on it (the
     // desktop between the panels) ends it.
@@ -81,6 +83,7 @@ PanelWindow {
     DesktopCat {
         id: desktopCat
         interactive: true
+        skin: ShellSettings.catSkin
         anchors.right: parent.right
         anchors.rightMargin: 80
         anchors.bottom: parent.bottom
@@ -114,14 +117,24 @@ PanelWindow {
     }
 
     // the Desktop folder's files and folders (owner's request, after phase 8)
-    DesktopIcons {
-        id: desktop
+    Loader {
         anchors.fill: parent
-        onCatHover: (position, inside) => desktopCat.hovered = inside && desktopCat.visible && desktopCat.contains(desktopCat.mapFromItem(desktop, position.x, position.y))
-        onCatClick: position => { if (desktopCat.visible && desktopCat.contains(desktopCat.mapFromItem(desktop, position.x, position.y))) desktopCat.pet(); }
-        onRenameRequested: item => root.renameRequested(item)
-        onNewFolderRequested: cell => root.newFolderRequested(cell)
-        onWallpapersRequested: root.wallpapersRequested()
+        active: !Theme.tui
+        focus: active
+        sourceComponent: DesktopIcons {
+            id: desktop
+            onCatHover: (position, inside) => desktopCat.hovered = inside && desktopCat.visible && desktopCat.contains(desktopCat.mapFromItem(desktop, position.x, position.y))
+            onCatClick: position => { if (desktopCat.visible && desktopCat.contains(desktopCat.mapFromItem(desktop, position.x, position.y))) desktopCat.pet(); }
+            onRenameRequested: item => root.renameRequested(item)
+            onNewFolderRequested: cell => root.newFolderRequested(cell)
+            onWallpapersRequested: root.wallpapersRequested()
+
+            FocusGrab {
+                windows: [root]
+                active: desktop.menuOpen
+                onCleared: desktop.menu = null
+            }
+        }
     }
 
     // For a keybind (owner's request, 29 October): qs -c pistachio ipc call desktop toggle (or on, off;
@@ -140,23 +153,16 @@ PanelWindow {
         }
     }
 
-    // Zen hides desktop icons and their background handler, so the cat needs its own small target.
+    // TUI and Zen give the cat its own target because the desktop handler is inactive.
     MouseArea {
         anchors.fill: desktopCat
-        enabled: FocusMode.zen && !Showoff.active && desktopCat.visible
+        enabled: (Theme.tui || FocusMode.zen) && !Showoff.active && desktopCat.visible
         visible: enabled
         hoverEnabled: true
         onEntered: desktopCat.hovered = true
         onExited: desktopCat.hovered = false
         onEnabledChanged: if (!enabled) desktopCat.hovered = false
         onClicked: desktopCat.pet()
-    }
-
-    // their menu also goes with a click in a window
-    FocusGrab {
-        windows: [root]
-        active: desktop.menuOpen
-        onCleared: desktop.menu = null
     }
 
     Timer {

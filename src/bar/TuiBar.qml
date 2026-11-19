@@ -54,7 +54,7 @@ PanelWindow {
             TuiBarButton {
                 required property int modelData
                 readonly property var ws:Compositor.workspaces.find(w=>w.id===modelData)
-                width:Theme.tuiBarCell;padding:0;centered:true
+                width:Theme.tuiBarCellWidth;padding:0;centered:true
                 text:"";value:ws?.occupied || modelData===Compositor.activeWorkspace ? String(modelData) : "·"
                 active:modelData===Compositor.activeWorkspace
                 Accessible.name:"Workspace "+modelData
@@ -110,7 +110,7 @@ PanelWindow {
             Flickable {
                 objectName:"tui-bar-extras"
                 width:Math.min(extraItems.implicitWidth,Math.max(40,root.width-spaces.width-date.implicitWidth-essentials.width-32))
-                height:Theme.tuiBarCell;contentWidth:extraItems.implicitWidth
+                height:Theme.tuiBarCellHeight;contentWidth:extraItems.implicitWidth
                 clip:true;flickableDirection:Flickable.HorizontalFlick;boundsBehavior:Flickable.StopAtBounds
                 Row { id:extraItems
             // one arrow (owner's call): collapsed by default, showing how many it holds; open, the tray
@@ -140,7 +140,7 @@ PanelWindow {
             }
             Text {
                 visible:ShellSettings.tuiTrayOpen&&Tray.items.length>0&&Compositor.minimized.length>0
-                height:Theme.tuiBarCell;verticalAlignment:Text.AlignVCenter;leftPadding:4;rightPadding:4
+                height:Theme.tuiBarCellHeight;verticalAlignment:Text.AlignVCenter;leftPadding:4;rightPadding:4
                 text:"│";color:Theme.tuiBorder;font.family:Theme.fontTui;font.pixelSize:Theme.tuiTextSize
             }
             Repeater {

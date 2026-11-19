@@ -160,7 +160,7 @@ Singleton {
                 return;
             }
             Hyprland.refreshToplevels();
-            const tiled = Hyprland.toplevels.values.filter(t => t.workspace?.id === id && t.title !== "Pistachio Settings" && !(t.lastIpcObject.floating ?? false) && t.lastIpcObject.size);
+            const tiled = Hyprland.toplevels.values.filter(t => t.workspace?.id === id && !root.shellWindowTitles.includes(t.title) && !(t.lastIpcObject.floating ?? false) && t.lastIpcObject.size);
             const grouped = tiled.filter(t => (t.lastIpcObject.grouped ?? []).length > 0);
             if (tiled.length < 2 && grouped.length === 0) {
                 root.gathering = 0; // one window: it becomes a group when the next opens
@@ -188,8 +188,8 @@ Singleton {
     }
 
     // Hyprland's own tab bar on groups, in the Pistachio look (owner's call, 9 November 2026: the shell's
-    // strip, a layer above every window, covered windows and lagged when things moved): filled pill
-    // tabs, the shown one pistachio with bg text, the rest overlay with subtext, Manrope titles; the
+    // strip, a layer above every window, covered windows and lagged when things moved): filled
+    // tabs (square in TUI), the shown one pistachio with bg text, the rest overlay with subtext; the
     // window and group borders follow the palette (owner’s call, 18 November 2026). Set at runtime (the config file is untouched), at
     // startup and after each config reload, which would undo it.
     function hex(c: color, alpha: real): string {
@@ -197,12 +197,38 @@ Singleton {
         return `rgba(${two(c.r)}${two(c.g)}${two(c.b)}${two(alpha)})`;
     }
 
-    Connections { target: Theme; function onFontUiChanged() { Qt.callLater(root.styleGroups); } function onNoirChanged() { Qt.callLater(root.styleGroups); } }
+    Connections {
+        target: Theme
+        function onTuiChanged() { Qt.callLater(root.styleGroups); }
+        function onNoirChanged() { Qt.callLater(root.styleGroups); }
+    }
 
     function styleGroups() {
         if (!Hyprland.usingLua)
             return; // a hyprland.conf: the README gives its lines
-        hl(`hl.config({ general = { col = { active_border = "${hex(Theme.pistachio, 238 / 255)}", inactive_border = "rgba(00000000)" } }, group = { col = { border_active = "${hex(Theme.pistachio, 238 / 255)}", border_inactive = "rgba(00000000)" }, groupbar = { gradients = true, gradient_rounding = 11, gradient_round_only_edges = false, rounding = 11, height = 22, indicator_height = 0, gaps_in = 4, gaps_out = 4, font_family = "${Theme.fontUi}", font_size = 11, font_weight_active = "heavy", font_weight_inactive = "bold", text_color = "${hex(Theme.bg, 1)}", text_color_inactive = "${hex(Theme.subtext, 1)}", col = { active = "${hex(Theme.pistachio, 1)}", inactive = "${hex(Theme.overlay, 1)}", locked_active = "${hex(Theme.clay, 1)}", locked_inactive = "${hex(Theme.overlay2, 1)}" } } } })`);
+        const tabRadius = Theme.tui ? 0 : 11;
+        hl(`hl.config({ general = { col = { active_border = "${hex(Theme.pistachio, 238 / 255)}", inactive_border = "rgba(00000000)" } }, group = { col = { border_active = "${hex(Theme.pistachio, 238 / 255)}", border_inactive = "rgba(00000000)" }, groupbar = { gradients = true, gradient_rounding = ${tabRadius}, gradient_round_only_edges = false, rounding = ${tabRadius}, height = 22, indicator_height = 0, gaps_in = 4, gaps_out = 4, font_family = "${Theme.fontUi}", font_size = 11, font_weight_active = "heavy", font_weight_inactive = "bold", text_color = "${hex(Theme.bg, 1)}", text_color_inactive = "${hex(Theme.subtext, 1)}", col = { active = "${hex(Theme.pistachio, 1)}", inactive = "${hex(Theme.overlay, 1)}", locked_active = "${hex(Theme.clay, 1)}", locked_inactive = "${hex(Theme.overlay2, 1)}" } } } })`);
+    }
+
+    readonly property string tuiRoundingMode: !Store.ready || !Hyprland.usingLua ? "" : Theme.tui && ShellSettings.tuiHyprland ? "square" : "config"
+    property string appliedTuiRoundingMode
+    onTuiRoundingModeChanged: Qt.callLater(root.styleTuiRounding)
+
+    // A named rule gives existing and new windows square corners while preserving the user's config.
+    function styleTuiRounding() {
+        const mode = tuiRoundingMode;
+        if (!mode || roundingUpdate.running || mode === appliedTuiRoundingMode)
+            return;
+        appliedTuiRoundingMode = mode;
+        const lua = mode === "square"
+            ? 'pistachioTuiRounding = hl.window_rule({ name = "pistachio-tui-rounding", match = { class = ".*" }, rounding = 0 })'
+            : 'if pistachioTuiRounding then pistachioTuiRounding:set_enabled(false) end';
+        roundingUpdate.exec(["hyprctl", "eval", lua]);
+    }
+
+    Process {
+        id: roundingUpdate
+        onExited: root.styleTuiRounding()
     }
 
     // At login the shell can start before it knows Hyprland's config is Lua (`usingLua` false at
@@ -487,6 +513,8 @@ Singleton {
 
     // FloatingWindow is an xdg toplevel, so Hyprland otherwise tiles it (and can add it to tabs).
     // Apply to this window once on mapping; no config files or other windows are changed.
+    // the shell's own normal windows (Settings, first-run setup): floated, styled, never gathered into tabs
+    readonly property var shellWindowTitles: ["Pistachio Settings", "Pistachio Setup"]
     function placeSettingsWindow(window, width: int, height: int) {
         const address = window.address, selector = `address:0x${address}`;
         if (!Hyprland.usingLua) focus(address);
@@ -540,16 +568,18 @@ Singleton {
         function onRawEvent(event) {
             if (event.name === "configreloaded") {
                 root.styleGroups();
+                root.appliedTuiRoundingMode = "";
+                root.styleTuiRounding();
                 if (FocusMode.zen) // a config reload brings the gaps back
                     root.zenLayout(true);
                 if (GameMode.active) // and the animations and blur
                     root.gameLayout(true);
-                const settings = root.windows.find(w => w.title === "Pistachio Settings" && w.pid === Quickshell.processId);
-                if (settings) root.styleSettingsWindow(settings.address);
+                for (const own of root.windows.filter(w => root.shellWindowTitles.includes(w.title) && w.pid === Quickshell.processId))
+                    root.styleSettingsWindow(own.address);
             }
             if (event.name === "openwindow" && root.arriving.length)
                 root.placeArrival(event.data);
-            if (event.name === "openwindow" && !event.data.endsWith(",Pistachio Settings") && root.isTabbed(parseInt(event.data.split(",")[1])) && !root.gathering) {
+            if (event.name === "openwindow" && !root.shellWindowTitles.some(t => event.data.endsWith("," + t)) && root.isTabbed(parseInt(event.data.split(",")[1])) && !root.gathering) {
                 root.gathering = parseInt(event.data.split(",")[1]);
                 root.gatherSteps = 0;
                 gather.restart();

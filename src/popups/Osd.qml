@@ -85,7 +85,7 @@ PanelWindow {
 
     Reveal {
         id: reveal
-        open: hide.running && (!root.suppressed || root.notice)
+        open: hide.running && (!Theme.tui || !root.desktop) && (!root.suppressed || root.notice)
     }
 
     Timer {
@@ -182,7 +182,7 @@ PanelWindow {
         target: Desktop
 
         function onEnabledChanged() {
-            if (!root.settling)
+            if (!Theme.tui && !root.settling)
                 root.show("desktop");
         }
     }

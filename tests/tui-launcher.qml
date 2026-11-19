@@ -88,6 +88,13 @@ ShellRoot {
     LauncherTools.aliases=({web:{kind:"app",target:"fixture0"}});field.text="web";input.wait(60);
     check(launcher.rows[0].title==="Alias"&&launcher.rows[launcher.current].key==="alias:web","exact alias remains first and selected");
     input.keyClick(Qt.Key_Return);check(Apps.launched==="fixture0"&&!launcher.open,"alias Enter retains launch action");
+   } else if(name==="hyprland") {
+    launcher.show("system");field.text="experimental";input.wait(80);
+    const section=launcher.rows.findIndex(r=>r.kind==="section"&&r.title==="Experimental");
+    const row=launcher.rows[section+1];
+    check(section>=0&&row?.key==="tui-hyprland"&&!row.on(),"Experimental contains the opt-in Hyprland toggle");
+    launcher.activate(row,0,false);check(row.on(),"launcher turns the integration on");
+    launcher.activate(row,0,false);check(!row.on(),"launcher turns the integration off");
    } else if(name==="style") {
     launcher.show("system");input.wait(80);launcher.current=launcher.rows.findIndex(r=>r.key==="volume");
     root.tui=false;input.wait(100);check(launcher.rows[launcher.current].key==="volume","open launcher keeps selected action into Classic");

@@ -20,9 +20,9 @@ ShellRoot {
     function run(){
         input.wait(200);
         check(bar.window.objectName==="tui-bar","TUI bar chosen");
-        check(bar.window.exclusiveZone===41 && bar.window.anchors.top && bar.window.anchors.left && bar.window.anchors.right,"TUI reserves top strip");
+        check(bar.window.exclusiveZone===35 && bar.window.anchors.top && bar.window.anchors.left && bar.window.anchors.right,"TUI reserves 35 px at the top");
         check(bar.window.WlrLayershell.layer===WlrLayer.Overlay,"bar stays above real fullscreen windows");
-        check(bar.window.height===41 && bar.window.width===bar.window.screen.width,"strip fills screen width");
+        check(bar.window.height===35 && bar.window.width===bar.window.screen.width,"35 px strip fills screen width");
         Audio.micMuted=true;ScreenShare.sharing=true;Bluetooth.battery=66;input.wait(60);
         check(find(bar.window.contentItem,"tui-mic-cue")?.visible && find(bar.window.contentItem,"tui-share-cue")?.visible && find(bar.window.contentItem,"tui-bluetooth")?.visible,"privacy and Bluetooth readouts retained");
         Tray.items=Array.from({length:12},(_,i)=>({id:"fixture-"+i,title:"Fixture",icon:"",hasMenu:false}));
@@ -32,6 +32,7 @@ ShellRoot {
         check(!ShellSettings.tuiTrayOpen && arrow?.visible && arrow.value==="32" && find(bar.window.contentItem,"tui-bar-extras").contentWidth<200,"tray and minimised collapsed behind one arrow by default");
         ShellSettings.setTuiTrayOpen(true);input.wait(80);
         const cpu=find(bar.window.contentItem,"tui-cpu"), mem=find(bar.window.contentItem,"tui-mem"), extras=find(bar.window.contentItem,"tui-bar-extras");
+        check(cpu.height===34 && extras.height===34,"controls fit above the bottom rule");
         check(cpu.mapToItem(bar.window.contentItem,0,0).x>=0 && mem.mapToItem(bar.window.contentItem,mem.width,0).x<=bar.window.width,"CPU and memory remain on screen when crowded");
         check(extras.contentWidth>extras.width && extras.x+extras.width<=bar.window.width,"crowded extras scroll within strip");
         ShellSettings.setTuiTrayOpen(false);Tray.items=[];Compositor.minimized=[];input.wait(40);
@@ -44,7 +45,7 @@ ShellRoot {
             check(bar.window.shown,"peek reveals the hidden strip (Zen too)");
             if(FocusMode.zen) {bar.window.revealed=false;input.wait(40);check(bar.window.mask.height===0,"Zen has no top-edge strip");}
             bar.window.revealed=false;Compositor.fullscreen=false;FocusMode.zen=false;bar.overviewOpen=false;input.wait(40);
-            check(bar.window.shown && bar.window.exclusiveZone===41,"strip back and reserving");
+            check(bar.window.shown && bar.window.exclusiveZone===35,"strip back and reserving");
         }
         bar.toggle(bar.controls);input.wait(200);
         check(bar.controls.open && bar.controls.objectName==="tui-control","TUI control chosen");
@@ -76,7 +77,7 @@ ShellRoot {
         check(bar.window.exclusiveZone===0 && bar.window.anchors.bottom,"Classic reservation restored");
         check(!bar.controls.open,"switch releases old control surface");
         root.tui=true;input.wait(200);
-        check(bar.window.objectName==="tui-bar" && bar.window.exclusiveZone===41,"top strip restored");
+        check(bar.window.objectName==="tui-bar" && bar.window.exclusiveZone===35,"top strip restored");
         LocalSend.available=false;bar.controls.page="localsend";bar.controls.open=true;input.wait(150);
         check(!bar.controls.localShown && !find(bar.controls.contentItem,"control-localsend"),"missing optional dependency hidden");
         bar.controls.open=false;

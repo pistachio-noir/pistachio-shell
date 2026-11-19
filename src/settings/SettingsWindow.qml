@@ -31,7 +31,7 @@ FloatingWindow {
     property int aboutPresses
     property bool funAbout
     readonly property alias dialog: settingsDialog
-    property var results: Catalog.search(searchField.text, LocalSend.available, Cider.installed, Brightness.available)
+    property var results: Catalog.search(searchField.text, LocalSend.available, Cider.installed, Brightness.available, Theme.tui)
 
     function resultSpec(result) {
         const groups = pageContent.buildGroups(result[0]);
@@ -90,6 +90,14 @@ FloatingWindow {
         function status(): string { return JSON.stringify({open:SettingsHub.opened,page:SettingsHub.page,minimized:root.minimized,search:searchField.text,results:root.results.length,scanning:Bluetooth.scanning,watching:SystemStats.watching}); }
     }
     Rectangle {
+        objectName: "settings-title-backing"
+        visible: Theme.tui
+        width: parent.width
+        height: surface.y
+        color: surface.color
+        opacity: reveal.progress
+    }
+    Rectangle {
         visible: Theme.tui
         x: 8; y: 0; width: frameTitle.implicitWidth+16; height:20; z:2; color:Theme.pistachio
         SettingsText { id:frameTitle;anchors.centerIn:parent;text:"settings";color:Theme.bg }
@@ -126,7 +134,7 @@ FloatingWindow {
                 Basic.TextField {
                     id:searchField
                     parent: titlebar
-                    x: Theme.tui ? (titlebar.width - width) / 2 : titlebar.width - 16 - width - 112
+                    x: Theme.tui ? (titlebar.width - width) / 2 : headerActions.x - width - headerActions.spacing
                     y: (titlebar.height - height) / 2
                     objectName:"settings-search"
                     width: Theme.tui ? Math.min(440, titlebar.width - 160) : 270;height: Theme.tui ? 36 : 44;leftPadding: Theme.tui ? 28 : 40;rightPadding:text?44:62
@@ -140,7 +148,6 @@ FloatingWindow {
                     onAccepted:if(root.results.length)root.navigate(root.results[0][0],root.results[0][1])
                     Accessible.name:"Find a setting"
                 }
-                SettingsButton { width:44;padding:0;quiet:true;text:Theme.tui?"[_]":"";glyph:Theme.tui?[]:Icons.minus;onClicked:root.minimized=true;Accessible.name:"Minimise settings" }
                 SettingsButton { width:44;padding:0;quiet:true;text:Theme.tui?"[x]":"";glyph:Theme.tui?[]:Icons.close;onClicked:SettingsHub.opened=false;Accessible.name:"Close settings" }
             }
             Rectangle { y:parent.height-1;width:parent.width;height:1;color:Theme.overlay }
@@ -166,9 +173,9 @@ FloatingWindow {
                             SettingsText{x:Theme.tui?16:12;height:parent.first?22:0;visible:parent.first;text:Theme.tui?modelData[3].toLowerCase():modelData[3].toUpperCase();secondary:true;font.pixelSize: Theme.tui ? Theme.tuiTextSize : 10;font.weight:Font.Bold;font.letterSpacing:0.6}
                             SettingsButton {
                                 objectName:"settings-nav-"+modelData[0];width:Theme.tui?224:192;height:Theme.tui?40:36;text:modelData[1];active:!searchField.text.trim()&&SettingsHub.page===modelData[0];quiet:true;animateSelection:true
-                                leftPadding:Theme.tui?16:39;rightPadding:8
+                                leftPadding:navIcon.x+navIcon.width+10;rightPadding:8
                                 contentItem:Text{text:parent.text;font:parent.font;color:parent.active?Theme.bg:Theme.subtext;verticalAlignment:Text.AlignVCenter;elide:Text.ElideRight;Behavior on color { ColorAnimation { duration: Theme.hoverDuration; easing.type: Theme.easing } }}
-                                Icon{visible:!Theme.tui;x:12;anchors.verticalCenter:parent.verticalCenter;size:17;paths:Icons[modelData[4]]||Icons.sliders;color:parent.active?Theme.bg:Theme.subtext;Behavior on color { ColorAnimation { duration: Theme.hoverDuration; easing.type: Theme.easing } }}
+                                Icon{id:navIcon;x:Theme.tui?16:12;anchors.verticalCenter:parent.verticalCenter;size:17;paths:Icons[modelData[4]]||Icons.sliders;color:parent.active?Theme.bg:Theme.subtext;Behavior on color { ColorAnimation { duration: Theme.hoverDuration; easing.type: Theme.easing } }}
                                 onClicked:{ if(modelData[0]==="about" && !root.funAbout && ++root.aboutPresses>=10) root.funAbout=true; root.navigate(modelData[0],""); }
                             }
                         }

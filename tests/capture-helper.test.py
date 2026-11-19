@@ -1,5 +1,5 @@
-"""Real FFmpeg boundaries: trimming preserves the source and rejects unsafe ranges."""
-import importlib.util
+"""Real FFmpeg boundaries: trimming preserves the source and rejects unsafe ranges. Runs `psc capture`
+(Python's capture.py until 19 November 2026) the way the shell does; PSC= another psc build."""
 import json
 import os
 import signal
@@ -11,9 +11,19 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('capture_helper', ROOT / 'src/services/capture.py')
-helper = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(helper)
+PSC = os.environ.get('PSC') or str(ROOT / 'rust/target/release/psc')
+
+
+def capture(*args, env=None):
+    out = subprocess.run([PSC, 'capture', *map(str, args)], capture_output=True, text=True, env=env, timeout=60)
+    reply = json.loads(out.stdout)
+    if out.returncode: raise ValueError(reply['error'])
+    return reply
+
+
+class helper:
+    probe = staticmethod(lambda source: capture('probe', source)['duration'])
+    trim = staticmethod(lambda source, start, end: capture('trim', source, start, end)['path'])
 
 class CaptureTests(unittest.TestCase):
     def test_trim_is_new_file_and_validates_range(self):
@@ -43,7 +53,7 @@ class CaptureTests(unittest.TestCase):
             encoder.chmod(0o755)
             pidfile = base / 'child.pid'
             env = dict(os.environ,PATH=str(binary)+':'+os.environ['PATH'],CAPTURE_TEST_PID=str(pidfile))
-            proc = subprocess.Popen([sys.executable,'-I',str(ROOT/'src/services/capture.py'),'trim',str(source),'0','1'],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+            proc = subprocess.Popen([PSC,'capture','trim',str(source),'0','1'],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
             try:
                 deadline = time.monotonic()+5
                 while not pidfile.exists() and time.monotonic()<deadline: time.sleep(.02)
@@ -60,7 +70,7 @@ class CaptureTests(unittest.TestCase):
                 if proc.poll() is None: proc.kill();proc.communicate()
 
     def test_cli_reports_structured_error(self):
-        result = subprocess.run(['python3','-I',str(ROOT/'src/services/capture.py'),'probe','/not/a/file'],capture_output=True,text=True)
+        result = subprocess.run([PSC,'capture','probe','/not/a/file'],capture_output=True,text=True)
         self.assertNotEqual(result.returncode,0)
         self.assertIn('error',json.loads(result.stdout))
 

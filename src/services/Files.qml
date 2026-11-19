@@ -5,7 +5,7 @@ import Quickshell.Io
 import QtQuick
 
 // Files and folders in the home folder, for the launcher's "/" search (owner's request, after phase
-// 8). services/files.py lists the folder as it starts and answers each query; matching ~20,000 names
+// 8). `psc files` (rust/psc/src/files.rs) lists the folder as it starts and answers each query; matching ~20,000 names
 // in QML took ~90 ms a keystroke, too slow to type over. It runs only while the launcher shows the
 // search (setActive), so each new search sees the folder as it is now.
 Singleton {
@@ -69,7 +69,7 @@ Singleton {
     Process {
         id: helper
         running: root.active
-        command: ["python3", "-I", Quickshell.shellPath("services/files.py")]
+        command: [Quickshell.env("HOME") + "/.local/bin/psc", "files"]
         stdinEnabled: true
         stdout: SplitParser {
             onRead: data => root.heard(data)

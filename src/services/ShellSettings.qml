@@ -1,5 +1,6 @@
 pragma Singleton
 
+import qs
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -7,19 +8,25 @@ import QtQuick
 // The shell's own look, set in the launcher (System, Shell settings) and kept in Store.
 Singleton {
     readonly property string publishedScheme: Store.ready ? colourScheme : ""
-    onPublishedSchemeChanged: if (publishedScheme) themePublisher.exec(["python3", Quickshell.shellPath("services/shared-theme.py"), publishedScheme])
+    onPublishedSchemeChanged: if (publishedScheme) themePublisher.exec([Quickshell.env("HOME") + "/.local/bin/psc", "theme", publishedScheme])
     property Process themePublisher: Process {}
 
     readonly property string appearanceStyle: Store.saved.appearanceStyle === "tui" ? "tui" : "classic"
     function setAppearanceStyle(value: string) {
         if (value === "classic" || value === "tui") Store.saved.appearanceStyle = value;
     }
+    readonly property bool tuiHyprland: Store.saved.tuiHyprland
+    function setTuiHyprland(on: bool) { Store.saved.tuiHyprland = on; }
     readonly property string colourScheme: Store.saved.colourScheme === "noir" ? "noir" : "pistachio"
     function setColourScheme(value: string) {
         if (value === "pistachio" || value === "noir") Store.saved.colourScheme = value;
     }
     readonly property bool desktopCat: Store.saved.desktopCat === true
     function setDesktopCat(value: bool) { Store.saved.desktopCat = value; }
+    readonly property string catSkin: Theme.catSkins.find(skin => skin.value === Store.saved.catSkin)?.value ?? "cream"
+    function setCatSkin(value: string) {
+        if (Theme.catSkins.some(skin => skin.value === value)) Store.saved.catSkin = value;
+    }
     readonly property bool monochromeWallpaper: Store.saved.monochromeWallpaper === true
     function setMonochromeWallpaper(value: bool) { Store.saved.monochromeWallpaper = value; }
     readonly property bool clipboardHistory: Store.saved.clipboardHistory === true

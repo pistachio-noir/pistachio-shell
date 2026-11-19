@@ -8,21 +8,10 @@ import selectors
 import time
 import unittest
 from unittest.mock import patch
-spec=importlib.util.spec_from_file_location('mic_check',Path(__file__).resolve().parents[1]/'src/services/mic-check.py')
-m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+# `psc mic-check` (Python's mic-check.py until 19 November 2026; its sample/peak cases are Rust tests in
+# rust/psc/src/mic.rs). PSC= another psc build.
+PSC=os.environ.get('PSC') or str(Path(__file__).resolve().parents[1]/'rust/target/release/psc')
 class MicCheckTests(unittest.TestCase):
-    def test_only_explicit_record_keeps_exactly_five_seconds_then_closes_microphone(self):
-        with tempfile.TemporaryDirectory() as td:
-            sample=m.Sample(Path(td)/'sample.raw')
-            sample.feed(b'\x00\x40'*1600)
-            self.assertFalse(sample.path.exists())
-            sample.start()
-            sample.feed(b'\x00\x40'*90000)
-            self.assertTrue(sample.ready)
-            self.assertEqual(sample.path.stat().st_size,16000*2*5)
-            self.assertAlmostEqual(m.peak(b'\x00\x40'*10),0.5,places=2)
-            sample.clear()
-            self.assertFalse(sample.path.exists())
     def test_protocol_closes_mic_after_sample_and_deletes_temporary_audio_on_stop(self):
         with tempfile.TemporaryDirectory() as td:
             base=Path(td);bindir=base/'bin';bindir.mkdir();tmp=base/'tmp';tmp.mkdir()
@@ -33,8 +22,7 @@ class MicCheckTests(unittest.TestCase):
             play.write_text("#!/usr/bin/env python3\nimport os,time\nfrom pathlib import Path\nPath(os.environ['PLAYED']).write_text('yes')\ntime.sleep(0.2)\n")
             play.chmod(0o755)
             env=dict(os.environ,PATH=str(bindir)+':'+os.environ['PATH'],TMPDIR=str(tmp),MIC_PID=str(base/'pid'),PLAYED=str(base/'played'))
-            helper=Path(__file__).resolve().parents[1]/'src/services/mic-check.py'
-            process=subprocess.Popen(['python3','-I',str(helper),'fixture-input'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env,text=True,bufsize=1)
+            process=subprocess.Popen([PSC,'mic-check','fixture-input'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env,text=True,bufsize=1)
             def event(name,state=None):
                 deadline=time.monotonic()+5
                 while time.monotonic()<deadline:

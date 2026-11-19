@@ -6,7 +6,7 @@ import QtQuick
 
 // Other apps' things for the launcher (owner's picks, 8 November 2026): CLion's recent projects (and VS
 // Code's, owner's request, 11 November 2026) and
-// the installed games (Steam's, and Sober while its app is installed), read by services/library.py
+// the installed games (Steam's, and Sober while its app is installed), read by `psc library`
 // each time the launcher opens.
 Singleton {
     id: root
@@ -40,7 +40,7 @@ Singleton {
 
     Process {
         id: reader
-        command: ["python3", "-I", Quickshell.shellPath("services/library.py")]
+        command: [Quickshell.env("HOME") + "/.local/bin/psc", "library"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

@@ -24,7 +24,7 @@ Singleton {
         if (busy) return;
         pending = drive;
         result = null;
-        ejector.command = ["python3", "-I", Quickshell.shellPath("services/system-tools.py"), "eject", drive.path, drive.disk, drive.name, drive.mountpoint];
+        ejector.command = [Quickshell.env("HOME") + "/.local/bin/psc", "system", "eject", drive.path, drive.disk, drive.name, drive.mountpoint];
         ejector.running = true;
     }
     function returnToApp(pid: int) {

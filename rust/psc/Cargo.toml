@@ -1,0 +1,23 @@
+[package]
+name = "psc"
+description = "Pistachio Shell Control: run, stop and call the Pistachio shell, check what it needs"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "psc"
+path = "src/main.rs"
+
+[dev-dependencies]
+libc = { workspace = true }
+
+[dependencies]
+toml = { version = "0.8", features = ["preserve_order"] }
+unicode-normalization = "0.1"
+quick-xml = "0.37"
+gio = "0.20"
+clap = { workspace = true }
+clap_complete = { workspace = true }
+serde_json = { workspace = true }
+libc = { workspace = true }

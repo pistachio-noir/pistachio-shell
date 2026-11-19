@@ -8,7 +8,7 @@ import QtQuick
 // integration-design.md): one switch, on by default, under which the shell sets Kitty and Neovim up
 // itself to follow Colours. An app with its own theme is asked about first (`conflict`, shown by
 // Settings' dialog), and the answer is kept per app; switching off removes only the shell's own lines.
-// services/shared-theme.py does the work and answers {"apps": [{id, name, state, detail}]}.
+// `psc theme` (rust/psc/src/theme.rs) does the work and answers {"apps": [{id, name, state, detail}]}.
 Singleton {
     id: root
 
@@ -30,7 +30,7 @@ Singleton {
             return;
         const args = queue[0];
         queue = queue.slice(1);
-        helper.exec({ command: ["python3", "-I", Quickshell.shellPath("services/shared-theme.py")].concat(args) });
+        helper.exec({ command: [Quickshell.env("HOME") + "/.local/bin/psc", "theme"].concat(args) });
     }
     function refresh() { run(["status"]); }
 

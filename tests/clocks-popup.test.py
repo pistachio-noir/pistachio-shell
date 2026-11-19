@@ -26,7 +26,11 @@ ShellRoot {
 def check(fail):
     with tempfile.TemporaryDirectory(prefix="pistachio-clocks-") as d:
         base = pathlib.Path(d); (base / "services").mkdir(); (base / "runtime").mkdir(mode=0o700)
-        shutil.copy(ROOT / "src/services/Clocks.qml", base / "services/Clocks.qml")
+        # Clocks runs `$HOME/.local/bin/psc clocks …`: its copy here runs the stand-in, never the real psc
+        service = (ROOT / "src/services/Clocks.qml").read_text()
+        real = '[Quickshell.env("HOME") + "/.local/bin/psc", "clocks"'
+        assert service.count(real) == 2, "Clocks' psc command changed: update this fixture"
+        (base / "services/Clocks.qml").write_text(service.replace(real, '["python3", Quickshell.shellPath("services/clocks.py")'))
         (base / "services/clocks.py").write_text(FAKE)
         for name, body in {"Apps": "property var list: []", "ShellSettings": "function integration(id) { return true; }"}.items():
             (base / f"services/{name}.qml").write_text("pragma Singleton\nimport Quickshell\nimport QtQuick\nSingleton { " + body + " }\n")

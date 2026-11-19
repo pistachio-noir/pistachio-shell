@@ -5,7 +5,7 @@ import Quickshell.Io
 import QtQuick
 
 // Export and import of the shell's preferences (owner's call, 15 November 2026): a one-off snapshot in
-// ~/.config/pistachio/pistachio-shell/settings.toml, written and read by prefs.py, which owns the TOML layout and
+// ~/.config/pistachio/pistachio-shell/settings.toml, written and read by `psc prefs` (rust/psc/src/prefs.rs), which owns the TOML layout and
 // checks every value. Import never writes straight away: it lists what would change (old → new) and
 // applies only on Apply, like the page reset. Never the Cider token, LocalSend's known devices,
 // notification or usage history, running state, the wallpaper or desktop icon positions.
@@ -20,13 +20,16 @@ Singleton {
     property bool reviewing
     property var changes: [] // [{ key, title, from, to, value }] while reviewing
     property var skipped: [] // [{ key, reason }] from the file
+    property string source: path // the file the last review read (first-run setup may pick another)
+    property bool missing // the last review found no file there
 
-    // The Store keys that travel, the same list as prefs.py's SCHEMA (tests/prefs.test.py checks it),
+    // The Store keys that travel, the same list as psc's prefs SCHEMA (tests/prefs.test.py checks it),
     // with the names Settings gives them
     readonly property var titles: ({
+        catSkin: "Cat skin",
         frosted: "Frosted panels", frostStyle: "Frost style", shadows: "Drop shadows", desktopIcons: "Desktop icons",
         workspaceOsd: "Workspace OSD", tabbedOsd: "Tabbed OSD",
-        desktopCat: "Desktop cat", clipboardHistory: "Clipboard history", monochromeWallpaper: "Monochrome wallpaper", phonePreview: "Phone timer preview", gameMode: "Game mode", themingIntegration: "Theming integration", themingKeep: "Apps keeping their own theme", gameClasses: "Extra game windows", appearanceStyle: "Style", colourScheme: "Colours", tuiTrayOpen: "Tray icons shown (TUI)",
+        desktopCat: "Desktop cat", clipboardHistory: "Clipboard history", monochromeWallpaper: "Monochrome wallpaper", phonePreview: "Phone timer preview", gameMode: "Game mode", themingIntegration: "Theming integration", themingKeep: "Apps keeping their own theme", gameClasses: "Extra game windows", appearanceStyle: "Style", tuiHyprland: "Hyprland integration", colourScheme: "Colours", tuiTrayOpen: "Tray icons shown (TUI)",
         nightLight: "Night light", temperature: "Night light warmth", nightSchedule: "Night light schedule",
         nightFrom: "Night light start", nightTo: "Night light end",
         headphonesTakeOver: "Headphones take over", volumeTick: "Volume tick",
@@ -85,10 +88,12 @@ Singleton {
         exporter.running = true;
     }
 
-    function review() {
+    function review(file) {
         if (busy || !Store.ready)
             return;
         busy = true;
+        source = typeof file === "string" && file ? file : path;
+        missing = false;
         reader.payload = JSON.stringify({
             actions: LauncherTools.actions.map(a => a.id),
             claudeModels: ShellSettings.lensClaudeModels.map(m => m.value),
@@ -120,7 +125,7 @@ Singleton {
     Process {
         id: exporter
         property string payload
-        command: ["python3", Quickshell.shellPath("services/prefs.py"), "export", root.path, payload]
+        command: [Quickshell.env("HOME") + "/.local/bin/psc", "prefs", "export", root.path, payload]
         stdout: StdioCollector {
             onStreamFinished: {
                 let reply = null;
@@ -135,13 +140,14 @@ Singleton {
     Process {
         id: reader
         property string payload
-        command: ["python3", Quickshell.shellPath("services/prefs.py"), "read", root.path, payload]
+        command: [Quickshell.env("HOME") + "/.local/bin/psc", "prefs", "read", root.source, payload]
         stdout: StdioCollector {
             onStreamFinished: {
                 let reply = null;
                 try { reply = JSON.parse(text); } catch (e) {}
                 if (!reply?.ok) {
                     root.failed = true;
+                    root.missing = /^no settings file/.test(reply?.error ?? "");
                     root.status = `Couldn't import: ${reply?.error ?? "the helper didn't answer"}`;
                     return;
                 }

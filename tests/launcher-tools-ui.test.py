@@ -7,7 +7,10 @@ with tempfile.TemporaryDirectory(prefix='pistachio-tools-test-') as d:
  base=pathlib.Path(d); (base/'services').mkdir(); (base/'popups').mkdir(); (base/'runtime').mkdir(mode=0o700); (base/'bin').mkdir()
  for folder in ['components','settings']: shutil.copytree(ROOT/'src'/folder,base/folder)
  shutil.copy(ROOT/'src/Theme.qml',base/'Theme.qml')
- for name in ['LauncherTools.qml','launcher-tools.py','Store.qml']: shutil.copy(ROOT/'src/services'/name,base/'services'/name)
+ for name in ['LauncherTools.qml','Store.qml']: shutil.copy(ROOT/'src/services'/name,base/'services'/name)
+ # LauncherTools runs the installed `$HOME/.local/bin/psc launcher-tools`: test this build instead (PSC= another)
+ service=(base/'services/LauncherTools.qml').read_text(); real='Quickshell.env("HOME") + "/.local/bin/psc"'; assert service.count(real)==1, 'update this fixture'
+ (base/'services/LauncherTools.qml').write_text(service.replace(real, json.dumps(os.environ.get('PSC') or str(ROOT/'rust/target/release/psc'))))
  for name in ['LauncherExtras.qml','JobCard.qml']: shutil.copy(ROOT/'src/popups'/name,base/'popups'/name)
  mocks={'Apps':'property var list:[{id:"fixture",name:"Fixture",icon:""}]; function icon(s){return "";} function nameFor(s){return s;}', 'Compositor':'property var windows:[]; function entryOf(s){return s;} property var presets:[{name:"Work"}];', 'ShellSettings':'property bool shadows:true;', 'SettingsHub':'signal present;', 'Session':'property bool locked:false;', 'LocalSend':'property bool available:true;', 'Screenshots':'property bool hasRecorder:true;'}
  for name,body in mocks.items(): (base/'services'/f'{name}.qml').write_text('pragma Singleton\nimport Quickshell\nSingleton { '+body+' }\n')

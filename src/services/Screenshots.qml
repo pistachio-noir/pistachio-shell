@@ -96,7 +96,7 @@ Singleton {
     // Colour: hyprpicker freezes the screen for a click and copies the colour's hex; a notification
     // shows it with a swatch (a 64 px PNG written in the runtime folder)
     function pickColour() {
-        Quickshell.execDetached(["sh", "-c", 'c=$(hyprpicker -a -f hex) && [ -n "$c" ] || exit 0; p="${XDG_RUNTIME_DIR:-/tmp}/pistachio-colour.png"; python3 -I "$1" "$c" "$p"; notify-send --app-name=Colour -i "$p" "$c" "Copied to the clipboard"', "sh", Quickshell.shellPath("services/swatch.py")]);
+        Quickshell.execDetached(["sh", "-c", 'c=$(hyprpicker -a -f hex) && [ -n "$c" ] || exit 0; p="${XDG_RUNTIME_DIR:-/tmp}/pistachio-colour.png"; "$1" swatch "$c" "$p"; notify-send --app-name=Colour -i "$p" "$c" "Copied to the clipboard"', "sh", Quickshell.env("HOME") + "/.local/bin/psc"]);
     }
 
     // Record: gpu-screen-recorder, the whole screen or an area, with the sound playing, to ~/Videos;
@@ -237,7 +237,7 @@ Singleton {
     function openTrim(path: string) {
         if (probe.running || trimmer.running) return;
         trimPath = path; trimDuration = 0; trimError = ""; trimSavedPath = ""; trimOpen = true;
-        probe.command = ["setpriv", "--pdeathsig", "TERM", "python3", "-I", Quickshell.shellPath("services/capture.py"), "probe", path];
+        probe.command = ["setpriv", "--pdeathsig", "TERM", Quickshell.env("HOME") + "/.local/bin/psc", "capture", "probe", path];
         probe.running = true;
     }
     function saveTrim(start: real, end: real) {
@@ -246,7 +246,7 @@ Singleton {
             trimError = "Choose a start before the end, within the recording"; return;
         }
         trimError = "";
-        trimmer.command = ["setpriv", "--pdeathsig", "TERM", "python3", "-I", Quickshell.shellPath("services/capture.py"), "trim", trimPath, String(start), String(end)];
+        trimmer.command = ["setpriv", "--pdeathsig", "TERM", Quickshell.env("HOME") + "/.local/bin/psc", "capture", "trim", trimPath, String(start), String(end)];
         trimmer.running = true;
     }
     function closeTrim() {

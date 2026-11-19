@@ -12,6 +12,8 @@ Singleton {
     id: root
 
     property bool ready
+    // no state file at start: the very first start of the shell (FirstRun opens setup then)
+    property bool fresh
     // (named Store, not State: QtQuick's own State type would shadow it)
     readonly property JsonAdapter saved: JsonAdapter {
         property bool dnd
@@ -25,8 +27,10 @@ Singleton {
         property int nightFrom: 1200 // minutes after midnight: 20:00
         property int nightTo: 420 // 07:00
         property string appearanceStyle: "classic"
+        property bool tuiHyprland
         property string colourScheme: "pistachio" // or "noir" (owner's call, 14 November 2026)
         property bool desktopCat // optional pixel cat on empty workspaces
+        property string catSkin: "cream"
         property bool monochromeWallpaper // optional grayscale wallpaper in Noir
         property bool clipboardHistory // clipboard history is opt-in
         property bool phonePreview // local phone timer preview is opt-in
@@ -95,6 +99,7 @@ Singleton {
         property bool localsendAcceptKnown // accept at once from devices accepted before
         property var localsendKnown: [] // their fingerprints
         property var notifications: [] // newest first, plain records
+        property bool setupDone // first-run setup finished or skipped (or the shell was set up before it existed)
     }
 
     FileView {
@@ -109,6 +114,8 @@ Singleton {
         onLoadFailed: error => {
             if (error !== FileViewError.FileNotFound)
                 console.warn("state: can't read", path, "error", error, "(starting from defaults)");
+            else
+                root.fresh = true;
             root.ready = true;
         }
         // a slider drag changes a value many times a second; save once it settles

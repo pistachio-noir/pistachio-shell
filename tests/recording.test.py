@@ -34,7 +34,17 @@ with tempfile.TemporaryDirectory(prefix="pistachio-recording-test-") as director
         if source.is_dir(): shutil.copytree(source, base / name)
         else: shutil.copy(source, base / name)
     shutil.copy(ROOT / "src/services/Screenshots.qml", base / "services/Screenshots.qml")
-    shutil.copy(ROOT / "src/services/capture.py", base / "services/capture.py")
+
+    # the copied services run the installed `$HOME/.local/bin/psc`: test this build instead (PSC= another one)
+    psc_build = os.environ.get("PSC") or str(ROOT / "rust/target/release/psc")
+    rewritten = 0
+    for qml in base.rglob("*.qml"):
+        text = qml.read_text()
+        if 'Quickshell.env("HOME") + "/.local/bin/psc"' in text:
+            qml.write_text(text.replace('Quickshell.env("HOME") + "/.local/bin/psc"', json.dumps(psc_build)))
+            rewritten += 1
+    assert rewritten, "no service runs psc any more: update this fixture"
+    # Screenshots runs `psc capture` (Python's capture.py until 19 November 2026) on this fixture's own files
     (base / "services/Clipboard.qml").write_text('pragma Singleton\nimport Quickshell\nSingleton { property var paths: []; function copyImage(path) {paths=paths.concat([path]);} }\n')
     subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','color=c=black:s=64x64:r=10:d=2','-c:v','libx264','-y',str(base/'sample.mp4')],check=True)
     (base / "services/ShellSettings.qml").write_text('pragma Singleton\nimport Quickshell\nSingleton { property bool notificationSound: false; property string recordingAudio: "system"; property int recordingCountdown: 0; property string screenshotOutput: "save"; property bool shadows: true; property bool frosted: false }\n')

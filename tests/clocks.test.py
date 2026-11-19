@@ -1,10 +1,15 @@
 import json
 import os
+from pathlib import Path
 import subprocess
 import tempfile
 import unittest
 
 from gi.repository import Gio, GLib
+
+
+# `psc clocks` (Python's clocks.py until 19 November 2026). PSC= another psc build.
+PSC = os.environ.get("PSC") or str(Path(__file__).resolve().parents[1] / "rust/target/release/psc")
 
 
 class ClocksTest(unittest.TestCase):
@@ -22,16 +27,22 @@ class ClocksTest(unittest.TestCase):
                 settings = Gio.Settings.new("org.gnome.clocks")
                 settings.set_value("alarms", GLib.Variant("aa{sv}", [original]))
                 Gio.Settings.sync()
-                listed = subprocess.run(["python3", "-B", "src/services/clocks.py", "list"],
+                listed = subprocess.run([PSC, "clocks", "list"],
                                         env=env, check=True, capture_output=True, text=True)
                 self.assertTrue(json.loads(listed.stdout)[0]["active"])
-                subprocess.run(["python3", "-B", "src/services/clocks.py", "set", "test-id", "inactive"],
+                subprocess.run([PSC, "clocks", "set", "test-id", "inactive"],
                                env=env, check=True, capture_output=True, text=True)
                 probe = subprocess.run(["python3", "-B", "-c",
                                         "from gi.repository import Gio; print(Gio.Settings.new('org.gnome.clocks').get_value('alarms').print_(True))"],
                                        env=env, check=True, capture_output=True, text=True)
                 self.assertIn("sound_uri", probe.stdout)
                 self.assertNotIn("ring_time", probe.stdout)
+                # every field keeps its own type, wrapped once ('id': <'test-id'>), as GNOME Clocks reads it
+                self.assertIn("'id': <'test-id'>", probe.stdout)
+                self.assertIn("'sound_uri': <'file:///tmp/chime.ogg'>", probe.stdout)
+                self.assertIn("'hour': <8>", probe.stdout)
+                listed = subprocess.run([PSC, "clocks", "list"], env=env, check=True, capture_output=True, text=True)
+                self.assertEqual(json.loads(listed.stdout)[0]["id"], "test-id")
             finally:
                 os.environ.clear()
                 os.environ.update(old)

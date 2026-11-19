@@ -100,7 +100,7 @@ Singleton {
 
     Process {
         id: bootList
-        command: ["python3", Quickshell.shellPath("services/boot-entries.py")]
+        command: [Quickshell.env("HOME") + "/.local/bin/psc", "boot-entries"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

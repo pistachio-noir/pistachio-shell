@@ -1,10 +1,14 @@
 """Run with dbus-run-session so the fake Clocks action never sees the user's bus."""
+import os
 import subprocess
+import tempfile
+from pathlib import Path
 import time
 
 from gi.repository import Gio, GLib
 
 
+PSC = os.environ.get("PSC") or str(Path(__file__).resolve().parents[1] / "rust/target/release/psc")  # `psc clocks`
 bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 bus.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
               "RequestName", GLib.Variant("(su)", ("org.gnome.clocks", 0)), GLib.VariantType("(u)"),
@@ -25,9 +29,14 @@ def activate(_bus, _sender, _path, _interface, _method, args, reply):
 bus.register_object("/org/gnome/clocks", node.interfaces[0], activate, None, None)
 
 
+SETTINGS = tempfile.TemporaryDirectory()
+
+
 def run(*args):
     start = time.monotonic()
-    with subprocess.Popen(["python3", "-B", "src/services/clocks.py", *args],
+    # GSettings in a throwaway keyfile: the owner's real alarms are never read or written
+    env = dict(os.environ, GSETTINGS_BACKEND="keyfile", XDG_CONFIG_HOME=SETTINGS.name)
+    with subprocess.Popen([PSC, "clocks", *args], env=env,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as proc:
         deadline = start + 8
         while proc.poll() is None and time.monotonic() < deadline:

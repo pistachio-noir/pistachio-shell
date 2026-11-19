@@ -5,7 +5,7 @@ import Quickshell.Io
 import QtQuick
 
 // Timers, a stopwatch and alarms (owner's request, 9 November 2026). Alarms are GNOME Clocks' own (its
-// settings, through services/clocks.py), so both lists are the same; the shell rings them itself, as
+// settings, through `psc clocks`), so both lists are the same; the shell rings them itself, as
 // Clocks rings only while it runs, and Clocks' own alarm notifications are hidden (Notifs) so nothing
 // rings twice. Timers and the stopwatch run in the shell (Clocks doesn't share its running ones) and
 // end with a restart. A ringing alarm or finished timer is `ringing`, for popups/AlarmPopup.qml.
@@ -133,14 +133,14 @@ Singleton {
             return;
         stopper.action = action;
         stopper.ring = r;
-        stopper.exec({ command: ["python3", "-I", Quickshell.shellPath("services/clocks.py"), action, r.id] });
+        stopper.exec({ command: [Quickshell.env("HOME") + "/.local/bin/psc", "clocks", action, r.id] });
     }
 
     property var snoozed: [] // { at, ring }
     property string lastMinute // so an alarm rings once in its minute
 
     function run(args) {
-        helper.exec({ command: ["python3", "-I", Quickshell.shellPath("services/clocks.py")].concat(args) });
+        helper.exec({ command: [Quickshell.env("HOME") + "/.local/bin/psc", "clocks"].concat(args) });
     }
 
     Process {

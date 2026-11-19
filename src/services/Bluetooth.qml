@@ -22,10 +22,11 @@ Singleton {
     Timer { running: root.detailsWatching; interval: 5000; repeat: true; onTriggered: root.refreshDetails() }
     Process {
         id: detailReader
-        command: ["python3", "-I", Quickshell.shellPath("services/system-tools.py"), "bluetooth"]
+        command: [Quickshell.env("HOME") + "/.local/bin/psc", "system", "bluetooth"]
         stdout: StdioCollector { onStreamFinished: { try { root.audioDetails = JSON.parse(text); } catch(e) { root.audioDetails = {}; } } }
     }
 
+    readonly property bool present: Bz.Bluetooth.defaultAdapter !== null // an adapter at all (first-run setup)
     // false until BlueZ reports an adapter
     readonly property bool enabled: Bz.Bluetooth.defaultAdapter?.enabled ?? false
     // powered on and done switching, so it can scan: `enabled` turns true as soon as the shell asks

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""Settings export/import helper (src/services/prefs.py), in a temporary folder. Run: python3 -B tests/prefs.test.py"""
+"""Settings export/import (`psc prefs`, rust/psc/src/prefs.rs; Python's prefs.py until 19 November 2026), in a
+temporary folder. Run: python3 -B tests/prefs.test.py (PSC= another psc build; default rust/target/release/psc)."""
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -10,11 +12,13 @@ import tomllib
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-HELPER = ROOT / "src/services/prefs.py"
+PSC = os.environ.get("PSC") or str(ROOT / "rust/target/release/psc")
+SCHEMA_SOURCE = ROOT / "rust/psc/src/prefs.rs"
 CTX = {"actions": ["settings", "lens"], "claudeModels": ["claude-haiku-5-5", "sonnet", "opus"], "codexModels": ["gpt-6-luna", "gpt-6.1-sol"]}
 VALUES = {
     "frosted": True, "frostStyle": "glassy", "appearanceStyle": "tui", "colourScheme": "noir", "tuiTrayOpen": False, "phonePreview": True, "desktopCat": True, "clipboardHistory": True, "monochromeWallpaper": True, "gameMode": True, "gameClasses": ["minecraft"], "themingIntegration": False, "themingKeep": ["kitty"],
     "nightLight": True, "temperature": 3750.0, "nightSchedule": True, "nightFrom": 1320, "nightTo": 420,
+    "tuiHyprland": True, "catSkin": "midnight",
     "dnd": False, "dndFrom": 1320, "notificationRules": {"Vesktop": {"noToasts": True}, "Spotify": {"until": 9999999999999}},
     "focusMinutes": 60, "focusAllowed": ["Vesktop"], "pomodoroRounds": 4,
     "lensProvider": "codex", "lensClaudeModel": "sonnet", "lensCodexEffort": "high",
@@ -27,7 +31,7 @@ VALUES = {
 
 
 def run(*args):
-    out = subprocess.run([sys.executable, "-B", str(HELPER), *args], capture_output=True, text=True, timeout=20)
+    out = subprocess.run([PSC, "prefs", *args], capture_output=True, text=True, timeout=20)
     return out.returncode, json.loads(out.stdout)
 
 
@@ -76,6 +80,7 @@ class Prefs(unittest.TestCase):
 [experimental]
 style = "fancy"
 colours = "noir"
+cat_skin = "unknown"
 [display]
 night_from = "25:00"
 night_warmth = 9000
@@ -100,7 +105,7 @@ glitter = true
         self.assertTrue(reply["ok"])
         self.assertEqual(reply["values"], {"colourScheme": "noir"})
         skipped = {s["key"] for s in reply["skipped"]}
-        self.assertTrue({"experimental.style", "display.night_from", "display.night_warmth", "focus.focus_minutes", "lens.claude_model",
+        self.assertTrue({"experimental.style", "experimental.cat_skin", "display.night_from", "display.night_warmth", "focus.focus_minutes", "lens.claude_model",
                          "launcher.pins", "launcher.aliases", "integrations.off", "localsend.folder", "nonsense", "appearance.glitter"} <= skipped, skipped)
 
     def test_backup_and_valid_file(self):
@@ -120,9 +125,11 @@ glitter = true
         code, reply = self.read()
         self.assertFalse(reply["ok"])
         self.assertIn("isn't valid TOML", reply["error"])
+        self.assertNotIn("\n", reply["error"], "one line for Settings' status, without the file's text")
+        self.assertIn("line 1", reply["error"])
 
     def test_service_keys_match_schema(self):
-        schema = set(re.findall(r'\("[a-z]+", "[a-z_]+", "([A-Za-z]+)", [a-z_]', HELPER.read_text()))
+        schema = set(re.findall(r'\("[a-z]+", "[a-z_]+", "([A-Za-z]+)", [a-z_]', SCHEMA_SOURCE.read_text()))
         qml = (ROOT / "src/services/Preferences.qml").read_text()
         block = qml[qml.index("readonly property var titles"):qml.index("readonly property var times")]
         titles = set(re.findall(r"\b([a-zA-Z]+): \"", block))

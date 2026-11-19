@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
-python3 -B tests/launcher-tools.test.py
+(cd rust && cargo test -q -p psc tools::)  # launcher-tools.py's cases, now psc launcher-tools
 python3 -B tests/launcher-preview.test.py
 python3 -B tests/launcher-tools-ui.test.py

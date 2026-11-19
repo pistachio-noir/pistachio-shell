@@ -148,7 +148,7 @@ Singleton {
     }
     Process {
         id: helper; running:true
-        command:["python3","-I",Quickshell.shellPath("services/launcher-tools.py")]
+        command:[Quickshell.env("HOME") + "/.local/bin/psc","launcher-tools"]
         stdinEnabled:true
         onExited: { root.helperReady=false; root.busy=false; if (root.mode) root.error="File and job helper stopped. Reopen this view to retry."; }
         stdout:SplitParser { onRead:data => root.heard(data) }

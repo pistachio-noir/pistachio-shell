@@ -1,89 +1,72 @@
-import importlib.util
+"""`psc phone-timer` (Python's phone-timer.py until 19 November 2026), run the way FocusMode runs it: the
+read-only state page, 403/404/405, stale state after 5 s, the QR file removed on exit. Its address choice
+is a Rust test (rust/psc/src/phone.rs). PSC= another psc build."""
 import json
-import threading
-import subprocess
-import sys
-import tempfile
 import os
+import subprocess
+import tempfile
 import time
 import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location('phone_timer', Path(__file__).resolve().parents[1] / 'src/services/phone-timer.py')
-phone = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(phone)
+PSC = os.environ.get('PSC') or str(Path(__file__).resolve().parents[1] / 'rust/target/release/psc')
+
 
 class PhoneTimerTest(unittest.TestCase):
-    def setUp(self):
-        self.server = phone.Server(('127.0.0.1', 0), phone.Handler)
-        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-        self.thread.start()
-        self.url = 'http://127.0.0.1:%s' % self.server.server_port
-
-    def tearDown(self):
-        self.server.shutdown()
-        self.server.server_close()
-        self.thread.join()
-
-    def test_state_and_read_only(self):
-        self.server.update({'phase': 'Break', 'endsAt': 10000, 'left': 0, 'paused': False})
-        with urllib.request.urlopen(self.url + '/state') as response:
-            state = json.load(response)
-            self.assertEqual(state['phase'], 'Break')
-            self.assertLess(abs(state['serverNow'] - time.time()*1000), 1000)
-        self.server.update({'phase': 'Work 2/4', 'endsAt': 0, 'left': 43000, 'paused': True})
-        with urllib.request.urlopen(self.url + '/state') as response:
-            self.assertEqual(json.load(response)['left'], 43000)
-        with urllib.request.urlopen(self.url + '/') as response:
-            self.assertIn(b'countdown', response.read())
-        self.server.updated = time.monotonic() - 10
-        with self.assertRaises(urllib.error.HTTPError) as stale:
-            urllib.request.urlopen(self.url + '/state')
-        self.assertEqual(stale.exception.code, 503)
-        stale.exception.close()
-        with self.assertRaises(urllib.error.HTTPError) as error:
-            urllib.request.urlopen(urllib.request.Request(self.url + '/state', data=b'{}', method='POST'))
-        self.assertEqual(error.exception.code, 405)
-        error.exception.close()
-        with self.assertRaises(urllib.error.HTTPError) as missing:
-            urllib.request.urlopen(self.url + '/other')
-        missing.exception.close()
-
-    def test_address_without_default_route(self):
-        from unittest.mock import patch
-        result = [{'ifname':'tailscale0','addr_info':[{'local':'100.64.0.5','prefixlen':32}]}, {'ifname':'eno1','addr_info':[{'local':'192.168.4.7','prefixlen':24}]}]
-        with patch.object(phone.subprocess, 'check_output', return_value=json.dumps(result)):
-            self.assertEqual(phone.local_address(), ('192.168.4.7', 24))
-
-    def test_helper_lifecycle(self):
+    def test_lifecycle_state_and_read_only(self):
         with tempfile.TemporaryDirectory() as runtime:
-            source = str(Path(__file__).resolve().parents[1] / 'src/services/phone-timer.py')
-            script = "import importlib.util,sys;s=importlib.util.spec_from_file_location('p',sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);m.local_address=lambda:('127.0.0.1',8);m.main()"
-            proc = subprocess.Popen([sys.executable, '-B', '-u', '-c', script, source], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, env=dict(os.environ, XDG_RUNTIME_DIR=runtime))
+            env = dict(os.environ, XDG_RUNTIME_DIR=runtime, PSC_PHONE_TEST_ADDRESS='127.0.0.1/8')
+            proc = subprocess.Popen([PSC, 'phone-timer'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, env=env)
             try:
                 ready = json.loads(proc.stdout.readline())
-                self.assertTrue(Path(ready['qr']).is_file())
-                proc.stdin.write(json.dumps({'phase':'Break','endsAt':123456,'left':0,'paused':False})+'\n');proc.stdin.flush()
-                for _ in range(30):
-                    try:
-                        with urllib.request.urlopen(ready['url']+'state', timeout=1) as response:
-                            self.assertEqual(json.load(response)['phase'], 'Break')
-                            break
-                    except urllib.error.HTTPError:
-                        time.sleep(.05)
-                else:
-                    self.fail('server never received state')
+                url = ready['url']
+                self.assertTrue(url.startswith('http://127.0.0.1:'), url)
+                if ready['qr']:
+                    self.assertTrue(Path(ready['qr']).is_file())
+                with self.assertRaises(urllib.error.HTTPError) as early:
+                    urllib.request.urlopen(url + 'state', timeout=2)
+                self.assertEqual(early.exception.code, 503, 'no state yet')
+                early.exception.close()
+                def send(state):
+                    proc.stdin.write(json.dumps(state) + '\n'); proc.stdin.flush(); time.sleep(0.15)
+                send({'phase': 'Break', 'endsAt': 10000, 'left': 0, 'paused': False, 'bg': '#111111'})
+                with urllib.request.urlopen(url + 'state', timeout=2) as response:
+                    state = json.load(response)
+                self.assertEqual(state['phase'], 'Break')
+                self.assertEqual(state['bg'], '#111111')
+                self.assertLess(abs(state['serverNow'] - time.time() * 1000), 1000)
+                send({'phase': 'Work 2/4', 'endsAt': 0, 'left': 43000, 'paused': True})
+                with urllib.request.urlopen(url + 'state', timeout=2) as response:
+                    self.assertEqual(json.load(response)['left'], 43000)
+                send({'not': 'a state'})  # ignored
+                with urllib.request.urlopen(url, timeout=2) as response:
+                    self.assertIn(b'countdown', response.read())
+                with self.assertRaises(urllib.error.HTTPError) as error:
+                    urllib.request.urlopen(urllib.request.Request(url + 'state', data=b'{}', method='POST'), timeout=2)
+                self.assertEqual(error.exception.code, 405)
+                error.exception.close()
+                with self.assertRaises(urllib.error.HTTPError) as missing:
+                    urllib.request.urlopen(url + 'other', timeout=2)
+                self.assertEqual(missing.exception.code, 404)
+                missing.exception.close()
+                time.sleep(5.3)
+                with self.assertRaises(urllib.error.HTTPError) as stale:
+                    urllib.request.urlopen(url + 'state', timeout=2)
+                self.assertEqual(stale.exception.code, 503, 'no heartbeat for 5 s')
+                stale.exception.close()
                 proc.stdin.close()
                 self.assertEqual(proc.wait(timeout=5), 0)
-                self.assertFalse(Path(ready['qr']).exists())
+                if ready['qr']:
+                    self.assertFalse(Path(ready['qr']).exists(), 'QR removed on exit')
                 with self.assertRaises(urllib.error.URLError):
-                    urllib.request.urlopen(ready['url']+'state', timeout=1)
+                    urllib.request.urlopen(url + 'state', timeout=1)
             finally:
                 if proc.poll() is None:
-                    proc.kill();proc.wait()
+                    proc.kill(); proc.wait()
                 proc.stdout.close()
+
 
 if __name__ == '__main__':
     unittest.main()

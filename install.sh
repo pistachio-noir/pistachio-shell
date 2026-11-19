@@ -1,5 +1,5 @@
 #!/bin/sh
-# Links the shell into place (src/ as Quickshell's "pistachio" config, bin/psc into ~/.local/bin),
+# Links the shell into place (src/ as Quickshell's "pistachio" config; psc, built from rust/, into ~/.local/bin),
 # builds the helper programs in rust/ into ~/.local/bin and installs the Manrope font.
 # Safe to run again, also after moving the repo. It never replaces a real file or folder with a link;
 # the fonts are copied over any older copies.
@@ -88,9 +88,12 @@ helpers() {
     if [ "$mode" = dry ]; then
         echo "would build release helpers from $repo/rust/Cargo.toml"
         echo "would install executable pistachio-* helpers into $HOME/.local/bin (mode 755)"
+        echo "would install psc (Rust) as $HOME/.local/bin/psc, replacing the link to bin/psc"
         return
     fi
-    if ! cargo build --release --quiet --manifest-path "$repo/rust/Cargo.toml"; then
+    # the helpers first, on their own, so a psc that can't build (its crates not fetched yet) never
+    # keeps the polkit, devices and LocalSend helpers from being rebuilt
+    if ! cargo build --release --quiet --manifest-path "$repo/rust/Cargo.toml" -p pistachio-auth -p pistachio-devices -p pistachio-localsend; then
         echo "note: the helpers in rust/ didn't build; the ones already installed stay"
         return 0
     fi
@@ -101,11 +104,25 @@ helpers() {
         install -m 755 "$helper" "$HOME/.local/bin/"
         echo "built   $HOME/.local/bin/$(basename "$helper")"
     done
+    # psc, in Rust since 19 November 2026; it replaces the link to the old bin/psc script
+    if cargo build --release --quiet --manifest-path "$repo/rust/Cargo.toml" -p psc && [ -x "$repo/rust/target/release/psc" ]; then
+        rm -f "$HOME/.local/bin/psc"
+        install -m 755 "$repo/rust/target/release/psc" "$HOME/.local/bin/psc"
+        echo "built   $HOME/.local/bin/psc"
+        psc_built=1
+    else
+        echo "note: psc didn't build; the psc already installed (or the bin/psc script) stays"
+    fi
 }
 
 link "$repo/src" "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/pistachio"
-link "$repo/bin/psc" "$HOME/.local/bin/psc"
+psc_built=
 helpers
+# without cargo (or if the build failed) the old script still gives a working psc
+# (a psc from an earlier build, a real file, stays as it is)
+if [ -z "$psc_built" ] && [ "$mode" != dry ] && { [ -L "$HOME/.local/bin/psc" ] || [ ! -e "$HOME/.local/bin/psc" ]; }; then
+    link "$repo/bin/psc" "$HOME/.local/bin/psc"
+fi
 fonts
 
 case ":$PATH:" in

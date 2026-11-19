@@ -1,4 +1,4 @@
-"""The real AppTheming service with a stand-in Store and a stand-in shared-theme.py that records what it is
+"""The real AppTheming service with a stand-in Store and a stand-in for `psc theme` (a script that records what it is
 asked and answers states from a file: start-up check, quiet setup, conflicts, keep/use, switching off."""
 import json, os, pathlib, shutil, subprocess, tempfile, time
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -29,7 +29,12 @@ ShellRoot {
 def run(states, enabled=True):
     d = tempfile.mkdtemp(prefix="pistachio-theming-")
     base = pathlib.Path(d); (base / "services").mkdir(); (base / "runtime").mkdir(mode=0o700)
-    shutil.copy(ROOT / "src/services/AppTheming.qml", base / "services/AppTheming.qml")
+    # the service runs `psc theme …`; its copy here runs the stand-in instead, never the real psc (which
+    # would act on the owner's own Kitty and Neovim configs)
+    service = (ROOT / "src/services/AppTheming.qml").read_text()
+    real = '[Quickshell.env("HOME") + "/.local/bin/psc", "theme"]'
+    assert service.count(real) == 1, "AppTheming's psc command changed: update this fixture"
+    (base / "services/AppTheming.qml").write_text(service.replace(real, '["python3", Quickshell.shellPath("services/shared-theme.py")]'))
     (base / "services/shared-theme.py").write_text(FAKE)
     (base / "services/Store.qml").write_text("pragma Singleton\nimport Quickshell\nimport QtQuick\nSingleton { property bool ready: true; property QtObject saved: QtObject { property bool themingIntegration: %s; property var themingKeep: [] } }\n" % ("true" if enabled else "false"))
     (base / "shell.qml").write_text(SHELL)

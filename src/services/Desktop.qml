@@ -1,5 +1,6 @@
 pragma Singleton
 
+import qs
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -46,7 +47,8 @@ Singleton {
     }
 
     function setEnabled(on: bool) {
-        Store.saved.desktopIcons = on;
+        if (!Theme.tui)
+            Store.saved.desktopIcons = on;
     }
 
     function place(name: string, cell) {
@@ -77,7 +79,9 @@ Singleton {
 
     // a name for a file here, or the problem with it, for the launcher's question
     function check(text: string, except: string, then) {
-        if (text.includes("/") || text === "." || text === "..")
+        if (Theme.tui)
+            then(null, "Desktop actions are available in Classic.");
+        else if (text.includes("/") || text === "." || text === "..")
             then(null, "A name can't have a / in it, or be . or ..");
         else if (text !== except && items.some(i => i.name === text))
             then(null, `There's already something called “${text}” on the desktop.`);

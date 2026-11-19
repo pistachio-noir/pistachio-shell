@@ -13,7 +13,7 @@ Singleton {
     function check(auth: bool) {
         if (busy) return;
         error = "";
-        probe.command = ["python3", "-I", Quickshell.shellPath("services/system-tools.py"), "health", "--pid", String(Quickshell.processId)].concat(auth ? ["--auth"] : []);
+        probe.command = [Quickshell.env("HOME") + "/.local/bin/psc", "system", "health", "--pid", String(Quickshell.processId), "--sources", Quickshell.shellPath("services")].concat(auth ? ["--auth"] : []);
         probe.running = true;
     }
     function diagnostics(): string {

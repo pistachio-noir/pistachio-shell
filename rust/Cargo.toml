@@ -1,7 +1,7 @@
 # The shell's always-running helpers. install.sh builds them and copies the binaries to ~/.local/bin.
 [workspace]
 resolver = "2"
-members = ["lines", "bus", "auth", "devices", "localsend"]
+members = ["lines", "bus", "auth", "devices", "localsend", "psc"]
 
 [workspace.package]
 edition = "2021"
@@ -14,6 +14,8 @@ libc = "0.2"
 zbus = { version = "5", default-features = false, features = ["blocking-api", "async-io"] }
 pistachio-lines = { path = "lines" }
 pistachio-bus = { path = "bus" }
+clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
 
 # small and quiet: these sit in memory all day
 [profile.release]

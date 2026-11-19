@@ -16,7 +16,7 @@ Singleton {
     function refresh() {
         if (reading.running || !interfaceName) return;
         readingInterface = interfaceName;
-        reading.command = ["python3", "-I", Quickshell.shellPath("services/system-tools.py"), "network", interfaceName];
+        reading.command = [Quickshell.env("HOME") + "/.local/bin/psc", "system", "network", interfaceName];
         reading.running = true;
     }
     property string readingInterface

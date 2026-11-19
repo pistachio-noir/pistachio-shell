@@ -22,7 +22,7 @@ Singleton {
         if (helper.running) helper.write(JSON.stringify({command:command}) + "\n");
         else if (command !== "play") {
             wanted = command;
-            helper.command = ["python3", "-I", Quickshell.shellPath("services/mic-check.py"), input];
+            helper.command = [Quickshell.env("HOME") + "/.local/bin/psc", "mic-check", input];
             helper.running = true;
             state = "starting";
         }

@@ -77,7 +77,7 @@ Singleton {
     Timer { id: phoneToastTimer; interval: root.phoneToastDuration; onTriggered: root.phoneToast = false }
     Process {
         id: phoneHelper
-        command: ["python3", Quickshell.shellPath("services/phone-timer.py")]
+        command: [Quickshell.env("HOME") + "/.local/bin/psc", "phone-timer"]
         stdinEnabled: true
         stdout: SplitParser {
             onRead: line => {

@@ -16,6 +16,7 @@ Scope {
         id:win; visible:true; implicitWidth:640; implicitHeight:240
         ActionButton { id:normal; x:8; y:180; text:"Open" }
         ActionButton { id:bounded; x:120; y:180; text:"A very long action which must fit inside its available space"; maximumWidth:180 }
+        ActionButton { id:wide; x:8; y:230; width:140; text:"Stop" }
         KeyHints { id:footer; width:parent.width; hints:[]; clickableKeys:({"Esc":true}); onActivated:key=>tapped=key }
     }
     PanelFrame { id:frame;parent:win.contentItem;width:192;height:80;title:"A very long window title that must stay inside the frame";detail:"workspace information";visible:false }
@@ -36,6 +37,9 @@ Scope {
                 input.wait(50);
                 const normalLabel=normal.children.find(c=>c.text!==undefined),boundedLabel=bounded.children.find(c=>c.text!==undefined);
                 if (Math.abs(normal.width-normalLabel.implicitWidth-32)>.5 || bounded.width>180 || boundedLabel.width>=boundedLabel.implicitWidth) throw Error("action button natural size or bounded elision");
+                const wideLabel=wide.children.find(c=>c.text!==undefined);
+                const glyphCentre=wideLabel.x+(wideLabel.width-wideLabel.contentWidth)*(wideLabel.horizontalAlignment===Text.AlignHCenter?0.5:0)+wideLabel.contentWidth/2;
+                if (Math.abs(glyphCentre-wide.width/2)>1) throw Error("a short label in a fixed-width action button sits in the middle: "+glyphCentre+" vs "+wide.width/2);
                 for (const width of [640,480,320]) {
                     tapped=""; win.width=width;
                     footer.hints=[["↵","switch"],["Ctrl W","close window"],["Ctrl F","float"],["Ctrl P","pin"],["Ctrl 1–9","move"],["Esc","close"]];

@@ -36,6 +36,7 @@ Rectangle {
         anchors.horizontalCenterOffset: button.icon.length ? 11 : 0
         width: Math.max(0, button.width - button.horizontalPadding * 2 - (button.icon.length ? 22 : 0))
         elide: Text.ElideRight
+        horizontalAlignment: Text.AlignHCenter // a short label in a wider fixed-width button stays in the middle
         text: button.text
         textFormat: Text.PlainText
         color: button.tint

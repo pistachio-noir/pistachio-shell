@@ -108,7 +108,7 @@ Tested on Arch Linux with Hyprland 0.56.2 (Lua config) and Quickshell 0.3.2 on Q
 | Calendar events (optional) | `gnome-calendar` (with `evolution-data-server`), `python-gobject` | events in the month calendar | the calendar shows dates only |
 | Launcher extras (optional) | `libqalculate` (`qalc`); `tldr`; Cider (with its app token); CLion; VS Code; Steam | `tldr`, `m`, CLion and VS Code projects, games | that part of the launcher stays empty |
 | USB drives | the shell's helpers, built by `install.sh`; `udisks2` (already there). Don't run `udiskie` beside the shell: it would do the same job twice | mounting drives as they're plugged in; Eject | drives don't mount by themselves; Eject still works |
-| Helpers | `rust` (`cargo`) and `openssl` to build them; `install.sh` builds `rust/` and copies `pistachio-auth`, `pistachio-devices` and `pistachio-localsend` to `~/.local/bin` | the polkit agent, the pairing agent, USB drives, LocalSend | those four don't work; the log names the one that's missing and says to run `install.sh` |
+| Helpers | `rust` (`cargo`) and `openssl` to build them; `install.sh` builds `rust/` and copies `psc`, `pistachio-auth`, `pistachio-devices` and `pistachio-localsend` to `~/.local/bin` | psc and the shell's on-demand helpers in it (see [psc](#psc)); the polkit agent, the pairing agent, USB drives, LocalSend | those four don't work; the log names the one that's missing and says to run `install.sh` |
 | Text from the screen (optional) | `tesseract`, `tesseract-data-eng`, `tesseract-data-pol` | the screenshot menu's Text | "Couldn't read the text: tesseract isn't installed" |
 | Lens and quick chat (optional) | Rust `psc`; Claude Code CLI (`claude`) and/or Codex CLI (`codex`), logged in with access to the selected model; `zenity` for text/image file attachments | Lens answers and follow-ups; uses the CLIs' existing authentication, no API key setting in the shell | the card explains the unavailable provider, or tries the other if fallback is on; Lens's Extract text uses the selected agent, not tesseract |
 | Font | Manrope (weights 500 to 800), installed by `install.sh`; needs `curl` | all text | Qt falls back to another font |
@@ -140,17 +140,15 @@ For the other tests in `tests/` you also need `libnotify` (`notify-send`); `test
 
 ## Installation
 
-The first-run wizard frontend is in `src/setup/`. The controller contract and isolated preview commands are in [First-run frontend and backend contract](docs/first-run-frontend.md).
-
 1. **Install the packages:**
 
    ```sh
    sudo pacman -S --needed hyprland quickshell pipewire wireplumber pipewire-pulse \
-       bluez bluez-utils python-gobject networkmanager ddcutil hyprsunset kitty rust
+       bluez bluez-utils networkmanager ddcutil hyprsunset kitty rust
    sudo systemctl enable --now bluetooth.service NetworkManager.service
    ```
 
-   Optional, for copying text from the screen: `sudo pacman -S tesseract tesseract-data-eng tesseract-data-pol`.
+   `rust` is needed: `psc` and the shell's helpers are Rust programs that `install.sh` builds. Optional: `python-gobject` for GNOME Calendar's events in the month calendar (the one helper still in Python), and for copying text from the screen `sudo pacman -S tesseract tesseract-data-eng tesseract-data-pol`. `psc doctor` lists everything else, found or missing.
 
 
 2. **Put the repo somewhere permanent**, for example `~/projects/pistachio-shell`. The shell runs straight from it, so if you move it later, run `./install.sh` again.
@@ -164,12 +162,13 @@ The first-run wizard frontend is in `src/setup/`. The controller contract and is
 
    Preview with `./install.sh dry`: it checks existing links and reports planned links, helper builds/installs and font installation without changing files, building helpers or downloading fonts.
 
-   It links the repo's `src/` to `~/.config/quickshell/pistachio`, where Quickshell finds a config named `pistachio`, and installs `psc` (see [psc](#psc)) as `~/.local/bin/psc`. It builds `psc` and the helper programs in `rust/` with cargo and copies them to `~/.local/bin` (without cargo it links the old `bin/psc` script instead) (run it again after pulling changes to `rust/`, then `psc restart`), and installs the Manrope font (see Requirements). It warns if `~/.local/bin` isn't on your PATH or Quickshell isn't installed. Run it again after moving the repo to update the links. It never replaces a real file or folder that is in the way; it stops and tells you instead. By hand, it's:
+   It links the repo's `src/` to `~/.config/quickshell/pistachio`, where Quickshell finds a config named `pistachio`, and installs `psc` (see [psc](#psc)) as `~/.local/bin/psc`. It builds `psc` and the helper programs in `rust/` with cargo and copies them to `~/.local/bin` (run it again after pulling changes to `rust/`, then `psc restart`). Without cargo, or if `psc` doesn't build, it keeps a `psc` installed before or links the old shell script `legacy/psc`, which only starts, stops and calls the shell (Settings' health, export/import and theming, Quick chat, Lens and the launcher's file tools need the Rust `psc`). It also installs the Manrope font (see Requirements). It warns if `~/.local/bin` isn't on your PATH or Quickshell isn't installed. Run it again after moving the repo to update the links. It never replaces a real file or folder that is in the way; it stops and tells you instead. By hand, it's:
 
    ```sh
    mkdir -p ~/.config/quickshell ~/.local/bin
    ln -s ~/projects/pistachio-shell/src ~/.config/quickshell/pistachio
-   ln -s ~/projects/pistachio-shell/bin/psc ~/.local/bin/psc
+   cargo build --release --manifest-path ~/projects/pistachio-shell/rust/Cargo.toml
+   install -m 755 ~/projects/pistachio-shell/rust/target/release/{psc,pistachio-auth,pistachio-devices,pistachio-localsend} ~/.local/bin/
    ```
 
 4. **Remove what the shell replaces.** Only one notification daemon can run at a time, so stop and uninstall or disable `mako`, `dunst`, `swaync` or similar. A KDE Plasma session running at the same time (for example on another TTY) also owns the notification service: stop it with `systemctl --user stop plasma-plasmashell.service`. Drop other bars such as Waybar too. Don't autostart `hyprsunset` yourself: the shell runs its own copy.
@@ -179,6 +178,8 @@ The first-run wizard frontend is in `src/setup/`. The controller contract and is
    ```sh
    psc        # the same as qs -c pistachio
    ```
+
+   On this very first start the first-run setup opens: it checks what's installed (the same list as `psc doctor`), then walks through the look, sound, notifications, connections, Lens and places, or restores a Settings export. Skip it if you like; `psc setup` brings it back.
 
    The log goes to that terminal. Errors show as `ERROR` lines. A warning starting `qt.qpa.wayland.textinput` is harmless.
 
@@ -200,7 +201,15 @@ The shell reloads by itself when a file in `src/` changes, so pulling new code o
 
 ## psc
 
-`psc` (Pistachio Shell Control) is built in Rust from `rust/psc` (since 19 November 2026; the old `bin/psc` shell script stays only as a fallback when cargo is missing). Every command the script had works the same, so keybinds don't change.
+`psc` (Pistachio Shell Control) is a Rust program built from `rust/psc` (since 19 November 2026). Every command the old shell script had works the same, so keybinds don't change. The script itself is kept as `legacy/psc`, a fallback for starting, stopping and calling the shell if the Rust one can't be built: `install.sh` links it only when there's no `psc` at all.
+
+After changing anything in `rust/`, rebuild and reinstall psc, then restart the shell:
+
+```sh
+cd rust && cargo build --release -p psc
+rm -f ~/.local/bin/psc && install -m 755 target/release/psc ~/.local/bin/psc   # rm first: a running helper keeps its old file
+psc restart
+```
 
 | Command | Does |
 | --- | --- |
@@ -218,7 +227,7 @@ The shell reloads by itself when a file in `src/` changes, so pulling new code o
 | `psc completions zsh\|bash\|fish` | tab completion, e.g. `psc completions zsh > ~/.local/share/zsh/site-functions/_psc` |
 | `psc list`, `psc kill`, `psc msg` | the same `qs` subcommand for this config |
 
-`psc help` (or `psc <command> --help`) explains each command. The shell itself also runs `psc prefs …` (settings export and import), `psc theme …` (theming integration) and `psc system …` (Shell health, network and Bluetooth details, safe eject), `psc files` (the launcher's `/` search), `psc library` (recent projects and games), `psc capture` (recording trim), `psc mic-check`, `psc phone-timer`, `psc boot-entries` (Restart into…), `psc swatch` (the colour picker's swatch), `psc clocks` (GNOME Clocks' alarms), `psc launcher-tools` (background jobs, file previews, Open with), `psc chat` (Quick chat) and `psc lens` (Lens). These helpers moved from Python on 19 November 2026 and are hidden from `--help`. Settings, Quick chat and Lens need the Rust `psc` installed. Bare `psc chat` starts the helper. `psc chat toggle`, `psc chat ask` and other chat IPC calls still reach the shell.
+`psc help` (or `psc <command> --help`) explains each command. The shell itself also runs `psc prefs …` (settings export and import), `psc theme …` (theming integration) and `psc system …` (Shell health, network and Bluetooth details, safe eject), `psc files` (the launcher's `/` search), `psc library` (recent projects and games), `psc capture` (recording trim), `psc mic-check`, `psc phone-timer`, `psc boot-entries` (Restart into…), `psc swatch` (the colour picker's swatch), `psc clocks` (GNOME Clocks' alarms), `psc launcher-tools` (background jobs, file previews, Open with), `psc chat` (Quick chat) and `psc lens` (Lens). These helpers moved from Python on 19 November 2026 and are hidden from `--help`; the shell calls them as `~/.local/bin/psc`. Only the calendar's `src/services/events.py` is still Python. Settings, Quick chat, Lens and the launcher's file tools need the Rust `psc` installed. Bare `psc chat` starts the helper. `psc chat toggle`, `psc chat ask` and other chat IPC calls still reach the shell.
 
 ## IPC commands
 
@@ -512,9 +521,9 @@ SDDM isn't part of the shell, and the theme works on its own: it brings its own 
 
 ```
 pistachio-shell/
-├─ bin/psc     the control command
-├─ install.sh  links src/ and bin/psc into place, builds rust/
-├─ rust/       the helpers that run beside the shell all day: pistachio-auth (polkit agent), pistachio-devices (pairing agent, USB drives), pistachio-localsend
+├─ install.sh  links src/ into place, builds rust/ and installs psc and the helpers into ~/.local/bin
+├─ rust/       psc (the control command and the shell's on-demand helpers) and the helpers that run beside the shell all day: pistachio-auth (polkit agent), pistachio-devices (pairing agent, USB drives), pistachio-localsend
+├─ legacy/psc  the old shell-script psc, a fallback when the Rust one can't be built
 ├─ extras/     hypridle.conf (idle locking), sddm/ (the login screen theme, see extras/sddm/README.md), make-emoji.py (rebuilds the launcher's emoji list) and make-sound.py (rebuilds the notification sound)
 ├─ src/        the shell: shell.qml, Theme.qml, and bar/ panels/ popups/ launcher/ settings/ setup/ (first-run setup) lock/ components/ services/
 ├─ tests/      checks against the live system (see CLAUDE.md, working rule 9)

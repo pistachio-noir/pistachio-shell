@@ -88,7 +88,7 @@ helpers() {
     if [ "$mode" = dry ]; then
         echo "would build release helpers from $repo/rust/Cargo.toml"
         echo "would install executable pistachio-* helpers into $HOME/.local/bin (mode 755)"
-        echo "would install psc (Rust) as $HOME/.local/bin/psc, replacing the link to bin/psc"
+        echo "would install psc (Rust) as $HOME/.local/bin/psc, replacing the link to legacy/psc"
         return
     fi
     # the helpers first, on their own, so a psc that can't build (its crates not fetched yet) never
@@ -104,14 +104,14 @@ helpers() {
         install -m 755 "$helper" "$HOME/.local/bin/"
         echo "built   $HOME/.local/bin/$(basename "$helper")"
     done
-    # psc, in Rust since 19 November 2026; it replaces the link to the old bin/psc script
+    # psc, in Rust since 19 November 2026; it replaces a link to the old script, kept as legacy/psc
     if cargo build --release --quiet --manifest-path "$repo/rust/Cargo.toml" -p psc && [ -x "$repo/rust/target/release/psc" ]; then
         rm -f "$HOME/.local/bin/psc"
         install -m 755 "$repo/rust/target/release/psc" "$HOME/.local/bin/psc"
         echo "built   $HOME/.local/bin/psc"
         psc_built=1
     else
-        echo "note: psc didn't build; the psc already installed (or the bin/psc script) stays"
+        echo "note: psc didn't build; the psc already installed (or the legacy/psc script) stays"
     fi
 }
 
@@ -121,7 +121,7 @@ helpers
 # without cargo (or if the build failed) the old script still gives a working psc
 # (a psc from an earlier build, a real file, stays as it is)
 if [ -z "$psc_built" ] && [ "$mode" != dry ] && { [ -L "$HOME/.local/bin/psc" ] || [ ! -e "$HOME/.local/bin/psc" ]; }; then
-    link "$repo/bin/psc" "$HOME/.local/bin/psc"
+    link "$repo/legacy/psc" "$HOME/.local/bin/psc"
 fi
 fonts
 

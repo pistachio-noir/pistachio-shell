@@ -27,7 +27,7 @@ macro_rules! check {
 pub const CHECKS: &[Check] = &[
     check!("hyprctl", "Hyprland", Required, Program("hyprctl"), "hyprland", "nothing works: Hyprland only"),
     check!("qs", "Quickshell", Required, Program("qs"), "quickshell", "nothing works"),
-    check!("python3", "Python", Required, Program("python3"), "python", "calendar events"),
+    check!("python3", "Python", Optional, Program("python3"), "python", "calendar events (the one helper still in Python)"),
     check!("python-gi", "Python GObject", Optional, Python("gi"), "python-gobject", "calendar events"),
     check!("wl-copy", "Wayland clipboard", Required, Program("wl-copy"), "wl-clipboard", "copying text, emoji and screenshots"),
     check!("pactl", "PipeWire's pactl", Optional, Program("pactl"), "pipewire-pulse", "audio devices and plugged-in inputs"),
@@ -148,7 +148,7 @@ mod tests {
         assert!(rows[..first_optional].iter().all(|r| r.kind == Kind::Required) && rows[first_optional..].iter().all(|r| r.kind == Kind::Optional));
         assert!(missing_required(&rows));
         let required: Vec<&str> = rows.iter().filter(|r| r.kind == Kind::Required).map(|r| r.id).collect();
-        assert_eq!(required, ["hyprctl", "qs", "python3", "wl-copy"], "only what the shell can't run without");
+        assert_eq!(required, ["hyprctl", "qs", "wl-copy"], "only what the shell can't run without (Python only for the calendar since the Rust move)");
         for id in ["slurp", "pw-record", "ffprobe", "pactl", "pw-play", "manrope", "pistachio-devices"] { row(id); }
         let json = json(&rows);
         let first = &json.as_array().unwrap()[0];

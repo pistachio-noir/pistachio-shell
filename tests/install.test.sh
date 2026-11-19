@@ -24,7 +24,8 @@ rm -rf "$t"
 # 2. a fresh home where nothing builds: the old script is linked, so there is a psc
 t=$(run fail-all)
 HOME="$t/home" XDG_CONFIG_HOME="$t/config" XDG_DATA_HOME="$t/data" PATH="$t/stub:$PATH" sh "$repo/install.sh" >/dev/null 2>&1
-check "fresh home, no build: psc links the script" '[ "$(readlink "$t/home/.local/bin/psc")" = "$repo/bin/psc" ]'
+check "fresh home, no build: psc links the script" '[ "$(readlink "$t/home/.local/bin/psc")" = "$repo/legacy/psc" ]'
+check "fresh home, no build: the linked script is there and runs" '[ -x "$t/home/.local/bin/psc" ] && [ -f "$t/home/.local/bin/psc" ]'
 rm -rf "$t"
 # 3. psc can't build (clap not fetched) but the helpers can: the helpers are still installed
 t=$(run fail-psc)

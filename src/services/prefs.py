@@ -87,6 +87,12 @@ def game_classes(v, _ctx):
     raise ValueError("expected up to 20 lowercase window classes")
 
 
+def theming_keep(v, _ctx):
+    if isinstance(v, list) and all(x in ("kitty", "neovim") for x in v):
+        return list(dict.fromkeys(v))
+    raise ValueError("expected a list of kitty / neovim")
+
+
 def integrations(v, _ctx):
     v = names_list(len(INTEGRATIONS))(v, _ctx)
     unknown = [x for x in v if x not in INTEGRATIONS]
@@ -171,6 +177,8 @@ SCHEMA = [
     ("experimental", "clipboard_history", "clipboardHistory", bool_),
     ("experimental", "monochrome_wallpaper", "monochromeWallpaper", bool_),
     ("experimental", "game_mode", "gameMode", bool_),
+    ("appearance", "theming_integration", "themingIntegration", bool_),
+    ("appearance", "theming_keep", "themingKeep", theming_keep),
     ("experimental", "game_classes", "gameClasses", game_classes),
     ("display", "night_light", "nightLight", bool_), ("display", "night_warmth", "temperature", integer(2500, 6500)),
     ("display", "night_schedule", "nightSchedule", bool_), ("display", "night_from", "nightFrom", time), ("display", "night_to", "nightTo", time),

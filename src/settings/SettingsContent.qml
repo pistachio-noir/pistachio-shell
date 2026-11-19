@@ -201,6 +201,10 @@ Column {
         if (page === "appearance") return [
             group("Colours", [
                 { id: "colours", kind: "choice", title: "Colours", subtitle: () => "Pistachio Noir, or Noir in greys with one red for errors.", choices: () => [{value:"pistachio",title:"Pistachio Noir"},{value:"noir",title:"Noir"}], value: () => ShellSettings.colourScheme, set: ShellSettings.setColourScheme },
+                toggle("theming", "Theming integration", "Kitty and Neovim follow Colours. An app with its own theme is asked about first.", () => AppTheming.enabled, AppTheming.setEnabled),
+                ...(AppTheming.enabled ? AppTheming.apps.map(a => a.state === "own"
+                    ? action("theming-" + a.id, a.name, AppTheming.kept.includes(a.id) ? "Your own theme, kept" : "Your own theme", "Use Pistachio", () => AppTheming.use(a.id))
+                    : read("theming-" + a.id, a.name, ({following: "Follows Colours", available: "Not set up yet", missing: "Not installed", unsupported: a.detail || "Couldn't set up"})[a.state] || a.state)) : [])
             ]),
             group("Surfaces", [
                 { id: "frost", kind: "choice", title: "Frosted panels", subtitle: () => "Choose how much of the desktop shows through.", choices: () => [{value:"solid",title:"Solid"},{value:"subtle",title:"Subtle"},{value:"glassy",title:"Glassy"}], value: () => !ShellSettings.frosted ? "solid" : ShellSettings.glassy ? "glassy" : "subtle", set: v => { ShellSettings.setGlassy(v === "glassy"); ShellSettings.setFrosted(v !== "solid"); } },

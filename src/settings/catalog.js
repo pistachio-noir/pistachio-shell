@@ -52,6 +52,7 @@ var settings = [
     ["experimental", "game-classes", "Extra game windows", "Game mode", "game window class steam"],
     ["appearance", "desktop-cat", "Desktop cat", "Desktop", "cat pet pixel desktop"],
     ["experimental", "phone-preview", "Phone timer preview", "Phone preview", "phone pomodoro focus timer qr local network share"],
+    ["appearance", "theming", "Theming integration", "Colours", "theme apps kitty neovim nvim terminal editor integration follow"],
     ["appearance", "colours", "Colours", "Colours", "colours colors scheme noir pistachio grey gray monochrome black white theme"],
     ["appearance", "frost", "Frosted panels", "Surfaces", "solid subtle glassy opacity blur"],
     ["appearance", "shadows", "Drop shadows", "Surfaces", "depth"],

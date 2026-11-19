@@ -31,6 +31,8 @@ Singleton {
         property bool clipboardHistory // clipboard history is opt-in
         property bool phonePreview // local phone timer preview is opt-in
         property bool gameMode // game mode is opt-in (Experimental)
+        property bool themingIntegration: true // the shell sets Kitty/Neovim up to follow Colours (AppTheming)
+        property var themingKeep: [] // apps whose own theme the owner kept
         property var gameClasses: [] // extra game window classes, lowercase
         property var gameLayoutSaved: null // Hyprland's animations/blur before game mode, while it runs
         property bool tuiTrayOpen // TUI strip: tray icons and minimised windows shown (owner's call: collapsed by default)

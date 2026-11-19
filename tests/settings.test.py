@@ -40,6 +40,7 @@ MOCKS = {
         function setEnabled(v){enabled=v;}function setTemperature(v){temperature=v;}
         function setSchedule(on,a,b){scheduled=on;from=a;to=b;}
         function timeText(v){return String(Math.floor(v/60)).padStart(2,"0")+":"+String(v%60).padStart(2,"0");}''',
+    "AppTheming": 'property bool enabled:true;property var apps:[{id:"kitty",name:"Kitty",state:"following",detail:""},{id:"neovim",name:"Neovim",state:"own",detail:""}];property var conflict:null;property var kept:[];property string used;function setEnabled(v){enabled=v;}function keep(id){kept=kept.concat([id]);conflict=null;}function use(id){used=id;conflict=null;}',
     "Notifs": '''property bool dnd:false;property bool dndScheduled:false;property bool dndFollowsNight:false;
         property int dndFrom:1320;property int dndTo:420;property var notifications:[];property var rules:({"Test app":{noToasts:true}});
         function setDnd(v){dnd=v;}function setDndSchedule(v){dndScheduled=v;}function setDndFollowsNight(v){dndFollowsNight=v;}

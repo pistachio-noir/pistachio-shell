@@ -180,6 +180,16 @@ ShellRoot {
         check(SettingsHub.editError==="No place found"&&Weather.city==="Before","invalid city preserves setting and error");
         SettingsHub.saveEdit("Valid");Weather.pending({name:"After"},"");input.wait(20);
         check(Weather.city==="After"&&SettingsHub.editKey==="","valid city saved");
+        page("appearance");input.wait(60);
+        check(AppTheming.enabled && need("toggle-theming").checked!==false, "theming integration shows on by default");
+        click(need("toggle-theming"));check(!AppTheming.enabled,"theming switch turns it off");click(need("toggle-theming"));check(AppTheming.enabled,"and on again");
+        check(hasText(need("setting-theming-kitty"),"Follows Colours") && !!need("action-theming-neovim"),"apps list their state, own theme offers Use Pistachio");
+        click(need("action-theming-neovim"));check(AppTheming.used==="neovim","Use Pistachio on the row sets it up");AppTheming.used="";
+        AppTheming.conflict=AppTheming.apps[1];input.wait(60);
+        check(win.dialog.visible && hasText(win.dialog.contentItem,"Neovim has its own theme"),"a conflict asks in the Settings dialog");
+        win.dialog.cancel();input.wait(60);check(AppTheming.kept.includes("neovim") && !win.dialog.visible,"Keep mine keeps the app's theme");
+        AppTheming.conflict=AppTheming.apps[0];input.wait(60);check(win.dialog.visible && hasText(win.dialog.contentItem,"Kitty has its own theme"),"the next conflict shows after the first");
+        win.dialog.submit();input.wait(60);check(AppTheming.used==="kitty" && !win.dialog.visible,"Use Pistachio in the dialog sets it up");
         const placed={appearance:["setting-colours","setting-monochrome-wallpaper","setting-desktop-cat"],apps:["setting-clipboard-history"],health:["setting-restart-shell","setting-force-restart-shell"],experimental:["setting-style","setting-game-mode","setting-game-classes","setting-phone-preview"]};
         for (const where of Object.keys(placed)) { page(where);input.wait(60); for (const id of placed[where]) check(!!find(win.contentItem,id),id+" is on "+where); }
         page("experimental");input.wait(60);for (const id of ["setting-colours","setting-monochrome-wallpaper","setting-desktop-cat","setting-clipboard-history","setting-restart-shell"]) check(!find(win.contentItem,id),id+" left Experimental");

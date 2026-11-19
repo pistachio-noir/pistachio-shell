@@ -982,7 +982,7 @@ PanelWindow {
         } else if (q.startsWith(";") && (mode === "all" || mode === "apps")) {
             const term = q.slice(1).trim();
             const items = (ShellSettings.clipboardHistory ? Clipboard.history : []).filter(item => !term || Fuzzy.match(term, item.text));
-            rows = !ShellSettings.clipboardHistory ? [section("Clipboard history"), {kind:"empty", key:"clipboard-off", title:"Enable clipboard history in Settings → Experimental"}] : [section("Clipboard history")].concat(items.map(item => ({kind:"clipboard", key:"clipboard:" + item.id, title:item.text, glyph:Icons.clipboard, clipId:item.id})),
+            rows = !ShellSettings.clipboardHistory ? [section("Clipboard history"), {kind:"empty", key:"clipboard-off", title:"Enable clipboard history in Settings → Apps & places"}] : [section("Clipboard history")].concat(items.map(item => ({kind:"clipboard", key:"clipboard:" + item.id, title:item.text, glyph:Icons.clipboard, clipId:item.id})),
                 !term && Clipboard.history.length ? [{kind:"clipboard-clear", key:"clipboard-clear", title:"Clear clipboard history", glyph:Icons.close}] : [],
                 !items.length ? [{kind:"empty", key:"clipboard-empty", title:term ? "No matching items" : "Clipboard history is empty"}] : []);
         } else if (q.startsWith(":") && (mode === "all" || mode === "apps")) {

@@ -8,13 +8,13 @@ Singleton {
     id: root
     property string reviewing
     readonly property var defaults: ({
-        experimental: {appearanceStyle:"classic",colourScheme:"pistachio",tuiTrayOpen:false,phonePreview:false,desktopCat:false,clipboardHistory:false,monochromeWallpaper:false,gameMode:false,gameClasses:[]},
-        appearance: {frosted:false,frostStyle:"subtle",shadows:true,desktopIcons:true,workspaceOsd:true,tabbedOsd:true},
+        experimental: {appearanceStyle:"classic",tuiTrayOpen:false,phonePreview:false,gameMode:false,gameClasses:[]},
+        appearance: {colourScheme:"pistachio",monochromeWallpaper:false,desktopCat:false,frosted:false,frostStyle:"subtle",shadows:true,desktopIcons:true,workspaceOsd:true,tabbedOsd:true},
         display: {nightSchedule:false,nightFrom:1200,nightTo:420},
         sound: {headphonesTakeOver:true,volumeTick:true},
         notifications: {dnd:false,dndSchedule:false,dndFollowsNight:false,dndFrom:1320,dndTo:420,quietFullscreen:true,quietCalls:true,notificationSound:true,notificationRules:{}},
         lens: {lensProvider:"claude",lensClaudeModel:"claude-haiku-5-5",lensClaudeEffort:"medium",lensCodexModel:"gpt-6-luna",lensCodexEffort:"low",lensClaudeFallback:false,lensCodexFallback:false,lensSuggestCoding:true,lensClaudeCodingModel:"sonnet",lensClaudeCodingEffort:"high",lensCodexCodingModel:"gpt-6.1-sol",lensCodexCodingEffort:"high",quickChatTile:true},
-        apps: {terminal:"",weatherCity:""},
+        apps: {clipboardHistory:false,terminal:"",weatherCity:""},
         localsend: {localsendName:"",localsendFolder:"",localsendAcceptKnown:false}
     })
     readonly property var names: ({

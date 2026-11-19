@@ -184,39 +184,29 @@ Column {
     function read(id, title, value, subtitle) { return { id: id, title: title, value: typeof value === "function" ? value : () => value, subtitle: typeof subtitle === "function" ? subtitle : () => subtitle || "" }; }
     function time(id, title, get, set) { return { id: id, kind: "time", title: title, value: get, set: set }; }
     function buildGroups(page = root.page) {
-        // Experimental (owner's call, 15 November 2026): the newer looks, moved out of Appearance
+        // Experimental (owner's call, 15 November 2026; sorted 19 November): the TUI style and features still
+        // being tested (game mode, phone preview); Colours, wallpaper/cat, clipboard and restart live on their own pages
         if (page === "experimental") return [
             group("Style", [
-                { id: "style", kind: "choice", title: "Style", subtitle: () => "Applied live across the shell.", choices: () => [{value:"classic",title:"Classic"},{value:"tui",title:"TUI"}], value: () => ShellSettings.appearanceStyle, set: ShellSettings.setAppearanceStyle },
-                { id: "colours", kind: "choice", title: "Colours", subtitle: () => "Pistachio Noir, or Noir in greys with one red for errors.", choices: () => [{value:"pistachio",title:"Pistachio Noir"},{value:"noir",title:"Noir"}], value: () => ShellSettings.colourScheme, set: ShellSettings.setColourScheme }
-            ]),
-            group("Wallpaper", [
-                toggle("monochrome-wallpaper", "Monochrome wallpaper", "Desaturate the wallpaper in Noir. Original image stays unchanged.", () => ShellSettings.monochromeWallpaper, ShellSettings.setMonochromeWallpaper)
-            ]),
-            group("Clipboard history", [
-                toggle("clipboard-history", "Clipboard history", "Save copied text on disk; it may include secrets.", () => ShellSettings.clipboardHistory, ShellSettings.setClipboardHistory)
-            ]),
-            group("Desktop cat", [
-                toggle("desktop-cat", "Desktop cat", "Meoww", () => ShellSettings.desktopCat, ShellSettings.setDesktopCat)
+                { id: "style", kind: "choice", title: "Style", subtitle: () => "Applied live across the shell.", choices: () => [{value:"classic",title:"Classic"},{value:"tui",title:"TUI"}], value: () => ShellSettings.appearanceStyle, set: ShellSettings.setAppearanceStyle }
             ]),
             group("Game mode", [
                 toggle("game-mode", "Game mode", "While a fullscreen game is focused: quiet notifications, no animations or blur.", () => ShellSettings.gameMode, ShellSettings.setGameMode),
                 action("game-classes", "Extra game windows", () => ShellSettings.gameClasses.length ? ShellSettings.gameClasses.join(", ") : "Steam, Sober and gamescope only", "Change", () => SettingsHub.beginEdit("games"))
-            ]),
-            group("Shell", [
-                action("restart-shell", "Restart shell", "Restart the shell and its helpers.", "Restart", () => SettingsHub.restartMode = "restart"),
-                action("force-restart-shell", "Force restart shell", "Immediately stop the shell and its helpers.", "Force restart", () => SettingsHub.restartMode = "force-restart")
             ]),
             group("Phone preview", [
                 toggle("phone-preview", "Phone timer preview", "Share the active Focus or Pomodoro timer on your local network.", () => ShellSettings.phonePreview, ShellSettings.setPhonePreview)
             ])
         ];
         if (page === "appearance") return [
+            group("Colours", [
+                { id: "colours", kind: "choice", title: "Colours", subtitle: () => "Pistachio Noir, or Noir in greys with one red for errors.", choices: () => [{value:"pistachio",title:"Pistachio Noir"},{value:"noir",title:"Noir"}], value: () => ShellSettings.colourScheme, set: ShellSettings.setColourScheme },
+            ]),
             group("Surfaces", [
                 { id: "frost", kind: "choice", title: "Frosted panels", subtitle: () => "Choose how much of the desktop shows through.", choices: () => [{value:"solid",title:"Solid"},{value:"subtle",title:"Subtle"},{value:"glassy",title:"Glassy"}], value: () => !ShellSettings.frosted ? "solid" : ShellSettings.glassy ? "glassy" : "subtle", set: v => { ShellSettings.setGlassy(v === "glassy"); ShellSettings.setFrosted(v !== "solid"); } },
                 toggle("shadows", "Drop shadows", "Soft depth around panels and popups.", () => ShellSettings.shadows, ShellSettings.setShadows)
             ]),
-            group("Desktop", [action("wallpaper", "Wallpaper", "Your images, with a fit kept for each one.", "Choose wallpaper", () => SettingsHub.wallpapersRequested()), toggle("desktop", "Desktop icons", "Show files and folders from your Desktop.", () => Desktop.enabled, Desktop.setEnabled)]),
+            group("Desktop", [action("wallpaper", "Wallpaper", "Your images, with a fit kept for each one.", "Choose wallpaper", () => SettingsHub.wallpapersRequested()), toggle("desktop", "Desktop icons", "Show files and folders from your Desktop.", () => Desktop.enabled, Desktop.setEnabled), toggle("monochrome-wallpaper", "Monochrome wallpaper", "Desaturate the wallpaper in Noir. Original image stays unchanged.", () => ShellSettings.monochromeWallpaper, ShellSettings.setMonochromeWallpaper), toggle("desktop-cat", "Desktop cat", "Meoww", () => ShellSettings.desktopCat, ShellSettings.setDesktopCat)]),
             group("At a glance", [toggle("workspace", "Workspace OSD", "On workspace changes.", () => ShellSettings.workspaceOsd, ShellSettings.setWorkspaceOsd), toggle("tabbed", "Tabbed OSD", "When tabs switch.", () => ShellSettings.tabbedOsd, ShellSettings.setTabbedOsd)])
         ];
         if (page === "sound") {
@@ -294,13 +284,14 @@ Column {
         if (page === "lens") return [group("", [action("chats", "Saved chats", "~/lens-chats · snip and Markdown", "Open folder", SettingsHub.openChats)]),
             group("Quick chat", [toggle("quickchat", "Quick chat in quick settings", "A tile beside LocalSend opens it. Off, LocalSend takes the whole row.", () => ShellSettings.quickChatTile, ShellSettings.setQuickChatTile),
                 action("quickchats", "Saved quick chats", "~/quick-chats · Markdown", "Open folder", SettingsHub.openQuickChats)])];
-        if (page === "apps") return [group("Open things with", [{id:"terminal",kind:"choice",title:"Terminal",subtitle:()=>"For commands, terminal apps and showoff.", choices:()=>Apps.terminalChoices.map(v=>({value:v,title:Apps.terminalName(v)})),value:()=>Apps.terminal,set:Apps.setTerminal}]), group("Places", [action("weather","Weather location",Weather.placeName,"Change",()=>SettingsHub.beginEdit("weather")), action("wallpapers","Wallpapers",Wallpapers.folder.replace(/^\/home\/[^/]+/,"~"),"Open folder",Wallpapers.openFolder)]), ...(Cider.installed ? [group("Integrations",[action("cider","Cider token",Cider.usable ? "Set · enables Up next and Apple Music search." : "Not set · for Up next and Apple Music search.","Change",()=>SettingsHub.beginEdit("cider"))])] : [])];
+        if (page === "apps") return [group("Launcher", [toggle("clipboard-history", "Clipboard history", "Save copied text on disk; it may include secrets.", () => ShellSettings.clipboardHistory, ShellSettings.setClipboardHistory)]), group("Open things with", [{id:"terminal",kind:"choice",title:"Terminal",subtitle:()=>"For commands, terminal apps and showoff.", choices:()=>Apps.terminalChoices.map(v=>({value:v,title:Apps.terminalName(v)})),value:()=>Apps.terminal,set:Apps.setTerminal}]), group("Places", [action("weather","Weather location",Weather.placeName,"Change",()=>SettingsHub.beginEdit("weather")), action("wallpapers","Wallpapers",Wallpapers.folder.replace(/^\/home\/[^/]+/,"~"),"Open folder",Wallpapers.openFolder)]), ...(Cider.installed ? [group("Integrations",[action("cider","Cider token",Cider.usable ? "Set · enables Up next and Apple Music search." : "Not set · for Up next and Apple Music search.","Change",()=>SettingsHub.beginEdit("cider"))])] : [])];
         if (page === "localsend" && LocalSend.available) return [group("",[toggle("receive","Receive files",LocalSend.summary,()=>LocalSend.wanted,LocalSend.setReceive)]),group("This device",[action("name","Device name",LocalSend.name,"Change",()=>SettingsHub.beginEdit("name")),action("folder","Save received files to",LocalSend.folderShown,"Change",LocalSend.pickFolder)]),group("Incoming requests",[toggle("known","Accept known devices","Skip asking for devices you have accepted before.",()=>LocalSend.acceptKnown,LocalSend.setAcceptKnown)])];
         // only which disks there are shapes the page; the readings are read by the rows themselves
         if (page === "system") return [group("Storage",SystemStats.diskMounts.map(m=>read("storage",m === "/" ? "System disk" : "Home",()=>{ const d=SystemStats.disks.find(x=>x.mount===m); return d ? `${SystemStats.gigabytes(d.free)} free of ${SystemStats.gigabytes(d.size)}` : "—"; },m))),group("Shell",[read("shell","Pistachio Noir",()=>root.usage(SystemStats.shellCpu,SystemStats.shellMem),"CPU and memory, including its helpers."),read("hyprland","Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.hyprCpu,SystemStats.hyprMem) : "—","The compositor."),read("desktop","Shell and Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.shellCpu < 0 || SystemStats.hyprCpu < 0 ? -1 : SystemStats.shellCpu+SystemStats.hyprCpu,SystemStats.shellMem+SystemStats.hyprMem) : "—","Both together.")]),group("Removable drives",Drives.mounted.map(d=>action("drive:"+d.path,d.name,`${d.mountpoint} · ${d.size}`,"Eject",()=>Drives.eject(d))))];
         if (page === "about") return [group(root.funAbout ? "The cat’s build inspection" : "",[read("branch",root.funAbout ? "The branch we’re perched on" : "Branch",About.branch || "—",About.branch ? About.moodLong : ""),read("build",root.funAbout ? "Today’s shell specimen" : "Build",About.commit || "Reading…",[About.date,About.subject,About.changed ? `${About.changed} changed files` : ""].filter(Boolean).join(" · ")),read("quickshell",root.funAbout ? "Quickshell · panel wrangler" : "Quickshell",About.quickshell || "—"),read("hyprland",root.funAbout ? "Hyprland · window herder" : "Hyprland",About.hyprland || "—"),read("qt",root.funAbout ? "Qt · keeper of pixels" : "Qt",About.qt || "—"),action("source",root.funAbout ? "Peek behind the whiskers" : "Source code",root.funAbout ? "The shell and its design boards, no secret catnip required." : "The shell and its design boards.","View source",SettingsHub.openSource)]),
             // export and import (owner's call, 15 November 2026): one file, a review before anything changes
             group(root.funAbout ? "Pack your settings" : "Your settings",[action("export",root.funAbout ? "Pack the suitcase" : "Export settings",()=>Preferences.status && !Preferences.reviewing ? Preferences.status : `Every preference and the launcher's pins, aliases and presets, to ${Preferences.shownPath}.`,"Export",Preferences.exportNow),action("import",root.funAbout ? "Unpack with care" : "Import settings",`Read ${Preferences.shownPath} and review the changes before they apply.`,"Review import",Preferences.review)])];
+        if (page === "health") return [group("Restart", [action("restart-shell", "Restart shell", "Restart the shell and its helpers.", "Restart", () => SettingsHub.restartMode = "restart"), action("force-restart-shell", "Force restart shell", "Immediately stop the shell and its helpers.", "Force restart", () => SettingsHub.restartMode = "force-restart")])];
         return [];
     }
 }

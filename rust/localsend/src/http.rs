@@ -97,6 +97,29 @@ impl Head {
     pub fn length(&self) -> Option<u64> {
         self.headers.get("content-length")?.parse().ok()
     }
+
+    /// The body comes in chunks (Transfer-Encoding: chunked), as a phone app may stream a photo.
+    pub fn chunked(&self) -> bool {
+        self.headers.get("transfer-encoding").is_some_and(|t| t.to_ascii_lowercase().contains("chunked"))
+    }
+}
+
+/// The size of the next chunk of a chunked body: 0 at its end, with any trailers read away.
+pub fn read_chunk_size(reader: &mut impl BufRead) -> io::Result<u64> {
+    let line = read_line(reader)?.ok_or_else(|| bad("the body ended early"))?;
+    let size = u64::from_str_radix(line.split(';').next().unwrap_or_default().trim(), 16).map_err(|_| bad("a bad chunk"))?;
+    if size == 0 {
+        while read_line(reader)?.is_some_and(|l| !l.is_empty()) {}
+    }
+    Ok(size)
+}
+
+/// The line break that closes each chunk's data.
+pub fn read_chunk_end(reader: &mut impl BufRead) -> io::Result<()> {
+    match read_line(reader)? {
+        Some(line) if line.is_empty() => Ok(()),
+        _ => Err(bad("a chunk without its end")),
+    }
 }
 
 /// The next request on a connection; `None` when the other side closed it instead.
@@ -257,6 +280,23 @@ mod tests {
         let mut text = b"GET / HTTP/1.1\r\nX: ".to_vec();
         text.extend(std::iter::repeat(b'a').take(MAX_LINE + 10));
         assert!(read_request(&mut BufReader::new(&text[..])).is_err());
+    }
+
+    #[test]
+    fn chunked_request_bodies_are_read_chunk_by_chunk() {
+        let mut body = &b"4\r\nabcd\r\n2;ext\r\nef\r\n0\r\nTrailer: x\r\n\r\nNEXT"[..];
+        assert_eq!(read_chunk_size(&mut body).unwrap(), 4);
+        let mut data = [0u8; 4];
+        body.read_exact(&mut data).unwrap();
+        assert_eq!(&data, b"abcd");
+        read_chunk_end(&mut body).unwrap();
+        assert_eq!(read_chunk_size(&mut body).unwrap(), 2);
+        body.read_exact(&mut data[..2]).unwrap();
+        read_chunk_end(&mut body).unwrap();
+        assert_eq!(read_chunk_size(&mut body).unwrap(), 0);
+        assert_eq!(body, b"NEXT"); // the trailers are gone, the next request is untouched
+        assert!(read_chunk_size(&mut &b"zz\r\n"[..]).is_err());
+        assert!(read_chunk_end(&mut &b"x\r\n"[..]).is_err());
     }
 
     #[test]

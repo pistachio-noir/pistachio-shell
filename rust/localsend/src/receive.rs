@@ -355,8 +355,27 @@ enum Stopped {
     Lost,
 }
 
-/// Reads the rest of the request's body into the open file.
-fn save(conn: &mut Conn, session: &Session, mut target: std::fs::File) -> Result<(), Stopped> {
+/// Reads the rest of the request's body into the open file: `conn.left` bytes, or, for a chunked
+/// body, chunk by chunk up to `size` (the size the sender announced; more than that is refused).
+fn save(conn: &mut Conn, session: &Session, mut target: std::fs::File, chunked: bool, size: u64) -> Result<(), Stopped> {
+    if chunked {
+        let mut written = 0u64;
+        loop {
+            let piece = http::read_chunk_size(&mut conn.stream).map_err(|_| Stopped::Lost)?;
+            if piece == 0 {
+                break;
+            }
+            if piece > size - written {
+                return Err(Stopped::Lost); // more than the sender said it would send
+            }
+            conn.left = piece;
+            save(conn, session, target.try_clone().map_err(|_| Stopped::Lost)?, false, 0)?;
+            http::read_chunk_end(&mut conn.stream).map_err(|_| Stopped::Lost)?;
+            written += piece;
+        }
+        conn.left = 0;
+        return target.flush().map_err(|_| Stopped::Lost);
+    }
     let mut chunk = vec![0u8; CHUNK];
     while conn.left > 0 {
         if lock(&session.state).cancelled {
@@ -390,14 +409,15 @@ fn upload(app: &Arc<App>, conn: &mut Conn, head: &http::Head) {
         conn.reply(403, None);
         return;
     };
-    if head.length().is_none() {
+    let chunked = head.chunked();
+    if head.length().is_none() && !chunked {
         conn.left = size;
     }
     let folder = lock(&app.config).folder.clone();
     let arrived = files::claim(&folder, &name).map_err(|_| Stopped::Lost).and_then(|(path, target)| {
         let part = files::part_of(&path);
         lock(&session.state).current = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        let saved = save(conn, &session, target).and_then(|()| std::fs::rename(&part, &path).map_err(|_| Stopped::Lost));
+        let saved = save(conn, &session, target, chunked, size).and_then(|()| std::fs::rename(&part, &path).map_err(|_| Stopped::Lost));
         if saved.is_err() {
             let _ = std::fs::remove_file(&part);
         }

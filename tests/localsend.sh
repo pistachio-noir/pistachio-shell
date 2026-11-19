@@ -126,9 +126,9 @@ def post(path, body=None, **query):
     return r.status, data
 
 
-def offer(*names):
+def offer(*names, size=1000):
     info = {"alias": "stranger", "version": "2.1", "deviceModel": "Test", "deviceType": "desktop", "fingerprint": "F" * 64, "port": 53320, "protocol": "https"}
-    files = {f"id{i}": {"id": f"id{i}", "fileName": name, "size": 1000, "fileType": "application/octet-stream"} for i, name in enumerate(names)}
+    files = {f"id{i}": {"id": f"id{i}", "fileName": name, "size": size, "fileType": "application/octet-stream"} for i, name in enumerate(names)}
     return {"info": info, "files": files}
 
 
@@ -174,6 +174,24 @@ time.sleep(0.2)
 left = [n for _, _, names in os.walk(b.folder) for n in names if n.endswith(".part") or n.startswith("second")]
 assert not left, left
 ok("a sender that vanishes mid-file: told as lost, no half file kept")
+
+# a phone app may stream a photo with Transfer-Encoding: chunked and no Content-Length
+photo = os.urandom(200_000)
+threading.Thread(target=lambda: answers.put(post("/prepare-upload", offer("photo.jpg", size=len(photo)))), daemon=True).start()
+r = b.wait("request", lambda m: m["from"]["alias"] == "stranger")
+b.cmd(cmd="answer", session=r["session"], accept=True)
+status, data = answers.get(timeout=10)
+token = json.loads(data)["files"]["id0"]
+c = raw()
+pieces = [photo[i:i + 16_384] for i in range(0, len(photo), 16_384)]
+c.request("POST", API + "/upload?" + urllib.parse.urlencode({"sessionId": r["session"], "fileId": "id0", "token": token}),
+          body=iter(pieces), encode_chunked=True, headers={"Content-Type": "image/jpeg"})
+assert c.getresponse().status == 200
+c.close()
+b.wait("received")
+got = open(os.path.join(b.folder, "photo.jpg"), "rb").read()
+assert got == photo, (len(got), len(photo), got[:12])
+ok("a chunked upload (as a phone may send a photo) arrives byte for byte")
 
 threading.Thread(target=lambda: answers.put(post("/prepare-upload", offer("again.bin"))), daemon=True).start()
 r = b.wait("request", lambda m: m["from"]["alias"] == "stranger")

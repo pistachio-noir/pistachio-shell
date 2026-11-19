@@ -6,12 +6,13 @@ import qs.panels
 import qs.popups
 import qs.services
 import qs.settings
+import qs.setup
 import Quickshell
 import QtQuick
 
 ShellRoot {
     // services that work in the background from the start: a singleton only starts once it's used
-    readonly property var background: [Drives, LocalSend, Clocks, Clipboard, GameMode, AppTheming]
+    readonly property var background: [Drives, LocalSend, Clocks, Clipboard, GameMode, AppTheming, FirstRun]
 
     Binding { target: Theme; property: "tui"; value: ShellSettings.appearanceStyle === "tui" }
     Binding { target: Theme; property: "noir"; value: ShellSettings.colourScheme === "noir" }
@@ -56,6 +57,7 @@ ShellRoot {
         onSettingsRequested: page => settings.showPage(page, "")
     }
     SettingsWindow { id: settings }
+    LazyLoader { active: FirstRun.loaded; component: Component { FirstRunWindow {} } } // first-run setup, and `psc setup`
     Connections {
         target: SettingsHub
         function onPresent() { launcher.open = false; }

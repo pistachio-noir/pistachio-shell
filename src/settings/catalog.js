@@ -44,6 +44,8 @@ var settings = [
     ["sound","player","Media player","Devices","mpris auto selection"],
     ["network","ipv4","IP addresses","Connection details","ipv4 ipv6 gateway dns ethernet copy"],
     ["experimental", "style", "Style", "Style", "classic tui appearance terminal look"],
+    ["experimental", "tui-hyprland", "Hyprland integration", "Style", "tui compositor square window corners borders rounding"],
+    ["experimental", "cat-skin", "Cat skin", "Desktop cat", "cat coat pet pixel cream ginger midnight"],
     ["health", "restart-shell", "Restart shell", "Restart", "restart reload"],
     ["health", "force-restart-shell", "Force restart shell", "Restart", "restart force kill helpers"],
     ["appearance", "monochrome-wallpaper", "Monochrome wallpaper", "Desktop", "wallpaper monochrome grayscale greyscale noir background"],
@@ -98,12 +100,14 @@ var settings = [
     ["about", "build", "Build and source code", "About", "version quickshell hyprland qt"],
     ["about", "export", "Export settings", "Your settings", "backup save toml file config dotfile"],
     ["about", "import", "Import settings", "Your settings", "restore load toml file config dotfile"],
+    ["about", "setup", "First-run setup", "Setup", "wizard welcome onboarding start again rerun psc setup"],
     // Showoff's About entry was removed (owner's call, 15 November 2026); showoff itself stays: IPC `showoff toggle`
 ];
 function page(id) { return pages.find(p => p[0] === id) || pages[0]; }
-function search(query, localSend, cider, brightness) {
+function search(query, localSend, cider, brightness, tui) {
     const words = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
     if (!words.length) return [];
     return settings.filter(s => (localSend || s[0] !== "localsend") && (cider || s[1] !== "cider")
+        && (!tui || s[1] !== "desktop")
         && (brightness || s[1] !== "brightness") && words.every(w => (s.slice(2).join(" ") + " " + page(s[0])[1]).toLowerCase().includes(w)));
 }

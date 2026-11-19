@@ -71,7 +71,7 @@ Column {
                 SettingsText { width:parent.width; secondary:true; text:"A small desktop with suspiciously large plans." }
                 SettingsText { width:parent.width; secondary:true; text:"“I inspected the windows. Then I sat on the keyboard.” — The desktop cat" }
             }
-            DesktopCat { anchors.right:parent.right; anchors.rightMargin:16; anchors.verticalCenter:parent.verticalCenter; active:root.page === "about" && root.funAbout }
+            DesktopCat { anchors.right:parent.right; anchors.rightMargin:16; anchors.verticalCenter:parent.verticalCenter; active:root.page === "about" && root.funAbout; skin:ShellSettings.catSkin }
         }
         SettingsText { width:parent.width; text:"Meet the crew"; font.pixelSize:Theme.tui?Theme.tuiTextSize:16; font.weight:Font.ExtraBold }
         Rectangle {
@@ -185,10 +185,11 @@ Column {
     function time(id, title, get, set) { return { id: id, kind: "time", title: title, value: get, set: set }; }
     function buildGroups(page = root.page) {
         // Experimental (owner's call, 15 November 2026; sorted 19 November): the TUI style and features still
-        // being tested (game mode, phone preview); Colours, wallpaper/cat, clipboard and restart live on their own pages
+        // being tested; Colours, wallpaper/cat, clipboard and restart live on their own pages
         if (page === "experimental") return [
             group("Style", [
-                { id: "style", kind: "choice", title: "Style", subtitle: () => "Applied live across the shell.", choices: () => [{value:"classic",title:"Classic"},{value:"tui",title:"TUI"}], value: () => ShellSettings.appearanceStyle, set: ShellSettings.setAppearanceStyle }
+                { id: "style", kind: "choice", title: "Style", subtitle: () => "Applied live across the shell.", choices: () => [{value:"classic",title:"Classic"},{value:"tui",title:"TUI"}], value: () => ShellSettings.appearanceStyle, set: ShellSettings.setAppearanceStyle },
+                toggle("tui-hyprland", "Hyprland integration", "Square window corners while TUI is active.", () => ShellSettings.tuiHyprland, ShellSettings.setTuiHyprland)
             ]),
             group("Game mode", [
                 toggle("game-mode", "Game mode", "While a fullscreen game is focused: quiet notifications, no animations or blur.", () => ShellSettings.gameMode, ShellSettings.setGameMode),
@@ -196,6 +197,10 @@ Column {
             ]),
             group("Phone preview", [
                 toggle("phone-preview", "Phone timer preview", "Share the active Focus or Pomodoro timer on your local network.", () => ShellSettings.phonePreview, ShellSettings.setPhonePreview)
+            ]),
+            group("Desktop cat", [
+                { id: "cat-skin", kind: "choice", title: "Cat skin", subtitle: () => "Choose a coat for the desktop cat.",
+                    choices: () => Theme.catSkins, value: () => ShellSettings.catSkin, set: ShellSettings.setCatSkin }
             ])
         ];
         if (page === "appearance") return [
@@ -210,7 +215,12 @@ Column {
                 { id: "frost", kind: "choice", title: "Frosted panels", subtitle: () => "Choose how much of the desktop shows through.", choices: () => [{value:"solid",title:"Solid"},{value:"subtle",title:"Subtle"},{value:"glassy",title:"Glassy"}], value: () => !ShellSettings.frosted ? "solid" : ShellSettings.glassy ? "glassy" : "subtle", set: v => { ShellSettings.setGlassy(v === "glassy"); ShellSettings.setFrosted(v !== "solid"); } },
                 toggle("shadows", "Drop shadows", "Soft depth around panels and popups.", () => ShellSettings.shadows, ShellSettings.setShadows)
             ]),
-            group("Desktop", [action("wallpaper", "Wallpaper", "Your images, with a fit kept for each one.", "Choose wallpaper", () => SettingsHub.wallpapersRequested()), toggle("desktop", "Desktop icons", "Show files and folders from your Desktop.", () => Desktop.enabled, Desktop.setEnabled), toggle("monochrome-wallpaper", "Monochrome wallpaper", "Desaturate the wallpaper in Noir. Original image stays unchanged.", () => ShellSettings.monochromeWallpaper, ShellSettings.setMonochromeWallpaper), toggle("desktop-cat", "Desktop cat", "Meoww", () => ShellSettings.desktopCat, ShellSettings.setDesktopCat)]),
+            group("Desktop", [
+                action("wallpaper", "Wallpaper", "Your images, with a fit kept for each one.", "Choose wallpaper", () => SettingsHub.wallpapersRequested()),
+                ...(Theme.tui ? [] : [toggle("desktop", "Desktop icons", "Show files and folders from your Desktop.", () => Desktop.enabled, Desktop.setEnabled)]),
+                toggle("monochrome-wallpaper", "Monochrome wallpaper", "Desaturate the wallpaper in Noir. Original image stays unchanged.", () => ShellSettings.monochromeWallpaper, ShellSettings.setMonochromeWallpaper),
+                toggle("desktop-cat", "Desktop cat", "Meoww", () => ShellSettings.desktopCat, ShellSettings.setDesktopCat)
+            ]),
             group("At a glance", [toggle("workspace", "Workspace OSD", "On workspace changes.", () => ShellSettings.workspaceOsd, ShellSettings.setWorkspaceOsd), toggle("tabbed", "Tabbed OSD", "When tabs switch.", () => ShellSettings.tabbedOsd, ShellSettings.setTabbedOsd)])
         ];
         if (page === "sound") {
@@ -294,7 +304,8 @@ Column {
         if (page === "system") return [group("Storage",SystemStats.diskMounts.map(m=>read("storage",m === "/" ? "System disk" : "Home",()=>{ const d=SystemStats.disks.find(x=>x.mount===m); return d ? `${SystemStats.gigabytes(d.free)} free of ${SystemStats.gigabytes(d.size)}` : "—"; },m))),group("Shell",[read("shell","Pistachio Noir",()=>root.usage(SystemStats.shellCpu,SystemStats.shellMem),"CPU and memory, including its helpers."),read("hyprland","Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.hyprCpu,SystemStats.hyprMem) : "—","The compositor."),read("desktop","Shell and Hyprland",()=>SystemStats.hyprMem > 0 ? root.usage(SystemStats.shellCpu < 0 || SystemStats.hyprCpu < 0 ? -1 : SystemStats.shellCpu+SystemStats.hyprCpu,SystemStats.shellMem+SystemStats.hyprMem) : "—","Both together.")]),group("Removable drives",Drives.mounted.map(d=>action("drive:"+d.path,d.name,`${d.mountpoint} · ${d.size}`,"Eject",()=>Drives.eject(d))))];
         if (page === "about") return [group(root.funAbout ? "The cat’s build inspection" : "",[read("branch",root.funAbout ? "The branch we’re perched on" : "Branch",About.branch || "—",About.branch ? About.moodLong : ""),read("build",root.funAbout ? "Today’s shell specimen" : "Build",About.commit || "Reading…",[About.date,About.subject,About.changed ? `${About.changed} changed files` : ""].filter(Boolean).join(" · ")),read("quickshell",root.funAbout ? "Quickshell · panel wrangler" : "Quickshell",About.quickshell || "—"),read("hyprland",root.funAbout ? "Hyprland · window herder" : "Hyprland",About.hyprland || "—"),read("qt",root.funAbout ? "Qt · keeper of pixels" : "Qt",About.qt || "—"),action("source",root.funAbout ? "Peek behind the whiskers" : "Source code",root.funAbout ? "The shell and its design boards, no secret catnip required." : "The shell and its design boards.","View source",SettingsHub.openSource)]),
             // export and import (owner's call, 15 November 2026): one file, a review before anything changes
-            group(root.funAbout ? "Pack your settings" : "Your settings",[action("export",root.funAbout ? "Pack the suitcase" : "Export settings",()=>Preferences.status && !Preferences.reviewing ? Preferences.status : `Every preference and the launcher's pins, aliases and presets, to ${Preferences.shownPath}.`,"Export",Preferences.exportNow),action("import",root.funAbout ? "Unpack with care" : "Import settings",`Read ${Preferences.shownPath} and review the changes before they apply.`,"Review import",Preferences.review)])];
+            group(root.funAbout ? "Pack your settings" : "Your settings",[action("export",root.funAbout ? "Pack the suitcase" : "Export settings",()=>Preferences.status && !Preferences.reviewing ? Preferences.status : `Every preference and the launcher's pins, aliases and presets, to ${Preferences.shownPath}.`,"Export",Preferences.exportNow),action("import",root.funAbout ? "Unpack with care" : "Import settings",`Read ${Preferences.shownPath} and review the changes before they apply.`,"Review import",Preferences.review)]),
+            group(root.funAbout ? "Start over" : "Setup",[action("setup",root.funAbout ? "Show the cat around again" : "First-run setup","The check and the basics, step by step, as on the first start. Choices apply at once.","Run setup",()=>{ SettingsHub.opened = false; FirstRun.open(); })])];
         if (page === "health") return [group("Restart", [action("restart-shell", "Restart shell", "Restart the shell and its helpers.", "Restart", () => SettingsHub.restartMode = "restart"), action("force-restart-shell", "Force restart shell", "Immediately stop the shell and its helpers.", "Force restart", () => SettingsHub.restartMode = "force-restart")])];
         return [];
     }

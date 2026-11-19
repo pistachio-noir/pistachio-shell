@@ -16,6 +16,7 @@ MOCKS = {
 
     "Compositor": 'property var windows: []; property int activeWorkspace: 1; function placeSettingsWindow(w,x,y) {}',
     "Session": 'property bool locked',
+    "FirstRun": 'property bool opened; function open() { opened = true; }',
     "About": 'property string branch:"tui";property string mood:"cooking";property string moodLong:"Experimental build";property string kind:"cooking";property bool stable:false;property string repo: ""; property string commit: "test"; property string date: "2026-11-10"; property string subject: "Test build"; property int changed: 0; property string quickshell: "0.3.2"; property string hyprland: "0.57.1"; property string qt: "6"; function load() {}',
     "Weather": 'property string city: "Before"; property string placeName: city; property var pending; function lookup(s,then) { pending=then; } function setCity(s) {city=s;}',
     "Cider": 'property bool installed: true; property bool usable: false; property string token: ""; property var pending; function check(s,then) {pending=then;} function setToken(s) {token=s;}',
@@ -72,7 +73,7 @@ with tempfile.TemporaryDirectory(prefix="pistachio-settings-test-") as directory
         shutil.copy(ROOT / f"src/services/{name}.qml", base / f"services/{name}.qml")
     for name, body in MOCKS.items():
         (base / f"services/{name}.qml").write_text("pragma Singleton\nimport Quickshell\nimport QtQuick\nSingleton {\n" + body + "\n}\n")
-    for helper in ("system-tools.py", "mic-check.py"):
+    for helper in ():  # system-tools.py and mic-check.py are psc since 19 November 2026 (the fixture's bin/ stands in for pw-record/pw-play)
         shutil.copy(ROOT / "src/services" / helper, base / "services" / helper)
     media = (ROOT / "src/services/Media.qml").read_text().replace("import Quickshell.Services.Mpris", "").replace("readonly property var players: Mpris.players.values", "property var players: []")
     (base / "services/Media.qml").write_text(media)
@@ -85,9 +86,28 @@ with tempfile.TemporaryDirectory(prefix="pistachio-settings-test-") as directory
     store_fixture=base / "services/Store.qml"
     store_fixture.write_text(store_fixture.read_text().replace('    FileView {','    function fixtureWriteNow(): void { file.writeAdapter(); }\n    FileView {'))
     shutil.copy(ROOT / "tests/settings-ui.qml", base / "shell.qml")
+
+    # the copied services run the installed `$HOME/.local/bin/psc`: test this build instead (PSC= another one)
+    psc_build = os.environ.get("PSC") or str(ROOT / "rust/target/release/psc")
+    rewritten = 0
+    for qml in base.rglob("*.qml"):
+        text = qml.read_text()
+        if 'Quickshell.env("HOME") + "/.local/bin/psc"' in text:
+            qml.write_text(text.replace('Quickshell.env("HOME") + "/.local/bin/psc"', json.dumps(psc_build)))
+            rewritten += 1
+    assert rewritten, "no service runs psc any more: update this fixture"
     (base / "runtime").mkdir(mode=0o700)
     env = dict(os.environ, PATH=str(base / "bin")+":"+os.environ["PATH"], QT_QPA_PLATFORM="offscreen", XDG_RUNTIME_DIR=str(base / "runtime"),
-               XDG_STATE_HOME=str(base / "state"), XDG_CACHE_HOME=str(base / "cache"))
+               XDG_STATE_HOME=str(base / "state"), XDG_CACHE_HOME=str(base / "cache"),
+               # the real ShellSettings publishes Colours through the installed psc into $XDG_CONFIG_HOME:
+               # keep it (and Preferences' settings.toml) in the fixture, never the owner's (19 November 2026)
+               XDG_CONFIG_HOME=str(base / "config"))
+    real_config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    guarded = [real_config / p for p in ("pistachio/shared-theme", "kitty/pistachio-shared.conf", "kitty/kitty.conf", "nvim/init.lua",
+                                         "pistachio/pistachio-shell/settings.toml")]
+    def snapshot():
+        return {str(p): (p.read_bytes(), p.stat().st_mtime_ns) if p.exists() else None for p in guarded}
+    before = snapshot()
     native = os.environ.get("PISTACHIO_SETTINGS_NATIVE") == "1"
     if native:
         env["QT_QPA_PLATFORM"] = "wayland"
@@ -124,6 +144,7 @@ with tempfile.TemporaryDirectory(prefix="pistachio-settings-test-") as directory
             assert result and result.stdout.strip().startswith("all passed"), (result.stdout if result else "No IPC target") + "\n" + output
             assert "WARN scene:" not in output and "ERROR" not in output, output
             print("settings QML: " + result.stdout.strip())
+            assert snapshot() == before, "the Settings fixture changed the owner's real config files"
             timing=subprocess.check_output(["qs","-p",directory,"ipc","call","settingsTest","writeTime"],env=env,text=True).strip()
             print("settings state save: 200 fixture notifications, "+timing+" ms")
             proc.terminate()

@@ -42,6 +42,7 @@ ShellRoot {
     }
     function runChecks() {
         check(ShellSettings.appearanceStyle === "classic", "missing style defaults to Classic");
+        check(!ShellSettings.tuiHyprland, "Hyprland integration defaults off");
         check(!ShellSettings.phonePreview, "phone preview defaults off");
         check(!ShellSettings.gameMode && ShellSettings.gameClasses.length === 0, "game mode defaults off with no extra classes");
         check(!ShellSettings.desktopCat, "desktop cat defaults off");
@@ -75,6 +76,7 @@ ShellRoot {
         check(!find(win.contentItem,"about-normal-header"),"normal About header is hidden in fun mode");
         check(need("label-branch").text === "The branch we’re perched on" && need("label-build").text === "Today’s shell specimen", "build details are presented in the cat report");
         check(!!need("setting-quickshell") && !!need("setting-hyprland") && !!need("setting-qt") && !!need("action-source") && !!need("action-export") && !!need("action-import"),"versions and About actions remain available");
+        scrollInto(need("action-setup"));click(need("action-setup"));check(FirstRun.opened && !SettingsHub.opened,"About → Run setup closes Settings and opens first-run setup");SettingsHub.openPage("about","");input.wait(30);for(let i=0;i<10;i++) click(need("settings-nav-about"));
         check(hasText(need("setting-branch"),About.branch) && hasText(need("setting-build"),About.commit) && hasText(need("setting-quickshell"),About.quickshell) && hasText(need("setting-hyprland"),About.hyprland) && hasText(need("setting-qt"),About.qt),"fun report shows real branch, build and versions");
         scrollInto(need("setting-branch"));capture("about-build");
         ShellSettings.setAppearanceStyle("tui");input.wait(100);check(!!need("about-fun") && !find(win.contentItem,"about-normal-header") && hasText(need("setting-build"),About.commit),"fun report and build details remain in TUI");ShellSettings.setAppearanceStyle("classic");input.wait(100);
@@ -190,9 +192,18 @@ ShellRoot {
         win.dialog.cancel();input.wait(60);check(AppTheming.kept.includes("neovim") && !win.dialog.visible,"Keep mine keeps the app's theme");
         AppTheming.conflict=AppTheming.apps[0];input.wait(60);check(win.dialog.visible && hasText(win.dialog.contentItem,"Kitty has its own theme"),"the next conflict shows after the first");
         win.dialog.submit();input.wait(60);check(AppTheming.used==="kitty" && !win.dialog.visible,"Use Pistachio in the dialog sets it up");
-        const placed={appearance:["setting-colours","setting-monochrome-wallpaper","setting-desktop-cat"],apps:["setting-clipboard-history"],health:["setting-restart-shell","setting-force-restart-shell"],experimental:["setting-style","setting-game-mode","setting-game-classes","setting-phone-preview"]};
+        const placed={appearance:["setting-colours","setting-monochrome-wallpaper","setting-desktop-cat"],apps:["setting-clipboard-history"],health:["setting-restart-shell","setting-force-restart-shell"],experimental:["setting-style","setting-tui-hyprland","setting-game-mode","setting-game-classes","setting-phone-preview","setting-cat-skin"]};
         for (const where of Object.keys(placed)) { page(where);input.wait(60); for (const id of placed[where]) check(!!find(win.contentItem,id),id+" is on "+where); }
+        page("appearance");const catToggle=need("toggle-desktop-cat");scrollInto(catToggle);click(catToggle);check(ShellSettings.desktopCat,"cat switch enables preference");click(catToggle);check(!ShellSettings.desktopCat,"cat switch disables preference");
         page("experimental");input.wait(60);for (const id of ["setting-colours","setting-monochrome-wallpaper","setting-desktop-cat","setting-clipboard-history","setting-restart-shell"]) check(!find(win.contentItem,id),id+" left Experimental");
+        const roundingToggle=need("toggle-tui-hyprland");scrollInto(roundingToggle);
+        click(roundingToggle);check(ShellSettings.tuiHyprland, "Settings turns Hyprland integration on");
+        const catSkin=need("choice-cat-skin");scrollInto(catSkin);click(catSkin);
+        input.keyClick(Qt.Key_Down);input.keyClick(Qt.Key_Return);input.wait(30);
+        check(ShellSettings.catSkin==="ginger","cat coat picker applies Ginger");
+        SettingsReset.review("experimental");SettingsReset.apply("experimental");
+        check(!ShellSettings.tuiHyprland, "Experimental reset turns the integration off");
+        check(ShellSettings.catSkin==="cream","Experimental reset restores the original coat");
         page("experimental");scrollInto(need("toggle-game-mode"));click(need("toggle-game-mode"));input.wait(20);check(ShellSettings.gameMode,"game mode switch turns on");
         click(need("action-game-classes"));input.wait(50);check(SettingsHub.editKey==="games","extra game windows edit opens");
         need("settings-edit-field").text="Minecraft, foo";input.keyClick(Qt.Key_Return);input.wait(20);
@@ -235,6 +246,9 @@ ShellRoot {
         page("appearance");
         check(need("settings-surface").radius===0, "TUI Settings has square frame");
         check(need("settings-sidebar").width===224, "TUI sidebar matches board width");
+        const appearanceNav = need("settings-nav-appearance");
+        const appearanceIcon = appearanceNav.children.find(child => child.paths?.length);
+        check(appearanceIcon?.visible && appearanceIcon.x + appearanceIcon.width < appearanceNav.contentItem.x, "TUI Settings shows a sidebar icon with room before the label");
         check(need("settings-header").height===52, "TUI header matches board height");
         check(need("toggle-shadows").contentItem.text.includes("["), "TUI toggle draws bracket state");
         LocalSend.available=true;
@@ -304,7 +318,7 @@ ShellRoot {
         const wasTick=ShellSettings.volumeTick;click(need("toggle-tick"));
         check(ShellSettings.volumeTick!==wasTick, "TUI search control applies real preference");
         tuiSearch.text="";
-        page("health");for (const mode of ["restart", "force-restart"]) { const button=need("action-"+mode+"-shell"); scrollInto(button); click(button); check(win.dialog.visible && SettingsHub.restartMode===mode,"restart asks for confirmation"); win.dialog.cancel(); check(SettingsHub.restartMode==="","restart cancellation"); } page("appearance");input.wait(60);const catToggle=need("toggle-desktop-cat");scrollInto(catToggle);click(catToggle);check(ShellSettings.desktopCat,"cat switch enables preference");click(catToggle);check(!ShellSettings.desktopCat,"cat switch disables preference");page("experimental");input.wait(60);const phoneToggle=need("toggle-phone-preview");scrollInto(phoneToggle);click(phoneToggle);check(ShellSettings.phonePreview,"phone preview switch enables preference");click(phoneToggle);check(!ShellSettings.phonePreview,"phone preview switch disables preference");page("apps");input.wait(60);const clipToggle=need("toggle-clipboard-history");scrollInto(clipToggle);click(clipToggle);check(ShellSettings.clipboardHistory,"clipboard history switch enables preference");click(clipToggle);check(!ShellSettings.clipboardHistory,"clipboard history switch disables preference");page("appearance");input.wait(60);const monoToggle=need("toggle-monochrome-wallpaper");scrollInto(monoToggle);click(monoToggle);check(ShellSettings.monochromeWallpaper,"wallpaper switch enables preference");click(monoToggle);check(!ShellSettings.monochromeWallpaper,"wallpaper switch disables preference");page("experimental");input.wait(60);const styleChoice=need("choice-style");scrollInto(styleChoice);click(styleChoice);
+        page("health");for (const mode of ["restart", "force-restart"]) { const button=need("action-"+mode+"-shell"); scrollInto(button); click(button); check(win.dialog.visible && SettingsHub.restartMode===mode,"restart asks for confirmation"); win.dialog.cancel(); check(SettingsHub.restartMode==="","restart cancellation"); } page("experimental");input.wait(60);const phoneToggle=need("toggle-phone-preview");scrollInto(phoneToggle);click(phoneToggle);check(ShellSettings.phonePreview,"phone preview switch enables preference");click(phoneToggle);check(!ShellSettings.phonePreview,"phone preview switch disables preference");page("apps");input.wait(60);const clipToggle=need("toggle-clipboard-history");scrollInto(clipToggle);click(clipToggle);check(ShellSettings.clipboardHistory,"clipboard history switch enables preference");click(clipToggle);check(!ShellSettings.clipboardHistory,"clipboard history switch disables preference");page("appearance");input.wait(60);const monoToggle=need("toggle-monochrome-wallpaper");scrollInto(monoToggle);click(monoToggle);check(ShellSettings.monochromeWallpaper,"wallpaper switch enables preference");click(monoToggle);check(!ShellSettings.monochromeWallpaper,"wallpaper switch disables preference");page("experimental");input.wait(60);const styleChoice=need("choice-style");scrollInto(styleChoice);click(styleChoice);
         input.keyClick(Qt.Key_Up);input.keyClick(Qt.Key_Return);input.wait(150);
         check(!Theme.tui && ShellSettings.appearanceStyle==="classic", "Appearance selector switches to Classic live");
         click(styleChoice);input.keyClick(Qt.Key_Down);input.keyClick(Qt.Key_Return);input.wait(150);
@@ -316,6 +330,17 @@ ShellRoot {
         ShellSettings.setAppearanceStyle("tui");
         input.wait(50);
         check(Theme.tui && Theme.fontUi === "JetBrainsMono Nerd Font", "TUI uses installed Nerd font");
+        check(!hasText(need("settings-header"), "[_]"), "TUI Settings header has no minimise button");
+        const headerBacking=need("settings-title-backing");
+        check(headerBacking.color===Theme.bg && headerBacking.height===need("settings-surface").y && headerBacking.opacity===1, "TUI title gap is solid");
+        page("appearance");
+        check(!find(win.contentItem,"setting-desktop"), "TUI hides the desktop icons control");
+        check(!!find(win.contentItem,"setting-desktop-cat"), "desktop cat controls are available in TUI");
+        check(!!find(win.contentItem,"setting-wallpaper"), "wallpaper controls are available in TUI");
+        const desktopSearch=need("settings-search");
+        desktopSearch.text="desktop icons";check(win.results.length===0, "TUI desktop icons controls are absent from search");
+        desktopSearch.text="desktop cat";check(win.results.some(r=>r[1]==="desktop-cat"), "TUI desktop cat control is searchable");
+        desktopSearch.clear();
         ShellSettings.setLensSuggestCoding(false);
         input.wait(350);
         return "all passed (controls, selectors, validation, seven pairing kinds, search, watchers, resize)";

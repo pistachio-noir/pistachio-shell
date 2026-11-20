@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Bluetooth as Bz // namespaced: this file is itself called Bluetooth
 import Quickshell.Io
 import QtQuick
+import "bluetooth.js" as Pairing
 
 // The default adapter: power, devices, scanning and device actions, the pairing agent, and low battery
 // warnings.
@@ -144,11 +145,32 @@ Singleton {
     // codes and questions on the way come in as `request`
     function pair(device) {
         device.trusted = true; // so it can reconnect on its own later
+        if (!pairingWaiting.includes(device.address))
+            pairingWaiting = pairingWaiting.concat([device.address]);
         device.pair();
     }
 
     function forget(device) {
+        pairingWaiting = pairingWaiting.filter(a => a !== device.address);
         device.forget();
+    }
+
+    // Connect after pairing (owner's bug report, 20 November 2026): pairing alone brings up only the
+    // link, so AirPods paired here stayed silent until a second click. Devices paired from the shell
+    // wait here and connect once BlueZ reports them paired, a moment later so BlueZ has read their
+    // services first. Rules in bluetooth.js.
+    property var pairingWaiting: [] // addresses
+    onPairedChanged: if (pairingWaiting.length) connectPaired.restart()
+
+    Timer {
+        id: connectPaired
+        interval: 1500
+        onTriggered: {
+            const next = Pairing.afterPairing(root.pairingWaiting, root.devices);
+            root.pairingWaiting = next.waiting;
+            for (const address of next.connect)
+                root.devices.find(d => d.address === address)?.connect();
+        }
     }
 
     function name(device): string {

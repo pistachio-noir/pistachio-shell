@@ -6,7 +6,7 @@ use std::path::Path;
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Kind { Required, Optional }
 
-pub enum Find { Program(&'static str), Font(&'static str), Helper(&'static str), Python(&'static str) }
+pub enum Find { Program(&'static str), Font(&'static str), Helper(&'static str), Calendar }
 
 pub struct Check { pub id: &'static str, pub title: &'static str, pub kind: Kind, pub find: Find, pub package: &'static str, pub without: &'static str }
 
@@ -27,8 +27,8 @@ macro_rules! check {
 pub const CHECKS: &[Check] = &[
     check!("hyprctl", "Hyprland", Required, Program("hyprctl"), "hyprland", "nothing works: Hyprland only"),
     check!("qs", "Quickshell", Required, Program("qs"), "quickshell", "nothing works"),
-    check!("python3", "Python", Optional, Program("python3"), "python", "calendar events (the one helper still in Python)"),
-    check!("python-gi", "Python GObject", Optional, Python("gi"), "python-gobject", "calendar events"),
+    // no Python since 20 November 2026: `psc events` loads EDS's own libraries, and this asks it whether it can
+    check!("calendar", "Calendar libraries", Optional, Calendar, "evolution-data-server", "calendar events (GNOME Calendar's) in the month calendar"),
     check!("wl-copy", "Wayland clipboard", Required, Program("wl-copy"), "wl-clipboard", "copying text, emoji and screenshots"),
     check!("pactl", "PipeWire's pactl", Optional, Program("pactl"), "pipewire-pulse", "audio devices and plugged-in inputs"),
     check!("pw-play", "PipeWire playback", Optional, Program("pw-play"), "pipewire", "notification and timer sounds"),
@@ -85,7 +85,7 @@ fn found(find: &Find, path: &OsStr, home: &Path) -> bool {
         Program(p) => on_path(path, p),
         Helper(h) => home.join(".local/bin").join(h).metadata().map(|m| std::os::unix::fs::PermissionsExt::mode(&m.permissions()) & 0o111 != 0).unwrap_or(false),
         Font(family) => quiet(path, "fc-list", &[":", "family"]).is_some_and(|o| String::from_utf8_lossy(&o.stdout).lines().any(|l| l.split(',').any(|f| f.trim() == *family))),
-        Python(module) => quiet(path, "python3", &["-c", &format!("import {module}")]).is_some_and(|o| o.status.success()),
+        Calendar => crate::events::available(),
     }
 }
 
@@ -143,12 +143,14 @@ mod tests {
         let rows = run(dir.as_os_str(), &dir);
         let row = |id: &str| rows.iter().find(|r| r.id == id).unwrap_or_else(|| panic!("no row {id}"));
         assert!(row("qs").found && !row("hyprctl").found && row("hyprctl").kind == Kind::Required);
-        assert!(!row("manrope").found && !row("python-gi").found && !row("pistachio-auth").found);
+        assert!(!row("manrope").found && !row("pistachio-auth").found);
         let first_optional = rows.iter().position(|r| r.kind == Kind::Optional).unwrap();
         assert!(rows[..first_optional].iter().all(|r| r.kind == Kind::Required) && rows[first_optional..].iter().all(|r| r.kind == Kind::Optional));
         assert!(missing_required(&rows));
         let required: Vec<&str> = rows.iter().filter(|r| r.kind == Kind::Required).map(|r| r.id).collect();
-        assert_eq!(required, ["hyprctl", "qs", "wl-copy"], "only what the shell can't run without (Python only for the calendar since the Rust move)");
+        assert_eq!(required, ["hyprctl", "qs", "wl-copy"], "only what the shell can't run without");
+        assert!(rows.iter().all(|r| !r.id.starts_with("python")), "no Python at runtime");
+        row("calendar");
         for id in ["slurp", "pw-record", "ffprobe", "pactl", "pw-play", "manrope", "pistachio-devices"] { row(id); }
         let json = json(&rows);
         let first = &json.as_array().unwrap()[0];

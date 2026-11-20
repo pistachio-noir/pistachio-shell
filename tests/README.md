@@ -27,6 +27,7 @@ change the real system: don't run them casually.**
 | `sh tests/polkit-agent.sh` | the polkit agent's protocol; never starts PAM |
 | `sh tests/drives.sh` | the drive mounter against a stand-in UDisks on the session bus |
 | `sh tests/localsend.sh` | two LocalSend helpers on ports 53318 and 53319 against each other |
+| `python3 -B tests/events.test.py` | `psc events` against a private Evolution Data Server (its own bus, temporary home, `TZ=Europe/Warsaw`): repeats across the summer-time switch, UTC, all-day, floating times, a calendar that can't open; checks no EDS process is left |
 | `dbus-run-session -- python3 -B tests/clocks-action.test.py` | the GNOME Clocks action stand-in; **never on the real bus** |
 
 Some of these headers still name the old Python helper (`bluetooth-agent.py`, `polkit-agent.py`, `localsend.py`):

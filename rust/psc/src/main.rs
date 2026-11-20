@@ -7,6 +7,7 @@ mod cli;
 mod clocks;
 mod completions;
 mod doctor;
+mod events;
 mod files;
 mod ipc;
 mod lens;
@@ -39,9 +40,9 @@ fn main() {
             let rest: Vec<String> = args[1..].iter().map(|a| a.to_string_lossy().into_owned()).collect();
             std::process::exit(swatch::main(&rest));
         }
-        Some(helper @ ("prefs" | "theme" | "system" | "capture" | "mic-check" | "phone-timer" | "files" | "library" | "clocks" | "launcher-tools")) => {
+        Some(helper @ ("prefs" | "theme" | "system" | "capture" | "mic-check" | "phone-timer" | "files" | "library" | "clocks" | "launcher-tools" | "events")) => {
             let rest: Vec<String> = args[1..].iter().map(|a| a.to_string_lossy().into_owned()).collect();
-            std::process::exit(match helper { "prefs" => prefs::main(&rest), "theme" => theme::main(&rest), "capture" => capture::main(&rest), "mic-check" => mic::main(&rest), "phone-timer" => phone::main(&rest), "files" => files::main(&rest), "library" => library::main(&rest), "clocks" => clocks::main(&rest), "launcher-tools" => tools::main(&rest), _ => system::main(&rest) });
+            std::process::exit(match helper { "prefs" => prefs::main(&rest), "theme" => theme::main(&rest), "capture" => capture::main(&rest), "mic-check" => mic::main(&rest), "phone-timer" => phone::main(&rest), "files" => files::main(&rest), "library" => library::main(&rest), "clocks" => clocks::main(&rest), "launcher-tools" => tools::main(&rest), "events" => events::main(&rest), _ => system::main(&rest) });
         }
         _ => {}
     }

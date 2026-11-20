@@ -6,12 +6,12 @@ import Quickshell.Io
 import QtQuick
 
 // GNOME Calendar's events for the month calendar (owner's request, 11 November 2026): every calendar
-// in Evolution Data Server, read-only, by services/events.py. Read when the month calendar shows a
+// in Evolution Data Server, read-only, by `psc events` (rust/psc/src/events.rs; Python's events.py until 20 November 2026). Read when the month calendar shows a
 // month, again as the notification centre opens, and each minute while it is on screen. Off with Settings → Integrations.
 Singleton {
     id: root
 
-    // GNOME Calendar installed and the helper able to read (python-gobject with EDS's typelibs)
+    // GNOME Calendar installed and the helper able to read (EDS's libraries present)
     readonly property var app: Apps.list.find(a => a.id === "org.gnome.Calendar") ?? null
     property bool readable: true
     readonly property bool available: app !== null && readable
@@ -43,7 +43,7 @@ Singleton {
     function start() {
         range = pending;
         pending = "";
-        reader.command = ["python3", "-I", Quickshell.shellPath("services/events.py")].concat(range.split(" "));
+        reader.command = [Quickshell.env("HOME") + "/.local/bin/psc", "events"].concat(range.split(" "));
         reader.running = true;
     }
 
@@ -130,7 +130,7 @@ Singleton {
             }
         }
         stderr: StdioCollector {
-            onStreamFinished: if (/ModuleNotFoundError|Namespace .* not available|ImportError/.test(text)) root.readable = false
+            onStreamFinished: if (/events: unavailable|unrecognized subcommand/.test(text)) root.readable = false // EDS missing, or a psc from before the port
         }
         onExited: if (root.pending) root.start()
     }

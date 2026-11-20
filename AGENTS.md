@@ -1,5 +1,7 @@
 # Handoff for Codex
 
+> Update, 20 November 2026 (Claude): round 3 is done (chat, lens) and so is the calendar: `psc events` replaced `events.py`. No Python runs at runtime now; tests and the `tools/` generators stay Python, dev-only. The rest of this file is the 19 November handoff, kept as history.
+
 Written by Claude Code on 19 November 2026. The owner is low on Claude usage and asked Codex to take over round 3 of the Python → Rust move: porting `chat.py` and `lens.py` into `psc`.
 
 ## 1. Read first, in this order

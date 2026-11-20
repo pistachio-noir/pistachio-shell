@@ -8,7 +8,7 @@
    sudo systemctl enable --now bluetooth.service NetworkManager.service
    ```
 
-   `rust` is needed: `psc` and the shell's helpers are Rust programs that `install.sh` builds. Optional: `python-gobject` for GNOME Calendar's events in the month calendar (the one helper still in Python), and for copying text from the screen `sudo pacman -S tesseract tesseract-data-eng tesseract-data-pol`. `psc doctor` lists everything else, found or missing.
+   `rust` is needed: `psc` and the shell's helpers are Rust programs that `install.sh` builds. Python isn't needed. Optional: `gnome-calendar` (it brings `evolution-data-server`) for its events in the month calendar, and for copying text from the screen `sudo pacman -S tesseract tesseract-data-eng tesseract-data-pol`. `psc doctor` lists everything else, found or missing.
 
 
 2. **Put the repo somewhere permanent**, for example `~/projects/pistachio-shell`. The shell runs straight from it, so if you move it later, run `./install.sh` again.

@@ -11,7 +11,7 @@ import QtQuick
 // this existed) is marked done quietly and never sees it. Done or Skip marks it for good;
 // `psc setup` (IPC `setup open`) opens it again any time.
 //
-// The check runs `psc doctor --json` (the README's Requirements, one list) and asks D-Bus who owns
+// The check runs `psc doctor --json` (docs/requirements.md, one list) and asks D-Bus who owns
 // the notification name. It only shows; it never installs or stops anything. Missing tools show
 // their package name; another notification daemon shows the command that stops it.
 Singleton {

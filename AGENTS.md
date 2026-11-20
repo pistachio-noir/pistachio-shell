@@ -6,7 +6,7 @@ Written by Claude Code on 19 November 2026. The owner is low on Claude usage and
 
 1. `CLAUDE.md`: the project's rules, short form. **Everything in it applies to you too**: settled decisions (don't reopen them), style rules, working rules, safety, and the most frequent gotchas. It imports `CLAUDE-HANDOFF.md` (Codex's own handoff from 18 November): that is history now, and this file overrides it.
 2. `docs/decisions.md` and `docs/gotchas.md`: the full text of every decision and gotcha. Search gotchas before debugging anything odd. Read the psc entries dated 19 November 2026 in both.
-3. `README.md`: requirements, install, IPC, and the `psc` section.
+3. `README.md` and the pages it links in `docs/` (`requirements.md`, `install.md`, `ipc-and-keybinds.md` with the `psc` section).
 4. `docs/superpowers/specs/2026-11-19-psc-rust-design.md` and `docs/superpowers/plans/2026-11-19-psc-level2.md`: how `psc` is built and how the earlier helpers were moved.
 5. `todos/TODO_19-11-26.md`: today's work, hand checks, and the deferred minors from reviews.
 

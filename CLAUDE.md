@@ -12,7 +12,7 @@ A Quickshell 0.3.2 (QML) desktop shell for Hyprland on a single-monitor Arch des
 
 Read these first:
 
-- `README.md`: requirements, install, IPC commands and keybinds, for the owner. Keep it in step with commands and requirements.
+- `README.md` (what you get) and the pages it links in `docs/`: `requirements.md`, `install.md`, `ipc-and-keybinds.md` (psc, IPC, keybinds), `frosted-panels.md`, `lock-screen.md`, `login-screen.md`, `theming.md`, `troubleshooting.md`, `repository-layout.md`; for the owner. Keep them in step with commands and requirements. `tests/README.md` says what each test covers; `integrations/` holds the Kitty, Neovim, SDDM and hypridle files, `tools/` the generators.
 - `docs/plan.md`: architecture, folder layout, theme tokens, components, risks.
 - `docs/decisions.md`: **every decision in full** (dates, reasons, details). The list below is the short form.
 - `docs/gotchas.md`: **every gotcha in full**, with what was checked, plus what each test covers. Search it before debugging anything odd.
@@ -55,9 +55,10 @@ CLAUDE.md was squashed on 19 November 2026 (owner's request: too big). Add a new
 - Desktop cat (Appearance, off) on desktops without tiled windows. Experimental offers Cream, Ginger and Midnight. Three quick pets trigger a purr and tail swish, and the idle cycle includes a laptop pose. About easter egg after ten presses.
 - The desktop cat holds a clock for running timers, stopwatch and Focus/Pomodoro, uses his laptop for focused floating editors, and wears headphones during media playback.
 - Bluetooth: a device paired from the shell is connected right after pairing (owner's bug report, 20 Nov; pairing alone gave no audio).
+- Repo layout (owner, 20 Nov): `integrations/` (kitty, neovim, sddm, hypridle) and `tools/` replace `extras/`; README is the front page, the rest is in `docs/` (see `docs/repository-layout.md`); `tests/README.md` indexes tests; `design/` stays tracked.
 - Integrations switches (Settings → Integrations) per other app, read through `ShellSettings.integration(id)` in each service.
 - Restart / Force restart (Shell health, confirmed; `psc restart`, `psc force-restart`).
-- `psc` is a Rust binary (`rust/psc`, owner's call 19 November 2026, built on branch `psc-rust`): the script's commands unchanged plus `status`, `log --errors`, `ipc`, `doctor` (mirrors README's Requirements: keep them in step), `completions`. Its tests use a stand-in `qs` (`QS=` env). Spec `docs/superpowers/specs/2026-11-19-psc-rust-design.md`. Level 2 (19 November 2026, plan `docs/superpowers/plans/2026-11-19-psc-level2.md`): `prefs.py`, `shared-theme.py` and `system-tools.py` are `psc prefs|theme|system …` (hidden from `--help`), called by the shell as `$HOME/.local/bin/psc`, so Settings' health, export/import, theming and network/Bluetooth/eject details need the Rust psc installed. QML fixtures of those services must swap that command for a stand-in (see `tests/app-theming.test.py`), or they reach the owner's real configs.
+- `psc` is a Rust binary (`rust/psc`, owner's call 19 November 2026, built on branch `psc-rust`): the script's commands unchanged plus `status`, `log --errors`, `ipc`, `doctor` (mirrors `docs/requirements.md`: keep them in step), `completions`. Its tests use a stand-in `qs` (`QS=` env). Spec `docs/superpowers/specs/2026-11-19-psc-rust-design.md`. Level 2 (19 November 2026, plan `docs/superpowers/plans/2026-11-19-psc-level2.md`): `prefs.py`, `shared-theme.py` and `system-tools.py` are `psc prefs|theme|system …` (hidden from `--help`), called by the shell as `$HOME/.local/bin/psc`, so Settings' health, export/import, theming and network/Bluetooth/eject details need the Rust psc installed. QML fixtures of those services must swap that command for a stand-in (see `tests/app-theming.test.py`), or they reach the owner's real configs.
 
 ## Style rules
 

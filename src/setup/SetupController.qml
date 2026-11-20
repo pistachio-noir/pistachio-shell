@@ -100,7 +100,7 @@ QtObject {
         { title: "Places", detail: [Apps.terminalName(Apps.terminal), Weather.placeName].filter(x => x).join(", ") }
     ]
 
-    // examples from the README's keybind set (owner's call: a tip with psc commands, not a key list)
+    // examples from the keybind set in docs/ipc-and-keybinds.md (owner's call: a tip with psc commands, not a key list)
     readonly property var shortcuts: [
         { title: "Launcher", note: "Super Space", detail: "psc launcher toggle" },
         { title: "Quick settings", note: "Super A", detail: "psc quicksettings toggle" },

@@ -20,7 +20,7 @@ The diff you're given, or if none: `git diff` plus untracked files under `src/`,
 5. **Architecture:** UI files (`bar/ panels/ popups/ launcher/ lock/ components/`) never import `Quickshell.Hyprland` or touch system data; only services and `Compositor` do.
 6. **Known gotchas** (CLAUDE.md "Gotchas"): no property named like an `Item` property (`left`, `right`…); no singleton named after a QtQuick type; inline `component` failing → own file; long-running processes under `setpriv --pdeathsig TERM`; items inside a `ListView` that must scroll get `parent: list.contentItem`.
 7. **Leftovers:** temporary test hooks, `console.log` debugging, `TEMPORARY` comments, `__pycache__`.
-8. **Docs in step:** new IPC functions, keys, requirements or features appear in README.md (feature list, IPC table, keys table, requirements) and `docs/plan.md` (components table, layout); a new service is in CLAUDE.md rule 4's list.
+8. **Docs in step:** new IPC functions, keys, requirements or features appear in README.md (feature list) and the pages in docs/ (IPC table and keys in ipc-and-keybinds.md, requirements in requirements.md) and `docs/plan.md` (components table, layout); a new service is in CLAUDE.md rule 4's list.
 9. **Comments:** match the surrounding density and voice (plain English, "owner's request, after phase 8" for owner-asked features).
 
 ## Report

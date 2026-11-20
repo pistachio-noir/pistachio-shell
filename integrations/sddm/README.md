@@ -12,7 +12,7 @@ A login screen for SDDM in the shell's style, after `design/sddm-session-menu.ht
 
 ## Install
 
-The step-by-step installation is in the main [README](../../README.md#login-screen): install SDDM, copy `pistachio-noir/` to `/usr/share/sddm/themes/`, select it in `/etc/sddm.conf.d/theme.conf`, check it with `sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/pistachio-noir`, and enable SDDM.
+The step-by-step installation is on the [login screen page](../../docs/login-screen.md): install SDDM, copy `pistachio-noir/` to `/usr/share/sddm/themes/`, select it in `/etc/sddm.conf.d/theme.conf`, check it with `sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/pistachio-noir`, and enable SDDM.
 
 ## Settings
 
@@ -26,7 +26,7 @@ Your picture comes from `~/.face.icon`, if SDDM can read it, or from `/usr/share
 ## Preview without SDDM
 
 ```sh
-extras/sddm/preview.sh
+integrations/sddm/preview.sh
 ```
 
 This opens the theme in a window, with stand-ins for what SDDM provides: one user, three sessions and two keyboard layouts. The password `test` "logs in", and anything else shows the wrong-password message. The power buttons only print a line.

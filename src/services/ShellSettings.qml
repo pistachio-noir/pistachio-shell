@@ -101,7 +101,7 @@ Singleton {
     readonly property bool quietCalls: Store.saved.quietCalls
 
     // Frosted panels (owner's request, 31 October 2026): the bar, its pills and the panels turn
-    // see-through and Hyprland blurs what's behind them, if its config has the layer rule (README).
+    // see-through and Hyprland blurs what's behind them, if its config has the layer rule (docs/frosted-panels.md).
     // Off by default, since without that rule they're see-through but not blurred. Subtle (88 %
     // opaque) or glassy (72 %; still above the rule's ignore_alpha of 0.66, which keeps the drop
     // shadows of solid panels unblurred). Drop shadows go while frosted (components/Shadow.qml).

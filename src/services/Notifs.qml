@@ -200,7 +200,7 @@ Singleton {
     }
 
     // The notification sound (owner's request, after phase 8): src/sounds/notification.wav (made by
-    // extras/make-sound.py; no sound theme was installed), through pw-play, at most once a second.
+    // tools/make-sound.py; no sound theme was installed), through pw-play, at most once a second.
     // It only plays with a toast, so Do not disturb, fullscreen and an app's rule keep it quiet too.
     function chime() {
         if (!ShellSettings.notificationSound || Date.now() - chimedAt < 1000)

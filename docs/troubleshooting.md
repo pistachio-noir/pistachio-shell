@@ -1,0 +1,16 @@
+# Troubleshooting
+
+- **No toasts:** another notification daemon owns the service. Check with `busctl --user status org.freedesktop.Notifications`, and see step 4.
+- **Two bars:** two copies are running. `qs list --all` shows them; `psc restart` leaves one.
+- **Brightness slider missing:** the monitor didn't answer. Run `ddcutil getvcp 10` and turn on DDC/CI in the monitor's menu.
+- **Night light tile says "Not installed":** install `hyprsunset`.
+- **A device that shows a code won't pair:** `psc log` shows a `bluetooth agent` line when the pairing agent can't start or register; run `./install.sh` if it says so (it builds the agent). While the shell runs it is BlueZ's default agent, so it also takes over from another one, such as a KDE session's.
+- **The wallpaper flickers or the old one shows:** hyprpaper (or another wallpaper program) still runs on the background layer; take it out of your autostart (`hl.exec_cmd("hyprpaper")`).
+- **PrtSc doesn't trigger the Print binds:** some keyboards send PrtSc as the Windows "snip" shortcut, Shift+Super+S, so Hyprland never sees Print (`wev` shows Shift and Super going down in the same millisecond). Bind that instead: `mainMod .. " + SHIFT + S"` for `screenshot region`, and `mainMod .. " + ALT + SHIFT + S"` for `screenshot menu` (Alt+PrtSc). Remapping the key to Print Screen in the keyboard's firmware (VIA, QMK) works too.
+- **Screen sharing fails, or the app finds nothing to share:** `xdg-desktop-portal-hyprland` is missing, or the portal service started before it was installed. Restart it with `systemctl --user restart xdg-desktop-portal` (or log in again).
+- **An app that needs admin rights fails or hangs without asking:** no polkit agent runs. `psc log` shows a `polkit agent` line when the shell's can't start or register: run `./install.sh` if it says so (it builds the agent), and stop any other agent for this session (polkit takes one per session, e.g. `polkit-gnome` or `hyprpolkitagent` started from the Hyprland config).
+- **An app's tray icon doesn't show:** the shell shows StatusNotifierItem icons, which most current apps use; apps with only the old X11 tray don't appear. Icons an app marks as passive (idle) are left out on purpose.
+- **App icons missing in the launcher:** Qt couldn't find an icon theme. Install one, for example `papirus-icon-theme` or `breeze-icons`, and select it in `qt6ct`, which needs `hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")` in `hyprland.lua`.
+- **Flatpak apps missing in the launcher:** the shell finds apps through `XDG_DATA_DIRS`, and Flatpak adds its folders (`/var/lib/flatpak/exports/share`, `~/.local/share/flatpak/exports/share`) to it only at login. After installing Flatpak itself, log out and in again; apps installed later show up without that.
+- **LocalSend says "The LocalSend app is running":** the app and the shell both need port 53317. Quit the app (and take it out of your autostart); the shell then receives. A phone that doesn't see this PC: Receive files has to be on, and both on the same network; a firewall must let TCP and UDP 53317 through.
+- **A change in `src/` didn't show:** reloading occasionally misses a save; restart the shell (see [Updating and restarting](install.md#updating-and-restarting)).

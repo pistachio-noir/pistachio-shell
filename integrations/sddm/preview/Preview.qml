@@ -4,7 +4,7 @@ import QtQuick.Window
 // Shows the SDDM theme without SDDM: stand-ins for what the greeter provides (sddm, userModel,
 // sessionModel, keyboard, config, primaryScreen), which Main.qml finds through this file's ids.
 // The password "test" logs in; anything else fails. Power buttons only print.
-// Run extras/sddm/preview.sh; with `shot <file.png> [wrong|menu]` it saves a picture and quits.
+// Run integrations/sddm/preview.sh; with `shot <file.png> [wrong|menu]` it saves a picture and quits.
 Window {
     id: window
 

@@ -3,7 +3,7 @@
 // The emoji the launcher finds after a ":" (owner's request, after phase 8), as [emoji, name,
 // keywords]: Unicode's emoji-test.txt 16.0 (fully-qualified, no skin tones; Noto Color Emoji
 // draws them all) with search keywords from CLDR's English annotations. Generated, not edited:
-// extras/make-emoji.py rebuilds it.
+// tools/make-emoji.py rebuilds it.
 var list = [
     ["😀", "grinning face", "cheerful, cheery, face, grin, grinning, happy, laugh, nice, smile, smiling, teeth"],
     ["😃", "grinning face with big eyes", "awesome, big, eyes, face, grin, grinning, happy, mouth, open, smile, smiling, teeth, yay"],

@@ -1,4 +1,4 @@
-//! `psc doctor`: what the shell needs (the README's Requirements), found or missing, with the Arch
+//! `psc doctor`: what the shell needs (docs/requirements.md), found or missing, with the Arch
 //! package and what stops working without it.
 use std::ffi::OsStr;
 use std::path::Path;
@@ -22,7 +22,7 @@ macro_rules! check {
     };
 }
 
-/// Mirrors README.md's Requirements table and system-tools.py's DEPENDENCIES (keep them in step):
+/// Mirrors docs/requirements.md's table and system-tools.py's DEPENDENCIES (keep them in step):
 /// required means the shell can't run without it, as there.
 pub const CHECKS: &[Check] = &[
     check!("hyprctl", "Hyprland", Required, Program("hyprctl"), "hyprland", "nothing works: Hyprland only"),

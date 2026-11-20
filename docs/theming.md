@@ -1,0 +1,11 @@
+# Theming and colours
+
+The shell publishes Colours to `$XDG_CONFIG_HOME/pistachio/shared-theme` (normally `~/.config/pistachio/shared-theme`), containing `pistachio` or `noir`. Pistachio Text, FM and Notes follow it live. Kitty also follows when its config includes `pistachio-shared.conf`; the shell writes the chosen colours (those of `pistachio-noir.conf` or `noir.conf`) into it, rather than an include, so a kitty.conf that includes one of those files itself gets no "already been included" error, and the publisher reloads running Kitty processes with SIGUSR1.
+
+**Theming integration** (Settings → Appearance → Colours, on by default): the shell sets Kitty and Neovim up itself to follow Colours. It backs up `kitty.conf` / `init.lua`, adds its line at the end, marked (Kitty: a `# pistachio-shell theming…` comment line above a plain `include pistachio-shared.conf`; Neovim: a line ending in `-- pistachio-shell theming`) and copies the theme files in. An app that already has its own theme is asked about in Settings first (Keep mine / Use Pistachio). Turning the switch off removes only those marked lines, so the app's own settings apply again. Neovim needs an `init.lua` (not `init.vim`). Text, FM and Notes follow Colours either way.
+
+Neovim can follow the same choice with the files in `integrations/neovim`: its existing Pistachio Noir colourscheme has a matching Noir palette, and `pistachio-shared.lua` checks the shared choice while Neovim is open. `extras/neovim/install.sh` installs these into the matching Neovim config and backs up the current init and colourscheme; it expects the existing `vim.cmd("colorscheme pistachio-noir")` line. The fallback is Pistachio when the shared file is absent. In Noir its code keeps a few muted colours so syntax stays readable; the editor itself stays grey.
+
+Hyprland’s active window and group borders follow the shell’s Colours setting live: pistachio in Pistachio Noir, light grey in Noir; inactive borders stay transparent. Applied at runtime and after Hyprland reloads.
+
+Settings → Appearance → Monochrome wallpaper optionally desaturates the desktop wallpaper and its live switcher preview while Noir is selected (off by default). The desktop cat keeps its selected coat colours in both schemes. Switching back restores the original colours; wallpaper files are never modified.

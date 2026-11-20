@@ -31,6 +31,6 @@ assert(color('String','fg') == 0x9fd88a, 'Pistachio strings are pistachio again'
 ''')
     env = dict(os.environ, XDG_CONFIG_HOME=str(folder), XDG_STATE_HOME=str(folder / 'state'),
                XDG_CACHE_HOME=str(folder / 'cache'), XDG_DATA_HOME=str(folder / 'data'),
-               TEST_NVIM_RUNTIME=str(root / 'extras/neovim'))
+               TEST_NVIM_RUNTIME=str(root / 'integrations/neovim'))
     subprocess.run(['nvim', '--headless', '-u', 'NONE', '-l', str(lua)], env=env, check=True, timeout=10)
 print('ok: Neovim follows the shared theme live')

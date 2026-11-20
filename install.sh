@@ -84,7 +84,7 @@ fonts() {
 # keeps its old file until the shell restarts (psc restart). Not fatal: without cargo the shell
 # still runs, and its log names what's missing.
 helpers() {
-    command -v cargo >/dev/null || { echo "note: cargo is missing, so the helpers in rust/ weren't built; see Requirements in README.md"; return 0; }
+    command -v cargo >/dev/null || { echo "note: cargo is missing, so the helpers in rust/ weren't built; see docs/requirements.md"; return 0; }
     if [ "$mode" = dry ]; then
         echo "would build release helpers from $repo/rust/Cargo.toml"
         echo "would install executable pistachio-* helpers into $HOME/.local/bin (mode 755)"
@@ -129,7 +129,7 @@ case ":$PATH:" in
     *":$HOME/.local/bin:"*) ;;
     *) echo "note: ~/.local/bin is not on your PATH; add it, or run ~/.local/bin/psc" ;;
 esac
-command -v qs >/dev/null || echo "note: qs (Quickshell) is not installed; see Requirements in README.md"
+command -v qs >/dev/null || echo "note: qs (Quickshell) is not installed; see docs/requirements.md"
 if [ "$mode" = dry ]; then
     echo "dry run complete: no changes made"
 else

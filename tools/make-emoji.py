@@ -5,7 +5,7 @@ The list and names come from Unicode's emoji-test.txt, the search keywords from 
 annotations; skin-tone variants are left out (owner's call). Keep the Emoji version one the installed
 Noto Color Emoji draws (16.0 for its 2.05x releases), or new ones show as boxes.
 
-    python3 -I extras/make-emoji.py [emoji version]
+    python3 -I tools/make-emoji.py [emoji version]
 """
 import json
 import os
@@ -44,7 +44,7 @@ with open(OUT, "w", encoding="utf-8") as f:
     f.write("// The emoji the launcher finds after a \":\" (owner's request, after phase 8), as [emoji, name,\n")
     f.write(f"// keywords]: Unicode's emoji-test.txt {VERSION} (fully-qualified, no skin tones; Noto Color Emoji\n")
     f.write("// draws them all) with search keywords from CLDR's English annotations. Generated, not edited:\n")
-    f.write("// extras/make-emoji.py rebuilds it.\n")
+    f.write("// tools/make-emoji.py rebuilds it.\n")
     f.write("var list = [\n")
     for r in rows:
         f.write("    " + json.dumps(r, ensure_ascii=False) + ",\n")

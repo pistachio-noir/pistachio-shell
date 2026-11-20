@@ -25,11 +25,11 @@ const LEGACY_NVIM: &str = "require(\"pistachio-shared\").setup()";
 const LEGACY_RESTORE: &str = "vim.cmd(\"colorscheme pistachio-noir\")";
 const LINKED: &str = "is a symbolic link (a dotfile manager?); set it up by hand";
 
-// the theme files, built in: psc lives in ~/.local/bin, away from the repo's extras/
-const KITTY_PISTACHIO: &[u8] = include_bytes!("../../../extras/kitty-pistachio-noir.conf");
-const KITTY_NOIR: &[u8] = include_bytes!("../../../extras/kitty-noir.conf");
-const NVIM_COLORS: &[u8] = include_bytes!("../../../extras/neovim/colors/pistachio-noir.lua");
-const NVIM_SHARED: &[u8] = include_bytes!("../../../extras/neovim/lua/pistachio-shared.lua");
+// the theme files, built in: psc lives in ~/.local/bin, away from the repo's integrations/
+const KITTY_PISTACHIO: &[u8] = include_bytes!("../../../integrations/kitty/kitty-pistachio-noir.conf");
+const KITTY_NOIR: &[u8] = include_bytes!("../../../integrations/kitty/kitty-noir.conf");
+const NVIM_COLORS: &[u8] = include_bytes!("../../../integrations/neovim/colors/pistachio-noir.lua");
+const NVIM_SHARED: &[u8] = include_bytes!("../../../integrations/neovim/lua/pistachio-shared.lua");
 
 /// What the outside world is: where to look for programs, and how to ask Kitty to reload.
 pub struct Env<'a> {

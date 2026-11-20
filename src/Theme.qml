@@ -64,7 +64,7 @@ Singleton {
 
     // Frosted panels (owner's request, 31 October 2026): how opaque the bar's and the panels' own
     // background is, 1 unless the Shell setting is on (shell.qml binds it to ShellSettings.frost);
-    // Hyprland blurs what's behind them (a layer rule in the owner's config, README)
+    // Hyprland blurs what's behind them (a layer rule in the owner's config, docs/frosted-panels.md)
     property real frost: 1
     readonly property color surface: glass(bgAlt)
 

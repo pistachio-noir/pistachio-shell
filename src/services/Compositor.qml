@@ -205,7 +205,7 @@ Singleton {
 
     function styleGroups() {
         if (!Hyprland.usingLua)
-            return; // a hyprland.conf: the README gives its lines
+            return; // a hyprland.conf: no runtime tab styling, its own group colours stay
         const tabRadius = Theme.tui ? 0 : 11;
         hl(`hl.config({ general = { col = { active_border = "${hex(Theme.pistachio, 238 / 255)}", inactive_border = "rgba(00000000)" } }, group = { col = { border_active = "${hex(Theme.pistachio, 238 / 255)}", border_inactive = "rgba(00000000)" }, groupbar = { gradients = true, gradient_rounding = ${tabRadius}, gradient_round_only_edges = false, rounding = ${tabRadius}, height = 22, indicator_height = 0, gaps_in = 4, gaps_out = 4, font_family = "${Theme.fontUi}", font_size = 11, font_weight_active = "heavy", font_weight_inactive = "bold", text_color = "${hex(Theme.bg, 1)}", text_color_inactive = "${hex(Theme.subtext, 1)}", col = { active = "${hex(Theme.pistachio, 1)}", inactive = "${hex(Theme.overlay, 1)}", locked_active = "${hex(Theme.clay, 1)}", locked_inactive = "${hex(Theme.overlay2, 1)}" } } } })`);
     }

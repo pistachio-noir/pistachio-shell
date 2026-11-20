@@ -21,7 +21,7 @@ psc restart
 | `psc log [-f] [--errors]` | the shell's log; `--errors` keeps errors and warnings only, without the usual Qt text-input noise |
 | `psc ipc` | every IPC target with its functions; `psc ipc show`, `psc ipc call …` still go to `qs` |
 | `psc <target> <function> [args]` | a call to the shell, e.g. `psc launcher toggle` (`qs -c pistachio ipc call …`) |
-| `psc doctor` | the tools, fonts, helpers and services the shell needs (the Requirements table), found or missing, with the package to install and what stops working without it (`--json` too); exit status 1 if something required is missing |
+| `psc doctor` | the tools, fonts, helpers and services the shell needs (the Requirements table), found or missing, with the package to install and what stops working without it (`--json` too; `--packages required|optional` prints only the missing packages, for `install.sh`); exit status 1 if something required is missing |
 | `psc setup` | opens the first-run setup again (it opens by itself only on the shell's very first start); `psc setup close` and `psc setup status` call its other IPC functions |
 | `psc completions zsh\|bash\|fish` | tab completion, e.g. `psc completions zsh > ~/.local/share/zsh/site-functions/_psc` |
 | `psc list`, `psc kill`, `psc msg` | the same `qs` subcommand for this config |

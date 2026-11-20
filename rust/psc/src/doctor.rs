@@ -96,6 +96,23 @@ pub fn run(path: &OsStr, home: &Path) -> Vec<Row> {
     rows
 }
 
+/// The Arch packages of the missing checks of one kind, each once, for a `pacman -S` line (install.sh).
+/// Entries that aren't packages ("install.sh downloads it", "./install.sh (builds rust/)") are left out.
+pub fn packages(rows: &[Row], kind: Kind) -> Vec<&'static str> {
+    let mut out: Vec<&'static str> = Vec::new();
+    for row in rows.iter().filter(|r| r.kind == kind && !r.found) {
+        if row.package.contains("install.sh") {
+            continue;
+        }
+        for name in row.package.split_whitespace() {
+            if !out.contains(&name) {
+                out.push(name);
+            }
+        }
+    }
+    out
+}
+
 pub fn missing_required(rows: &[Row]) -> bool {
     rows.iter().any(|r| r.kind == Required && !r.found)
 }
@@ -150,6 +167,11 @@ mod tests {
         let required: Vec<&str> = rows.iter().filter(|r| r.kind == Kind::Required).map(|r| r.id).collect();
         assert_eq!(required, ["hyprctl", "qs", "wl-copy"], "only what the shell can't run without");
         assert!(rows.iter().all(|r| !r.id.starts_with("python")), "no Python at runtime");
+        assert_eq!(packages(&rows, Kind::Required), ["hyprland", "wl-clipboard"], "qs was found, so not quickshell");
+        let optional = packages(&rows, Kind::Optional);
+        assert!(optional.contains(&"tesseract-data-eng") && optional.contains(&"bluez-utils"), "multi-package entries split");
+        assert!(!optional.iter().any(|p| p.contains("install.sh") || p.starts_with('.') || p.contains('(')), "{optional:?}");
+        assert_eq!(optional.iter().filter(|p| **p == "ffmpeg").count(), 1, "each package once");
         row("calendar");
         for id in ["slurp", "pw-record", "ffprobe", "pactl", "pw-play", "manrope", "pistachio-devices"] { row(id); }
         let json = json(&rows);

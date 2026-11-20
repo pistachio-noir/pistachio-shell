@@ -101,10 +101,12 @@ fn main() {
             }
             Err(e) => { eprintln!("psc: couldn't run qs: {e}"); 127 }
         },
-        Some(Cmd::Doctor { json }) => {
+        Some(Cmd::Doctor { json, packages }) => {
             let home = std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
             let rows = doctor::run(&std::env::var_os("PATH").unwrap_or_default(), &home);
-            if json { println!("{}", doctor::json(&rows)); } else { print!("{}", doctor::text(&rows)); }
+            if let Some(kind) = packages {
+                println!("{}", doctor::packages(&rows, if kind == "required" { doctor::Kind::Required } else { doctor::Kind::Optional }).join(" "));
+            } else if json { println!("{}", doctor::json(&rows)); } else { print!("{}", doctor::text(&rows)); }
             if doctor::missing_required(&rows) { 1 } else { 0 }
         }
         Some(Cmd::Completions { shell }) => { print!("{}", completions::script(shell)); 0 }

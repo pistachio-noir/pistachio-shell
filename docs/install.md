@@ -20,6 +20,8 @@
    ./install.sh
    ```
 
+   It prints one line per step (✓ done, ! a note, ✗ an error, · would do), then a **Check** section from `psc doctor`: whether everything the shell needs is installed, and the exact `sudo pacman -S --needed …` line for anything missing, required and optional apart. It never installs packages itself. Colour is used only on a terminal (and never with `NO_COLOR` set), so a log stays plain text.
+
    Preview with `./install.sh dry`: it checks existing links and reports planned links, helper builds/installs and font installation without changing files, building helpers or downloading fonts.
 
    It links the repo's `src/` to `~/.config/quickshell/pistachio`, where Quickshell finds a config named `pistachio`, and installs `psc` (see [psc](ipc-and-keybinds.md#psc)) as `~/.local/bin/psc`. It builds `psc` and the helper programs in `rust/` with cargo and copies them to `~/.local/bin` (run it again after pulling changes to `rust/`, then `psc restart`). Without cargo, or if `psc` doesn't build, it keeps a `psc` installed before or links the old shell script `legacy/psc`, which only starts, stops and calls the shell (Settings' health, export/import and theming, Quick chat, Lens and the launcher's file tools need the Rust `psc`). It also installs the Manrope font (see Requirements). It warns if `~/.local/bin` isn't on your PATH or Quickshell isn't installed. Run it again after moving the repo to update the links. It never replaces a real file or folder that is in the way; it stops and tells you instead. By hand, it's:

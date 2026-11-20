@@ -1,5 +1,5 @@
 """`psc phone-timer` (Python's phone-timer.py until 19 November 2026), run the way FocusMode runs it: the
-read-only state page, 403/404/405, stale state after 5 s, the QR file removed on exit. Its address choice
+state page, the phone's Pause/Skip/End (POST, passed on as {"action": …} lines), 403/404, stale state after 5 s, the QR file removed on exit. Its address choice
 is a Rust test (rust/psc/src/phone.rs). PSC= another psc build."""
 import json
 import os
@@ -42,11 +42,22 @@ class PhoneTimerTest(unittest.TestCase):
                     self.assertEqual(json.load(response)['left'], 43000)
                 send({'not': 'a state'})  # ignored
                 with urllib.request.urlopen(url, timeout=2) as response:
-                    self.assertIn(b'countdown', response.read())
-                with self.assertRaises(urllib.error.HTTPError) as error:
-                    urllib.request.urlopen(urllib.request.Request(url + 'state', data=b'{}', method='POST'), timeout=2)
-                self.assertEqual(error.exception.code, 405)
-                error.exception.close()
+                    page = response.read()
+                    self.assertIn(b'countdown', page)
+                    self.assertIn(b"post('pause')", page)
+                for action in ('pause', 'skip', 'end'):
+                    with urllib.request.urlopen(urllib.request.Request(url + action, data=b'', method='POST'), timeout=2) as response:
+                        self.assertEqual(response.status, 204)
+                    self.assertEqual(json.loads(proc.stdout.readline()), {'action': action})
+                for path in ('state', 'other', ''):
+                    with self.assertRaises(urllib.error.HTTPError) as error:
+                        urllib.request.urlopen(urllib.request.Request(url + path, data=b'{}', method='POST'), timeout=2)
+                    self.assertEqual(error.exception.code, 404, path)
+                    error.exception.close()
+                send({'phase': 'Work 1/4', 'endsAt': 10000, 'left': 0, 'paused': False, 'length': 1500000, 'pomodoro': True, 'working': True, 'subtext': '#a3b08f'})
+                with urllib.request.urlopen(url + 'state', timeout=2) as response:
+                    state = json.load(response)
+                self.assertEqual((state['length'], state['pomodoro'], state['working'], state['subtext']), (1500000, True, True, '#a3b08f'))
                 with self.assertRaises(urllib.error.HTTPError) as missing:
                     urllib.request.urlopen(url + 'other', timeout=2)
                 self.assertEqual(missing.exception.code, 404)

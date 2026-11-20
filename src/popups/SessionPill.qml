@@ -8,35 +8,88 @@ import QtQuick
 // A Pomodoro's time while Zen mode hides the bar (FocusMode, owner's request, 11 November 2026; laid
 // out by Claude, no board): a small flat pill where the bar would be, like the bar's own session
 // pill. A click pauses or resumes; ⏭ skips to the next phase, ✕ ends the Pomodoro (Zen stays).
+// Hide (owner's request, 20 November 2026; no board) tucks it into the Classic bar's handle: pointing
+// at the bottom edge brings it out while the pointer stays, a click on the handle (or Keep shown)
+// brings it back. Per session, not saved: it shows again for the next one.
 PanelWindow {
     id: root
 
     readonly property bool wanted: FocusMode.zen && FocusMode.session !== null
+    property bool hidden
+    readonly property bool pointed: hover.hovered || linger.running
+    readonly property bool shown: !hidden || pointed
+    readonly property real pillHeight: Theme.chipHeight + 8
+
+    onWantedChanged: if (!wanted) hidden = false
+    Connections {
+        target: hover
+        function onHoveredChanged() { if (!hover.hovered) linger.restart(); }
+    }
 
     visible: reveal.shown
     anchors.bottom: true
-    margins.bottom: Theme.barMargin
     exclusiveZone: 0
-    implicitWidth: pill.width
-    implicitHeight: Theme.chipHeight + 8
+    implicitWidth: pill.fullWidth
+    implicitHeight: pillHeight + Theme.barMargin // reaches the screen edge, where the reveal strip is
     color: "transparent"
     WlrLayershell.namespace: "pistachio-bar" // frosted like the bar
     WlrLayershell.layer: WlrLayer.Top
+
+    // hidden, only a 4 px strip at the screen edge takes the pointer; clicks elsewhere reach the windows
+    mask: Region {
+        y: root.shown ? 0 : root.height - 4
+        width: root.width
+        height: root.shown ? root.height : 4
+    }
 
     Reveal {
         id: reveal
         open: root.wanted
     }
 
+    HoverHandler {
+        id: hover
+    }
+
+    Timer {
+        id: linger
+        interval: 400 // as the bar: a moment to come back before it tucks away
+    }
+
+    // 0 is the handle (72 x 4, 2 px above the screen edge, in subtext, as the bar's), 1 the pill
+    property real grown: shown ? 1 : 0
+
+    Behavior on grown {
+        NumberAnimation {
+            duration: Theme.tui ? Theme.motionDuration : Theme.growDuration
+            easing.type: Theme.easing
+        }
+    }
+
+    // the handle's strip: a click brings the pill back for good
+    MouseArea {
+        anchors.bottom: parent.bottom
+        width: parent.width
+        height: root.shown ? Theme.barMargin : 4
+        cursorShape: root.hidden ? Qt.PointingHandCursor : Qt.ArrowCursor
+        enabled: root.hidden
+        onClicked: root.hidden = false
+    }
+
     Rectangle {
         id: pill
 
-        width: row.implicitWidth + 12 + 8
-        height: Theme.chipHeight + 8
+        readonly property real fullWidth: row.implicitWidth + 12 + 8
+        readonly property real shownPart: Math.max(0, 2 * root.grown - 1)
+
+        width: 72 + (fullWidth - 72) * root.grown
+        height: 4 + (root.pillHeight - 4) * root.grown
+        x: (root.width - width) / 2
+        y: (root.height - 2 - 4) * (1 - root.grown)
         radius: Theme.tui ? 0 : height / 2
-        color: Theme.glass(Theme.bgAlt)
+        color: Theme.glass(Qt.tint(Theme.bgAlt, Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, Math.max(0, 1 - 3 * root.grown))))
         border.width: 1
-        border.color: Theme.overlay2
+        border.color: Qt.rgba(Theme.overlay2.r, Theme.overlay2.g, Theme.overlay2.b, root.grown)
         opacity: reveal.progress
         transform: Translate {
             y: 6 * (1 - reveal.progress)
@@ -47,8 +100,10 @@ PanelWindow {
         Row {
             id: row
             x: 12
-            anchors.verticalCenter: parent.verticalCenter
+            y: (root.pillHeight - height) / 2
             spacing: 8
+            opacity: pill.shownPart
+            visible: opacity > 0
 
             Icon {
                 anchors.verticalCenter: parent.verticalCenter
@@ -101,6 +156,12 @@ PanelWindow {
                 paths: Icons.close
                 label: "End the Pomodoro"
                 onClicked: FocusMode.endSession()
+            }
+
+            PillButton {
+                paths: root.hidden ? Icons.chevronUp : Icons.chevronDown
+                label: root.hidden ? "Keep shown" : "Hide"
+                onClicked: root.hidden = !root.hidden
             }
         }
     }

@@ -41,7 +41,8 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 | `neovim-theme` | Neovim, headless, follows the shared theme live (uses `integrations/neovim`) |
 | `game-mode` | the real `GameMode` service with stand-in Compositor and ShellSettings |
 | `clocks`, `clocks-popup` | the Clocks helper; Stop and Snooze closing the alarm popup |
-| `phone-timer` | `psc phone-timer`, run the way FocusMode runs it |
+| `phone-timer` | `psc phone-timer`, run the way FocusMode runs it: state page, Pause/Skip/End POSTs passed on as actions |
+| `session-pill` | Zen's Pomodoro pill: Hide, Keep shown, the 4 px handle strip, Hide forgotten when Zen ends (native, shows briefly) |
 | `prefs` | settings export/import (`psc prefs`) in a temporary folder |
 | `capture-helper` | `psc capture` with real FFmpeg: trimming keeps the source and rejects unsafe ranges |
 | `mic-check` | the microphone check helper |

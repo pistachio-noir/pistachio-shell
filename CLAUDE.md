@@ -43,7 +43,7 @@ CLAUDE.md was squashed on 19 November 2026 (owner's request: too big). Add a new
 - Lens (`services/Lens.qml`, `lens.py`): snip → Claude Code or Codex CLI, read-only, schema answers, up to 3 images, one text file with diff/Apply, Ask both, coding presets only with consent; chats in `~/lens-chats/`.
 - Quick chat (`services/Chat.qml`, `chat.py`, boards `design/QuickChat*.html`): 560 px panel above the bar, streaming Claude, Codex, Ask both; chats in `~/quick-chats/`.
 - Screenshots: toolbar pill (board `NewScreenshotMenu.html`), Save/Copy/Both; recording setup (audio, countdown), pause via SIGUSR2, Trim to a new file; area helper frame outside the crop.
-- Zen and Focus/Pomodoro (`services/FocusMode.qml`, no IPC): Zen hides the bar, desktop icons and toasts, gaps/border 0 at runtime. Phone timer preview (Experimental, off): read-only LAN page with QR.
+- Zen and Focus/Pomodoro (`services/FocusMode.qml`, no IPC): Zen hides the bar, desktop icons and toasts, gaps/border 0 at runtime. Phone timer preview (Experimental, off): LAN page with QR, styled, with Pause/Skip/End (20 Nov, no key: owner's call). Zen's Pomodoro pill has Hide → the bar's handle (per session).
 - TUI keeps the wallpaper and the optional desktop cat. Desktop icons, the context menu and desktop file interactions are Classic-only.
 - Minimising windows to `special:minimized` (`window minimize|restore|restoreAll`).
 - LocalSend device in quick settings, only while the LocalSend app is installed (port 53317 shared, app must not run).

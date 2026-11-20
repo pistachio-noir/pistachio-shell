@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Focus timer</title>
+<!-- psc phone-timer's page (owner's request, 20 November 2026; laid out by Claude, no board). Colours
+     come with /state from the shell's Theme; these are only the Pistachio Noir defaults until then. -->
+<style>
+:root{--bg:#15170F;--bgAlt:#1D2016;--overlay:#2A2F1F;--overlay2:#39412A;--subtext:#A3B08F;--text:#E5E9D8;--textBright:#F6F8EF;--accent:#9FD88A;--teal:#7FC9A8;--danger:#DB8267;--phase:var(--accent)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:500;display:flex;align-items:center;justify-content:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom));transition:background .2s ease-out}
+main{width:100%;max-width:400px;background:var(--bgAlt);border:1px solid var(--overlay2);border-radius:28px;padding:28px 24px 24px;display:flex;flex-direction:column;align-items:center;gap:20px;box-shadow:0 18px 48px rgba(0,0,0,.45)}
+.chip{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 14px;border-radius:16px;background:var(--overlay);color:var(--textBright);font-weight:700;font-size:14px;letter-spacing:.01em}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--phase);transition:background .2s ease-out}
+#countdown{font-size:clamp(64px,22vw,104px);font-weight:800;line-height:1;color:var(--phase);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:-.02em;transition:color .2s ease-out}
+.track{width:100%;height:6px;border-radius:3px;background:var(--overlay);overflow:hidden}
+#fill{height:100%;width:0;border-radius:3px;background:var(--phase);transition:width .25s linear,background .2s ease-out}
+#status{min-height:20px;margin:-8px 0 0;color:var(--subtext);font-size:14px;font-weight:600}
+.buttons{display:flex;gap:12px;width:100%}
+button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;height:76px;border-radius:20px;border:1px solid var(--overlay2);background:var(--overlay);color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .12s ease-out,color .12s ease-out,border-color .12s ease-out}
+button:active{background:var(--overlay2);color:var(--textBright)}
+button:disabled{opacity:.45}
+button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+button.confirm{border-color:var(--danger);color:var(--danger)}
+body.paused{--phase:var(--subtext)}
+body.break{--phase:var(--teal)}
+body.lost main{opacity:.6}
+</style>
+</head>
+<body>
+<main>
+  <div class="chip"><span class="dot"></span><span id="phase">Connecting…</span></div>
+  <div id="countdown">--:--</div>
+  <div class="track"><div id="fill"></div></div>
+  <p id="status"></p>
+  <div class="buttons">
+    <button id="pause" onclick="post('pause')"><svg viewBox="0 0 24 24" id="pauseIcon"><path d="M8 5v14M16 5v14"/></svg><span id="pauseLabel">Pause</span></button>
+    <button id="skip" onclick="post('skip')"><svg viewBox="0 0 24 24"><path d="M5 5l10 7-10 7z"/><path d="M19 5v14"/></svg><span id="skipLabel">Skip</span></button>
+    <button id="end" onclick="endTap()"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg><span id="endLabel">End</span></button>
+  </div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const PAUSE='<path d="M8 5v14M16 5v14"/>',PLAY='<path d="M7 5l12 7-12 7z"/>';
+const COLOURS=['bg','bgAlt','overlay','overlay2','subtext','text','textBright','accent','teal','danger'];
+let state=null,last=0,busy=false,confirmTimer=0;
+async function refresh(){
+  try{
+    const r=await fetch('/state',{cache:'no-store'});
+    if(!r.ok)throw 0;
+    state=await r.json();last=performance.now();
+    for(const k of COLOURS)if(state[k])document.documentElement.style.setProperty('--'+k,state[k]);
+  }catch(e){}
+  draw();
+}
+function clock(ms){
+  const s=Math.ceil(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60,two=n=>String(n).padStart(2,'0');
+  return h?h+':'+two(m)+':'+two(sec):m+':'+two(sec);
+}
+function draw(){
+  const lost=!state||performance.now()-last>5000;
+  document.body.classList.toggle('lost',lost);
+  for(const b of ['pause','skip','end'])$(b).disabled=lost||busy;
+  if(lost){$('status').textContent=state?'Connection lost':'Connecting…';return}
+  const ms=state.paused?state.left:Math.max(0,state.endsAt-state.serverNow-(performance.now()-last));
+  $('phase').textContent=state.phase;
+  $('countdown').textContent=clock(ms);
+  $('fill').style.width=(state.length?Math.min(100,Math.max(0,100*(1-ms/state.length))):0)+'%';
+  $('status').textContent=state.paused?'Paused':'';
+  document.body.classList.toggle('paused',!!state.paused);
+  document.body.classList.toggle('break',!state.paused&&state.working===false);
+  $('pauseIcon').innerHTML=state.paused?PLAY:PAUSE;
+  $('pauseLabel').textContent=state.paused?'Resume':'Pause';
+  $('skipLabel').textContent=state.pomodoro===false?'Finish':'Skip';
+}
+async function post(action){
+  if(busy)return;
+  busy=true;draw();
+  try{await fetch('/'+action,{method:'POST',cache:'no-store'})}catch(e){}
+  setTimeout(async()=>{busy=false;await refresh()},250);
+}
+function endTap(){
+  const b=$('end');
+  if(b.classList.contains('confirm')){clearTimeout(confirmTimer);b.classList.remove('confirm');$('endLabel').textContent='End';post('end');return}
+  b.classList.add('confirm');$('endLabel').textContent='Tap again';
+  confirmTimer=setTimeout(()=>{b.classList.remove('confirm');$('endLabel').textContent='End'},3000);
+}
+refresh();setInterval(refresh,1500);setInterval(draw,250);
+</script>
+</body>
+</html>

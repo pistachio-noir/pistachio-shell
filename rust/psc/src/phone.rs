@@ -1,15 +1,19 @@
-//! `psc phone-timer`: the read-only phone view of a Focus/Pomodoro session (services/FocusMode.qml).
-//! Python's phone-timer.py until 19 November 2026; same protocol: timer state arrives as JSON lines
-//! on stdin (a heartbeat each second); prints one line {url, qr, qrError} or {error}. Serves only GET
-//! / and /state to the local network's own subnet; /state is 503 when the last update is over 5 s
-//! old. EOF or SIGTERM stops it and removes the temporary QR image.
+//! `psc phone-timer`: the phone view of a Focus/Pomodoro session (services/FocusMode.qml).
+//! Python's phone-timer.py until 19 November 2026: timer state arrives as JSON lines on stdin (a
+//! heartbeat each second); prints one line {url, qr, qrError} or {error}. Serves GET / and /state,
+//! and POST /pause, /skip, /end (owner's request, 20 November 2026: no key, a home network), only to
+//! the local network's own subnet; each POST prints {"action": …} for FocusMode to carry out. /state
+//! is 503 when the last update is over 5 s old. EOF or SIGTERM stops it and removes the QR image.
 use serde_json::{json, Value};
 use std::io::{BufRead, Read, Write};
 use std::net::{IpAddr, Ipv4Addr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-const PAGE: &[u8] = br#"<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Focus timer</title><style>body{background:Canvas;color:CanvasText;font:18px sans-serif;text-align:center;margin:20vh 1rem}h1{font-size:1.5rem}#countdown{font-size:5rem}</style></head><body><h1 id="phase">Connecting...</h1><div id="countdown">--:--</div><p id="status"></p><script>let state=null,last=0;async function refresh(){try{let r=await fetch('/state',{cache:'no-store'});if(!r.ok)throw 0;state=await r.json();last=performance.now();document.body.style.background=state.bg;document.body.style.color=state.text;document.getElementById("countdown").style.color=state.accent}catch(e){}}function draw(){if(!state||performance.now()-last>5000){document.getElementById('status').textContent='Connection lost';return}let ms=state.paused?state.left:Math.max(0,state.endsAt-state.serverNow-(performance.now()-last));let s=Math.ceil(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60;document.getElementById('phase').textContent=state.phase;document.getElementById('countdown').textContent=(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(sec).padStart(2,'0');document.getElementById('status').textContent=state.paused?'Paused':''}refresh();setInterval(refresh,1500);setInterval(draw,250)</script></body></html>"#;
+const PAGE: &[u8] = include_bytes!("phone.html");
+
+/// The shell's colours the page may use (Theme names; accent is pistachio, danger terracotta).
+const COLOURS: [&str; 10] = ["bg", "bgAlt", "overlay", "overlay2", "subtext", "text", "textBright", "accent", "teal", "danger"];
 
 struct Shared {
     state: Option<Value>,
@@ -50,7 +54,7 @@ fn in_network(client: IpAddr, net: Ipv4Addr, prefix: u8) -> bool {
 }
 
 fn reply(stream: &mut TcpStream, status: u16, kind: &str, body: &[u8]) {
-    let reason = match status { 200 => "OK", 403 => "Forbidden", 404 => "Not Found", 405 => "Method Not Allowed", 501 => "Not Implemented", _ => "Service Unavailable" };
+    let reason = match status { 200 => "OK", 204 => "No Content", 403 => "Forbidden", 404 => "Not Found", 405 => "Method Not Allowed", 501 => "Not Implemented", _ => "Service Unavailable" };
     let head = format!("HTTP/1.1 {status} {reason}\r\nContent-Type: {kind}\r\nCache-Control: no-store\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
     let _ = stream.write_all(head.as_bytes());
     let _ = stream.write_all(body);
@@ -66,9 +70,12 @@ fn serve(mut stream: TcpStream, shared: Arc<Mutex<Shared>>, net: Ipv4Addr, prefi
     let text = String::from_utf8_lossy(&head);
     let mut first = text.lines().next().unwrap_or("").split_whitespace();
     let (method, path) = (first.next().unwrap_or(""), first.next().unwrap_or(""));
+    // read a small body away (none is used), so closing doesn't reset the connection under the reply
+    let length = text.lines().find_map(|l| l.split_once(':').filter(|(k, _)| k.eq_ignore_ascii_case("content-length")).and_then(|(_, v)| v.trim().parse::<usize>().ok())).unwrap_or(0);
+    if length > 0 && length <= 8192 { let mut body = vec![0u8; length]; let _ = stream.read_exact(&mut body); }
     let allowed = stream.peer_addr().map(|a| in_network(a.ip(), net, prefix)).unwrap_or(false);
     match (method, path) {
-        ("GET", _) if !allowed => reply(&mut stream, 403, "text/plain", b"Forbidden"),
+        (_, _) if !allowed => reply(&mut stream, 403, "text/plain", b"Forbidden"),
         ("GET", "/") => reply(&mut stream, 200, "text/html; charset=utf-8", PAGE),
         ("GET", "/state") => {
             let state = {
@@ -85,7 +92,15 @@ fn serve(mut stream: TcpStream, shared: Arc<Mutex<Shared>>, net: Ipv4Addr, prefi
             }
         }
         ("GET", _) => reply(&mut stream, 404, "text/plain", b"Not Found"),
-        ("POST", _) => reply(&mut stream, 405, "text/plain", b"Method Not Allowed"),
+        ("POST", "/pause" | "/skip" | "/end") => {
+            {
+                let mut out = std::io::stdout().lock();
+                let _ = writeln!(out, "{}", json!({"action": &path[1..]}));
+                let _ = out.flush();
+            }
+            reply(&mut stream, 204, "text/plain", b"");
+        }
+        ("POST", _) => reply(&mut stream, 404, "text/plain", b"Not Found"),
         _ => reply(&mut stream, 501, "text/plain", b"Not Implemented"),
     }
 }
@@ -136,7 +151,8 @@ pub fn main(_args: &[String]) -> i32 {
         if !["phase", "endsAt", "left", "paused"].iter().all(|k| v.get(*k).is_some()) { continue; }
         let mut state = serde_json::Map::new();
         for k in ["phase", "endsAt", "left", "paused"] { state.insert(k.into(), v[k].clone()); }
-        for k in ["bg", "text", "accent"] { state.insert(k.into(), v.get(k).cloned().unwrap_or(json!(""))); }
+        for k in COLOURS { state.insert(k.into(), v.get(k).cloned().filter(Value::is_string).unwrap_or(json!(""))); }
+        for k in ["length", "pomodoro", "working"] { if let Some(x) = v.get(k) { state.insert(k.into(), x.clone()); } }
         let mut s = shared.lock().unwrap();
         s.state = Some(Value::Object(state));
         s.updated = Instant::now();

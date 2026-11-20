@@ -33,7 +33,8 @@ Singleton {
     readonly property var allowed: Store.saved.focusAllowed ?? []
     property real now: Date.now()
 
-    // The phone helper receives only this session's public countdown state.
+    // The phone helper receives only this session's public countdown state and the shell's colours;
+    // it sends back the phone's Pause/Skip/End.
     property string phoneUrl
     property string phoneQr
     property string phoneQrError
@@ -49,8 +50,20 @@ Singleton {
     function sendPhone() {
         if (phoneReady && session)
             phoneHelper.write(JSON.stringify({phase: phaseName(), endsAt: session.endsAt || 0,
-                left: session.left || 0, paused: paused, bg: Theme.bg.toString(),
-                text: Theme.text.toString(), accent: Theme.pistachio.toString()}) + "\n");
+                left: session.left || 0, paused: paused, length: session.length || 0,
+                pomodoro: !!session.pomodoro, working: working,
+                bg: Theme.bg.toString(), bgAlt: Theme.bgAlt.toString(), overlay: Theme.overlay.toString(),
+                overlay2: Theme.overlay2.toString(), subtext: Theme.subtext.toString(), text: Theme.text.toString(),
+                textBright: Theme.textBright.toString(), accent: Theme.pistachio.toString(),
+                teal: Theme.teal.toString(), danger: Theme.terracotta.toString()}) + "\n");
+    }
+    // the phone page's buttons (owner's request, 20 November 2026): the pill's own actions
+    function phoneAction(action: string) {
+        if (action === "pause") pause();
+        else if (action === "skip") skip();
+        else if (action === "end") endSession();
+        else return;
+        sendPhone();
     }
     onPhoneWantedChanged: {
         const active = phoneWanted;
@@ -84,6 +97,10 @@ Singleton {
                 if (!root.phoneWanted || root.phoneRestartRequested) return;
                 try {
                     const data = JSON.parse(line);
+                    if (data.action !== undefined) {
+                        root.phoneAction(data.action);
+                        return;
+                    }
                     root.phoneError = data.error ?? "";
                     root.phoneUrl = data.url ?? "";
                     root.phoneQr = data.qr ?? "";

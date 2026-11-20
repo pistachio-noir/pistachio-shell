@@ -42,6 +42,7 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 | `game-mode` | the real `GameMode` service with stand-in Compositor and ShellSettings |
 | `clocks`, `clocks-popup` | the Clocks helper; Stop and Snooze closing the alarm popup |
 | `phone-timer` | `psc phone-timer`, run the way FocusMode runs it: state page, Pause/Skip/End POSTs passed on as actions |
+| `ambient-clock` | the ambient clock (Experimental): real service and layer with stand-ins and idle set by hand: switch, idle and empty-desktop rule, no input taken, media and timer lines, a fast fade-out, delay choices, preview, TUI font (native, shows briefly) |
 | `desktop-widgets` | desktop widgets (Experimental): the real layer, studio and service with stand-ins: half-cell default layout, the centre cross and a centred drop, all six blocks from +, the TUI grid under the strip, hidden with a tiled window or in Zen, CPU/RAM readings only while shown, the studio's drag/snap, refused drop, ✕, +, Esc, IPC status (native, shows briefly); the grid rules are `desktop-grid.test.js` |
 | `session-pill` | Zen's Pomodoro pill: Hide, Keep shown, the 4 px handle strip, Hide forgotten when Zen ends (native, shows briefly) |
 | `prefs` | settings export/import (`psc prefs`) in a temporary folder |

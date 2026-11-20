@@ -36,6 +36,8 @@ Singleton {
         property bool phonePreview // local phone timer preview is opt-in
         property bool gameMode // game mode is opt-in (Experimental)
         property bool desktopWidgets // desktop widgets are opt-in (Experimental)
+        property bool ambientClock // the ambient clock is opt-in (Experimental)
+        property int ambientDelay: 3 // minutes idle before it shows: 2, 3 or 5
         property var widgetLayout: null // [{ kind, col, row }] on the desktop grid; null: the default layout
         property bool themingIntegration: true // the shell sets Kitty/Neovim up to follow Colours (AppTheming)
         property var themingKeep: [] // apps whose own theme the owner kept

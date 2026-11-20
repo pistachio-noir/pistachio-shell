@@ -202,6 +202,11 @@ Column {
                 impact(toggle("desktop-widgets", "Desktop widgets", "Clock, weather, CPU/RAM and more on empty desktops. CPU/RAM and Disk & GPU read every 1.5 s while shown.", () => DesktopWidgets.enabled, DesktopWidgets.setEnabled), "medium"),
                 action("arrange-widgets", "Arrange widgets", "Place them on the desktop's grid; changes save as you go.", "Arrange…", () => DesktopWidgets.arrange())
             ]),
+            group("Ambient clock", [
+                impact(toggle("ambient-clock", "Ambient clock", "After a few idle minutes on a workspace with no windows: a big clock, what's playing and a running timer. Any key or movement brings the desktop back.", () => Ambient.enabled, Ambient.setEnabled), "low"),
+                { id: "ambient-delay", kind: "choice", title: "Show after", subtitle: () => "Minutes without input. Locking (hypridle) is separate.", choices: () => [{value:2,title:"2 min"},{value:3,title:"3 min"},{value:5,title:"5 min"}], value: () => Ambient.delay, set: Ambient.setDelay },
+                action("ambient-preview", "Preview", "Shows it for 10 seconds.", "Preview", () => Ambient.preview())
+            ]),
             group("Phone preview", [
                 toggle("phone-preview", "Phone timer preview", "Share the active Focus or Pomodoro timer on your local network.", () => ShellSettings.phonePreview, ShellSettings.setPhonePreview)
             ]),

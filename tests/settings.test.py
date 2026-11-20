@@ -10,6 +10,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 MOCKS = {
     "Qalc": "property bool found:false",
+    "Ambient": "property bool enabled:false;property int delay:3;property bool previewing:false;function setEnabled(v){enabled=v;}function setDelay(m){delay=m;}function preview(){previewing=true;}",
     "DesktopWidgets": "property bool enabled:false;property bool arranging:false;function setEnabled(v){enabled=v;}function arrange(){enabled=true;arranging=true;}function done(){arranging=false;}",
     "Events": 'property bool available:false; property var calendars:[]',
     "Clocks": 'property bool clocksInstalled:false;property var ringing:null;',

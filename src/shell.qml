@@ -77,6 +77,7 @@ ShellRoot {
     PhonePreview {}
     SessionPill { id: sessionPill } // a Pomodoro's time while Zen hides the bar
     WidgetStudio {} // arranging the desktop widgets (Experimental)
+    AmbientClock {} // the big quiet clock after a few idle minutes (Experimental)
     PistachioRain {
         id: rain
     }

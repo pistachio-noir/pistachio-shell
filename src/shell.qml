@@ -76,6 +76,7 @@ ShellRoot {
     AlarmPopup {} // timers done and Clocks' alarms ringing
     PhonePreview {}
     SessionPill { id: sessionPill } // a Pomodoro's time while Zen hides the bar
+    WidgetStudio {} // arranging the desktop widgets (Experimental)
     PistachioRain {
         id: rain
     }

@@ -10,6 +10,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 MOCKS = {
     "Qalc": "property bool found:false",
+    "DesktopWidgets": "property bool enabled:false;property bool arranging:false;function setEnabled(v){enabled=v;}function arrange(){enabled=true;arranging=true;}function done(){arranging=false;}",
     "Events": 'property bool available:false; property var calendars:[]',
     "Clocks": 'property bool clocksInstalled:false;property var ringing:null;',
     "FocusMode": 'signal phaseFinished(string message);property bool zen:false;property bool focusing:false;property bool pomodoring:false;property var allowed:[];function setOption(k,v){Store.saved[k]=v;}function setAllowed(a,v){}function startZen(v){}function stopZen(){}function toggleFocus(){}function togglePomodoro(){}',

@@ -42,6 +42,7 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 | `game-mode` | the real `GameMode` service with stand-in Compositor and ShellSettings |
 | `clocks`, `clocks-popup` | the Clocks helper; Stop and Snooze closing the alarm popup |
 | `phone-timer` | `psc phone-timer`, run the way FocusMode runs it: state page, Pause/Skip/End POSTs passed on as actions |
+| `desktop-widgets` | desktop widgets (Experimental): the real layer, studio and service with stand-ins: half-cell default layout, the centre cross and a centred drop, all six blocks from +, the TUI grid under the strip, hidden with a tiled window or in Zen, CPU/RAM readings only while shown, the studio's drag/snap, refused drop, ✕, +, Esc, IPC status (native, shows briefly); the grid rules are `desktop-grid.test.js` |
 | `session-pill` | Zen's Pomodoro pill: Hide, Keep shown, the 4 px handle strip, Hide forgotten when Zen ends (native, shows briefly) |
 | `prefs` | settings export/import (`psc prefs`) in a temporary folder |
 | `capture-helper` | `psc capture` with real FFmpeg: trimming keeps the source and rejects unsafe ranges |
@@ -59,7 +60,8 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 ### JS unit tests (`*.test.js`, run by `js.sh`)
 
 `calc`, `calendar`, `fuzzy`, `highlight`, `launcher-editing`, `recording` (pill placement), `settings`
-(the settings search catalog) and `bluetooth-pairing` (which paired devices to connect after pairing).
+(the settings search catalog), `bluetooth-pairing` (which paired devices to connect after pairing) and
+`desktop-grid` (desktop widgets' sizes, fits, free spots, fitted layouts and the icons going around them).
 
 ### Rust
 

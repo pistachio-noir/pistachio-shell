@@ -70,6 +70,7 @@ qs -c pistachio ipc call <target> <function> [arguments]
 | `switcher next` / `switcher prev` | opens the window switcher on the previous window (`prev`: the oldest), or steps once it's open; for Alt+Tab and Alt+Shift+Tab |
 | `showoff toggle` | starts or ends showoff mode (see "What you get") |
 | `desktop toggle` / `desktop on` / `desktop off` | shows or hides desktop icons in Classic and reports the change in the OSD |
+| `widgets arrange` / `widgets done` / `widgets status` | opens or closes the desktop widgets' studio (Experimental; arranging switches them on); status prints the switch, the grid and the layout as JSON |
 | `workspace name <text>` | names the workspace you're on (empty clears it; names last until you log out) |
 | `workspace preset <name>` | loads a workspace preset (its names, and its apps if saved with them) |
 | `bar peek` | shows the hidden bar for 2 s |

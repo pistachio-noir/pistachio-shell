@@ -176,6 +176,9 @@ Column {
 
     function group(title, rows) { return { title: title, rows: rows }; }
     function toggle(id, title, subtitle, get, set) { return { id: id, kind: "toggle", title: title, subtitle: () => subtitle, checked: get, toggle: () => set(!get()) }; }
+    // a "Performance impact" note under a visual setting (owner's request, 20 November 2026):
+    // "low", "medium", "high", or "saves" (it takes load away); drawn by SettingsRow
+    function impact(row, level) { return Object.assign(row, { impact: level }); }
     function action(id, title, subtitle, button, run) { return { id: id, kind: "action", title: title, subtitle: typeof subtitle === "function" ? subtitle : () => subtitle, button: button, run: run }; }
     // value and subtitle may be functions, read live by the row: a page whose readings change (System
     // monitor) must not rebuild its groups for it, or they're made anew and rise in again each time
@@ -192,8 +195,12 @@ Column {
                 toggle("tui-hyprland", "Hyprland integration", "Square window corners while TUI is active.", () => ShellSettings.tuiHyprland, ShellSettings.setTuiHyprland)
             ]),
             group("Game mode", [
-                toggle("game-mode", "Game mode", "While a fullscreen game is focused: quiet notifications, no animations or blur.", () => ShellSettings.gameMode, ShellSettings.setGameMode),
+                impact(toggle("game-mode", "Game mode", "While a fullscreen game is focused: quiet notifications, no animations or blur.", () => ShellSettings.gameMode, ShellSettings.setGameMode), "saves"),
                 action("game-classes", "Extra game windows", () => ShellSettings.gameClasses.length ? ShellSettings.gameClasses.join(", ") : "Steam, Sober and gamescope only", "Change", () => SettingsHub.beginEdit("games"))
+            ]),
+            group("Desktop widgets", [
+                impact(toggle("desktop-widgets", "Desktop widgets", "Clock, weather, CPU/RAM and more on empty desktops. CPU/RAM and Disk & GPU read every 1.5 s while shown.", () => DesktopWidgets.enabled, DesktopWidgets.setEnabled), "medium"),
+                action("arrange-widgets", "Arrange widgets", "Place them on the desktop's grid; changes save as you go.", "Arrange…", () => DesktopWidgets.arrange())
             ]),
             group("Phone preview", [
                 toggle("phone-preview", "Phone timer preview", "Share the active Focus or Pomodoro timer on your local network.", () => ShellSettings.phonePreview, ShellSettings.setPhonePreview)
@@ -212,14 +219,14 @@ Column {
                     : read("theming-" + a.id, a.name, ({following: "Follows Colours", available: "Not set up yet", missing: "Not installed", unsupported: a.detail || "Couldn't set up"})[a.state] || a.state)) : [])
             ]),
             group("Surfaces", [
-                { id: "frost", kind: "choice", title: "Frosted panels", subtitle: () => "Choose how much of the desktop shows through.", choices: () => [{value:"solid",title:"Solid"},{value:"subtle",title:"Subtle"},{value:"glassy",title:"Glassy"}], value: () => !ShellSettings.frosted ? "solid" : ShellSettings.glassy ? "glassy" : "subtle", set: v => { ShellSettings.setGlassy(v === "glassy"); ShellSettings.setFrosted(v !== "solid"); } },
-                toggle("shadows", "Drop shadows", "Soft depth around panels and popups.", () => ShellSettings.shadows, ShellSettings.setShadows)
+                impact({ id: "frost", kind: "choice", title: "Frosted panels", subtitle: () => "Choose how much of the desktop shows through.", choices: () => [{value:"solid",title:"Solid"},{value:"subtle",title:"Subtle"},{value:"glassy",title:"Glassy"}], value: () => !ShellSettings.frosted ? "solid" : ShellSettings.glassy ? "glassy" : "subtle", set: v => { ShellSettings.setGlassy(v === "glassy"); ShellSettings.setFrosted(v !== "solid"); } }, "medium"),
+                impact(toggle("shadows", "Drop shadows", "Soft depth around panels and popups.", () => ShellSettings.shadows, ShellSettings.setShadows), "low")
             ]),
             group("Desktop", [
                 action("wallpaper", "Wallpaper", "Your images, with a fit kept for each one.", "Choose wallpaper", () => SettingsHub.wallpapersRequested()),
-                ...(Theme.tui ? [] : [toggle("desktop", "Desktop icons", "Show files and folders from your Desktop.", () => Desktop.enabled, Desktop.setEnabled)]),
-                toggle("monochrome-wallpaper", "Monochrome wallpaper", "Desaturate the wallpaper in Noir. Original image stays unchanged.", () => ShellSettings.monochromeWallpaper, ShellSettings.setMonochromeWallpaper),
-                toggle("desktop-cat", "Desktop cat", "Meoww", () => ShellSettings.desktopCat, ShellSettings.setDesktopCat)
+                ...(Theme.tui ? [] : [impact(toggle("desktop", "Desktop icons", "Show files and folders from your Desktop.", () => Desktop.enabled, Desktop.setEnabled), "low")]),
+                impact(toggle("monochrome-wallpaper", "Monochrome wallpaper", "Desaturate the wallpaper in Noir. Original image stays unchanged.", () => ShellSettings.monochromeWallpaper, ShellSettings.setMonochromeWallpaper), "low"),
+                impact(toggle("desktop-cat", "Desktop cat", "Meoww", () => ShellSettings.desktopCat, ShellSettings.setDesktopCat), "low")
             ]),
             group("At a glance", [toggle("workspace", "Workspace OSD", "On workspace changes.", () => ShellSettings.workspaceOsd, ShellSettings.setWorkspaceOsd), toggle("tabbed", "Tabbed OSD", "When tabs switch.", () => ShellSettings.tabbedOsd, ShellSettings.setTabbedOsd)])
         ];

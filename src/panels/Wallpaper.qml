@@ -106,6 +106,11 @@ PanelWindow {
         }
     }
 
+    // desktop widgets (Experimental, 20 November 2026): over the wallpaper, under the icons
+    DesktopWidgetLayer {
+        anchors.fill: parent
+    }
+
     NumberAnimation {
         id: settle
         target: view

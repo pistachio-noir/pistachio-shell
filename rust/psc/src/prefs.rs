@@ -62,6 +62,7 @@ pub const SCHEMA: &[(&str, &str, &str, Check)] = &[
     ("experimental", "clipboard_history", "clipboardHistory", bool_()),
     ("experimental", "monochrome_wallpaper", "monochromeWallpaper", bool_()),
     ("experimental", "game_mode", "gameMode", bool_()),
+    ("experimental", "desktop_widgets", "desktopWidgets", bool_()),
     ("appearance", "theming_integration", "themingIntegration", bool_()),
     ("appearance", "theming_keep", "themingKeep", theming_keep()),
     ("experimental", "game_classes", "gameClasses", game_classes()),

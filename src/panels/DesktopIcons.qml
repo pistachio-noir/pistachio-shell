@@ -4,6 +4,7 @@ import qs.services
 import Quickshell
 import Quickshell.Widgets // ClippingRectangle, for a picture's thumbnail
 import QtQuick
+import "desktopGrid.js" as Grid
 
 // Desktop icons (owner's request, after phase 8; look B of the brainstorm mockups, the Pistachio
 // tiles), over the wallpaper in its window (panels/Wallpaper.qml): the files and folders in the Desktop
@@ -31,28 +32,10 @@ Item {
     readonly property int rows: Math.max(1, Math.floor((height - 2 * margin - Theme.barHeight - Theme.barMargin) / cellHeight))
     readonly property int columns: Math.max(1, Math.floor((width - 2 * margin) / cellWidth))
     // where each icon sits, name -> [column, row]: saved places first (if they still fit on the
-    // screen and nothing else took them), then the rest in the first free cells, down then right
-    readonly property var layout: {
-        const at = {}, taken = {};
-        const key = cell => `${cell[0]},${cell[1]}`;
-        for (const item of Desktop.items) {
-            const p = Desktop.positions[item.name];
-            if (p && p[0] < columns && p[1] < rows && !taken[key(p)]) {
-                at[item.name] = p;
-                taken[key(p)] = true;
-            }
-        }
-        let next = 0;
-        for (const item of Desktop.items) {
-            if (at[item.name])
-                continue;
-            while (taken[key([Math.floor(next / rows), next % rows])])
-                next++;
-            at[item.name] = [Math.floor(next / rows), next % rows];
-            taken[key(at[item.name])] = true;
-        }
-        return at;
-    }
+    // screen and nothing else took them), then the rest in the first free cells, down then right; the
+    // cells under the desktop widgets (Experimental) are left free while they're switched on
+    readonly property var blocked: DesktopWidgets.enabled ? DesktopWidgets.cells : []
+    readonly property var layout: Grid.iconLayout(Desktop.items.map(i => i.name), Desktop.positions, columns, rows, blocked)
     property var selection: [] // the selected icons' names
     readonly property var selectedItems: Desktop.items.filter(i => selection.includes(i.name))
     // a group being dragged: the icon the pointer holds, and how far it has gone (px)
@@ -192,6 +175,8 @@ Item {
             moves[n] = [layout[n][0] + dc, layout[n][1] + dr];
             targets.add(key(moves[n]));
         }
+        if (blocked.some(c => targets.has(c)))
+            return; // not onto a desktop widget: the icons go back
         const left = cells.filter(c => !targets.has(key(c))).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
         const inTheWay = Desktop.items.filter(i => !moved.includes(i.name) && layout[i.name] && targets.has(key(layout[i.name])));
         inTheWay.forEach((i, k) => moves[i.name] = left[k]);
@@ -555,6 +540,7 @@ Item {
             return (Desktop.enabled ? [{ text: "New folder…", glyph: Icons.folderPlus, run: () => root.newFolderRequested(m.cell) }] : []).concat([
                 { text: "Open Desktop folder", glyph: Icons.folderOpen, run: () => Desktop.showFolder() },
                 { text: "Wallpapers…", glyph: Icons.image, run: () => root.wallpapersRequested() },
+                ...(DesktopWidgets.enabled ? [{ text: "Arrange widgets…", glyph: Icons.grid, run: () => DesktopWidgets.arrange() }] : []),
                 Desktop.enabled ? { text: "Hide desktop icons", glyph: Icons.grid.concat(Icons.slash), run: () => Desktop.setEnabled(false) }
                     : { text: "Show desktop icons", glyph: Icons.grid, run: () => Desktop.setEnabled(true) }
             ]);

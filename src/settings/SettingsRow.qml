@@ -31,6 +31,32 @@ Rectangle {
         spacing: Theme.tui ? 0 : 3
         SettingsText { objectName: "label-" + root.spec.id; width: parent.width; text: root.spec.title || "" }
         SettingsText { width: parent.width; text: root.spec.subtitle ? root.spec.subtitle() : ""; visible: text !== ""; secondary: true; font.family: Theme.tui ? Theme.fontTui : root.monoSubtitle ? Theme.fontMono : Theme.fontUi; font.pixelSize: Theme.tui ? Theme.tuiTextSize : root.monoSubtitle ? 11 : 12 }
+        // "◆ Performance impact: Medium" (owner's request, 20 November 2026): low quiet, medium gold, high
+        // clay (not terracotta: that means an error), "saves" teal; TUI "impact: med"
+        Row {
+            readonly property string level: root.spec.impact ?? ""
+            readonly property color tint: level === "medium" ? Theme.gold : level === "high" ? Theme.clay : level === "saves" ? Theme.teal : Theme.subtext
+            objectName: "impact-" + root.spec.id
+            visible: level !== ""
+            topPadding: Theme.tui ? 0 : 3
+            spacing: 6
+            Rectangle {
+                visible: !Theme.tui
+                anchors.verticalCenter: parent.verticalCenter
+                width: 6; height: 6; rotation: 45
+                color: parent.tint
+            }
+            SettingsText {
+                secondary: true
+                wrapMode: Text.NoWrap
+                color: parent.tint
+                font.family: Theme.tui ? Theme.fontTui : Theme.fontUi
+                font.pixelSize: Theme.tui ? Theme.tuiTextSize : 11
+                font.weight: Font.Bold
+                text: Theme.tui ? ({ low: "impact: low", medium: "impact: med", high: "impact: high", saves: "impact: saves" })[parent.level] ?? ""
+                    : ({ low: "Performance impact: Low", medium: "Performance impact: Medium", high: "Performance impact: High", saves: "Saves performance" })[parent.level] ?? ""
+            }
+        }
     }
     SettingsButton {
         id: forget

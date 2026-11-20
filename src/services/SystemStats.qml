@@ -11,7 +11,13 @@ import QtQuick
 Singleton {
     id: root
 
-    property bool watching
+    // two watchers (20 November 2026): Settings/launcher (setWatching) and the desktop widgets' CPU/RAM
+    // blocks on screen (watchWidget, counted: the desktop's and the studio's), so one closing doesn't stop
+    // the readings another still shows
+    property bool settingsWatching
+    property int widgetWatchers
+    readonly property bool watching: settingsWatching || widgetWatchers > 0
+    onWatchingChanged: if (!watching) last = null // a load since minutes ago would mislead
     property string cpuName // e.g. "i5-9400F", "Ryzen 7 5800X"
     property real cpu: -1 // 0–1; -1 until two readings give a difference
     property real cpuTemp: -1 // °C; -1 without a sensor
@@ -46,9 +52,11 @@ Singleton {
     property var hotSince: ({}) // "cpu", "gpu" -> when it reached 85 °C (ms since epoch)
 
     function setWatching(on: bool) {
-        watching = on;
-        if (!on)
-            last = null; // a load since minutes ago would mislead
+        settingsWatching = on;
+    }
+
+    function watchWidget(on: bool) {
+        widgetWatchers = Math.max(0, widgetWatchers + (on ? 1 : -1));
     }
 
     function parse(text: string) {

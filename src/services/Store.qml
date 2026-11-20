@@ -35,6 +35,8 @@ Singleton {
         property bool clipboardHistory // clipboard history is opt-in
         property bool phonePreview // local phone timer preview is opt-in
         property bool gameMode // game mode is opt-in (Experimental)
+        property bool desktopWidgets // desktop widgets are opt-in (Experimental)
+        property var widgetLayout: null // [{ kind, col, row }] on the desktop grid; null: the default layout
         property bool themingIntegration: true // the shell sets Kitty/Neovim up to follow Colours (AppTheming)
         property var themingKeep: [] // apps whose own theme the owner kept
         property var gameClasses: [] // extra game window classes, lowercase

@@ -69,6 +69,11 @@ ShellRoot {
         check(Store.saved.shadows && ShellSettings.shadows,"newer preference must survive completion of an older save");
         for(const name of ["appearance","display","sound","notifications","bluetooth","network","localsend","lens","apps","system","health","about"]) page(name);
         page("appearance");
+        // performance notes under visual settings (20 November 2026)
+        const frostImpact=find(win.contentItem,"impact-frost"),shadowImpact=find(win.contentItem,"impact-shadows");
+        check(frostImpact&&frostImpact.visible&&frostImpact.children[1].text==="Performance impact: Medium","frost shows a Medium impact note");
+        check(shadowImpact&&shadowImpact.visible&&shadowImpact.children[1].text==="Performance impact: Low","shadows show a Low impact note");
+        check(!find(win.contentItem,"impact-wallpaper")?.visible,"no note on the wallpaper picker");
         const aboutNav=need("settings-nav-about");
         for(let i=0;i<9;i++) click(aboutNav);
         check(!find(win.contentItem,"about-fun"),"nine About presses do not reveal the surprise");

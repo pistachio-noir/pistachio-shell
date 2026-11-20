@@ -1,14 +1,25 @@
 # Requirements
 
-Tested on Arch Linux with Hyprland 0.56.2 (Lua config) and Quickshell 0.3.2 on Qt 6.12. The shell also works with an older-style `hyprland.conf`.
+Tested on Arch Linux with Hyprland 0.56.2 (Lua config) and Quickshell 0.3.2 on Qt 6.12, and on Gentoo with OpenRC and elogind with Hyprland 0.57.2 (since 21 November 2026). The shell also works with an older-style `hyprland.conf`. It needs no systemd: suspend, reboot and shut down go to logind over D-Bus, which systemd-logind and elogind both provide.
+
+The table gives Arch's package names. On Gentoo, `psc doctor` prints the atoms instead (from `::gentoo`, `::guru` and `::hyproverlay`), and a few things need a USE flag:
+
+| Gentoo package | USE flag | For |
+| --- | --- | --- |
+| `sys-apps/util-linux` | `caps` | `setpriv`: audio device updates, screenshot and recording notifications, screen recording |
+| `media-video/pipewire` | `extra` | `pw-play` and `pw-record`: notification and timer sounds, the microphone check |
+| `app-text/tessdata_fast` | `l10n_en` | English for Text from the screen |
+| `media-fonts/nerdfonts` (`::guru`) | `jetbrainsmono` | the TUI style's font |
+
+`sys-auth/elogind` provides logind, `loginctl` and the session that the polkit agent and lock screen use. Start the Bluetooth and NetworkManager services with `rc-update add bluetooth default` and `rc-update add NetworkManager default`.
 
 | Need | Arch packages | Used for | If missing |
 | --- | --- | --- | --- |
 | Compositor | `hyprland` | everything; Hyprland only | nothing works |
 | Shell runtime | `quickshell` (pulls in Qt 6, PAM, polkit) | everything | nothing works |
-| Audio | `pipewire`, `wireplumber`, `pipewire-pulse` (its `pactl` tells which inputs have something plugged in; `setpriv` from `util-linux` keeps it from outliving the shell) | volume, per-app volume, output and input devices, microphone, OSD; `wpctl` for the volume keys | no volume controls; without `pactl`, no input is greyed out |
+| Audio | `pipewire`, `wireplumber`, `pipewire-pulse` (its `pactl` tells which inputs have something plugged in; `setpriv` from `util-linux` keeps it from outliving the shell; on Gentoo util-linux needs USE `caps`) | volume, per-app volume, output and input devices, microphone, OSD; `wpctl` for the volume keys | no volume controls; without `pactl`, no input is greyed out |
 | Media | any player that speaks MPRIS (browsers, Spotify, mpv with `mpv-mpris`) | the media pill and its card, the media card in quick settings and on the lock screen | the pill and the cards stay hidden |
-| Bluetooth | `bluez`, `bluez-utils`, with `bluetooth.service` running | Bluetooth tile, chip, launcher Bluetooth view | Bluetooth shows as off |
+| Bluetooth | `bluez`, `bluez-utils`, with the `bluetooth` service running | Bluetooth tile, chip, launcher Bluetooth view | Bluetooth shows as off |
 | File preview / Open with | Rust `psc`, `glib2`; optional `poppler` (`pdftoppm`) | read-only previews and installed MIME handlers | PDF falls back to metadata without Poppler |
 | File search | Rust `psc`, `xdg-utils` | the launcher's `/` search through your home folder, opening what it finds | `/` finds nothing |
 | Pairing agent | the shell's helpers, built by `install.sh` (see Helpers below) | pairing devices that show or ask for a code, and devices asking to connect | only devices that need no code pair; the log says `bluetooth agent exited` |
@@ -16,16 +27,16 @@ Tested on Arch Linux with Hyprland 0.56.2 (Lua config) and Quickshell 0.3.2 on Q
 | Weather | a network connection (Open-Meteo, no account; only your city's coordinates are sent, every 30 min) | the weather panel | no weather panel |
 | Screen sharing | `xdg-desktop-portal-hyprland` | sharing your screen from Discord, browsers or OBS, and the shell's screen-sharing indicator | apps can't share the screen at all |
 | Polkit agent | the shell's helpers, built by `install.sh`; `polkit` | the admin password dialog | apps that need admin rights fail or hang; the log says `polkit agent` |
-| Network | `networkmanager`, `iproute2`, with `NetworkManager.service` running | Ethernet tile/chip; `ip` and `nmcli` supply read-only address, gateway and DNS details | Ethernet shows as unplugged |
+| Network | `networkmanager`, `iproute2`, with the `NetworkManager` service running | Ethernet tile/chip; `ip` and `nmcli` supply read-only address, gateway and DNS details | Ethernet shows as unplugged |
 | Brightness | `ddcutil`, and DDC/CI switched on in your monitor's own menu | brightness slider, brightness keys, OSD | the brightness slider is hidden |
 | Night light | `hyprsunset` | Night light tile, warmth slider and schedule; the shell starts and stops it itself | the tile says "Not installed" |
 | Idle lock (optional) | `hypridle`, with `integrations/hypridle.conf` | locking after idle time, screen off, locking before any suspend | only the power menu's Suspend locks first |
 | GPU readings (optional) | the NVIDIA driver's `nvidia-smi` | the GPU row of the launcher's System monitor | no GPU row (CPU and memory come from `/proc`, the CPU temperature from its `coretemp` or `k10temp` sensor) |
-| Power actions | `systemd` (already there) | suspend, reboot, shut down | |
+| Power actions | logind: `systemd` (already there), or `elogind` with OpenRC | suspend, reboot, shut down, Firmware setup (`psc power` asks logind over D-Bus) | those buttons do nothing |
 | Terminal | `kitty` (or `ghostty`, `foot`, `alacritty`, `wezterm`, `konsole`: pick it in Settings → Apps & places, or set `$TERMINAL`) | launching apps marked `Terminal=true`, `$` commands | those don't start |
 | Desktop icons | `glib2` (`gio`, for Move to trash), `xdg-utils`, `xdg-user-dirs` optional | the Desktop folder's icons: opening, trashing, the folder in your language | no trash from the desktop's menu; `~/Desktop` |
-| Microphone check (optional) | `pipewire` (`pw-record`, `pw-play`), Rust `psc` | explicit input meter, temporary five-second sample and playback | the card explains unavailable audio tools |
-| Notification sound | `pipewire`'s `pw-play` (already there) | the sound with each toast (the shell brings its own, `src/sounds/notification.wav`) | silent toasts |
+| Microphone check (optional) | `pipewire` (`pw-record`, `pw-play`; on Gentoo USE `extra`), Rust `psc` | explicit input meter, temporary five-second sample and playback | the card explains unavailable audio tools |
+| Notification sound | `pipewire`'s `pw-play` (already there on Arch; Gentoo needs USE `extra`) | the sound with each toast (the shell brings its own, `src/sounds/notification.wav`) | silent toasts |
 | Showoff mode (optional) | `fastfetch` | the terminal in showoff mode | the panels open without it |
 | LocalSend | `localsend` (the AUR's `localsend-bin`, or Flathub's) installed but not running; the shell's helpers, built by `install.sh`; `openssl` (already there); `zenity` for the Add files and Add folder buttons; `wl-clipboard` for Paste | sending and receiving in quick settings | no LocalSend row; without `zenity`, add files by dropping or pasting them |
 | Screen tools (optional) | `hyprpicker`, `gpu-screen-recorder`, `satty`; `ffmpeg`/`ffprobe` for Trim | Colour and Record, Edit on screenshot notifications, Trim on recording notifications | missing tool's choice is hidden |

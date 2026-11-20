@@ -73,6 +73,8 @@ Night light has no Quickshell module either. It uses `hyprsunset` (checked again
 | Brightness | `ddcutil` | the `i2c-dev` kernel module loaded; the monitor's DDC/CI setting on |
 | Night light | `hyprsunset` | None: the shell starts it |
 
+On Gentoo the same packages are `media-video/pipewire` (USE `sound-server`, plus `extra` for `pw-play` and `pw-record`), `media-video/wireplumber`, `net-wireless/bluez`, `app-misc/ddcutil` and `gui-apps/hyprsunset`; the `bluetooth` OpenRC service started (`rc-update add bluetooth default`). `psc doctor` prints the atoms.
+
 ## Not confirmed yet
 
 These three were open when the plan was written; all are settled now.

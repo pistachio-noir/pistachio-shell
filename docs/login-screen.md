@@ -16,7 +16,7 @@ SDDM isn't part of the shell, and the theme works on its own: it brings its own 
 2. **Install SDDM:**
 
    ```sh
-   sudo pacman -S sddm
+   sudo pacman -S sddm           # Gentoo: sudo emerge -av gui-apps/sddm
    ```
 
 3. **Copy the theme into SDDM's theme folder:**
@@ -47,6 +47,8 @@ SDDM isn't part of the shell, and the theme works on its own: it brings its own 
    sudo systemctl enable sddm
    ```
 
+   On Gentoo with OpenRC, set `DISPLAYMANAGER="sddm"` in `/etc/conf.d/display-manager` and run `sudo rc-update add display-manager default` (it starts at the next boot).
+
    At the login screen, pick **Hyprland** in the session menu (bottom left) once; SDDM remembers it.
 
 7. **Your picture and a wallpaper (optional).**
@@ -54,4 +56,4 @@ SDDM isn't part of the shell, and the theme works on its own: it brings its own 
    - **Wallpaper:** put an image in `/usr/share/sddm/themes/pistachio-noir/` and set `background=` to its file name in that folder's `theme.conf`.
    - **12-hour clock:** set `clockFormat=h:mm AP` in the same `theme.conf`.
 
-**If the login screen doesn't come up:** switch to a TTY (Ctrl+Alt+F3), log in, and read the errors with `journalctl -b -u sddm`. To go back, run `sudo systemctl disable sddm`, re-enable your previous login manager, and reboot.
+**If the login screen doesn't come up:** switch to a TTY (Ctrl+Alt+F3), log in, and read the errors with `journalctl -b -u sddm` (OpenRC: `/var/log/sddm.log`). To go back, run `sudo systemctl disable sddm`, re-enable your previous login manager, and reboot.

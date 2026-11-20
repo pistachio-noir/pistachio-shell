@@ -53,6 +53,9 @@ pub enum Cmd {
         /// Print only the missing packages of one kind, space-separated (for install.sh)
         #[arg(long, value_name = "KIND", value_parser = ["required", "optional"])]
         packages: Option<String>,
+        /// Print the commands that install the missing packages of one kind (pacman on Arch, emerge on Gentoo)
+        #[arg(long, value_name = "KIND", value_parser = ["required", "optional"], conflicts_with = "packages")]
+        install: Option<String>,
     },
     /// Open the first-run setup again (it opens by itself only on the very first start);
     /// with a function (`psc setup status`), a call to the shell's `setup` target
@@ -95,6 +98,7 @@ mod tests {
         assert!(matches!(parse(&["doctor", "--json"]).command, Some(Cmd::Doctor { json: true, .. })));
         assert!(matches!(parse(&["doctor", "--packages", "optional"]).command, Some(Cmd::Doctor { packages: Some(ref k), .. }) if k == "optional"));
         assert!(Cli::try_parse_from(["psc", "doctor", "--packages", "everything"]).is_err());
+        assert!(matches!(parse(&["doctor", "--install", "required"]).command, Some(Cmd::Doctor { install: Some(ref k), .. }) if k == "required"));
         assert!(matches!(parse(&["completions", "zsh"]).command, Some(Cmd::Completions { .. })));
         match parse(&["launcher", "toggle", "--", "-x", "a b"]).command {
             Some(Cmd::Call(args)) => assert_eq!(args, ["launcher", "toggle", "--", "-x", "a b"].map(OsString::from)),

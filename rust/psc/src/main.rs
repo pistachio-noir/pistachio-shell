@@ -15,6 +15,7 @@ mod library;
 mod logs;
 mod mic;
 mod phone;
+mod power;
 mod prefs;
 mod status;
 mod swatch;
@@ -35,7 +36,10 @@ fn main() {
     match args.first().and_then(|a| a.to_str()) {
         Some("chat") if args.len() == 1 => std::process::exit(chat::main()),
         Some("lens") if args.len() == 1 => std::process::exit(lens::main()),
-        Some("boot-entries") => { println!("{}", boot::entries(std::path::Path::new("/sys"))); std::process::exit(0) }
+        Some(helper @ ("boot-entries" | "power")) => {
+            let rest: Vec<String> = args[1..].iter().map(|a| a.to_string_lossy().into_owned()).collect();
+            std::process::exit(if helper == "power" { power::main(&rest) } else { boot::main(&rest) });
+        }
         Some("swatch") => {
             let rest: Vec<String> = args[1..].iter().map(|a| a.to_string_lossy().into_owned()).collect();
             std::process::exit(swatch::main(&rest));
@@ -101,11 +105,15 @@ fn main() {
             }
             Err(e) => { eprintln!("psc: couldn't run qs: {e}"); 127 }
         },
-        Some(Cmd::Doctor { json, packages }) => {
+        Some(Cmd::Doctor { json, packages, install }) => {
             let home = std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
-            let rows = doctor::run(&std::env::var_os("PATH").unwrap_or_default(), &home);
+            let distro = doctor::this_distro();
+            let rows = doctor::run(&std::env::var_os("PATH").unwrap_or_default(), &home, distro);
+            let kind_of = |k: &str| if k == "required" { doctor::Kind::Required } else { doctor::Kind::Optional };
             if let Some(kind) = packages {
-                println!("{}", doctor::packages(&rows, if kind == "required" { doctor::Kind::Required } else { doctor::Kind::Optional }).join(" "));
+                println!("{}", doctor::packages(&rows, kind_of(&kind)).join(" "));
+            } else if let Some(kind) = install {
+                for line in doctor::install_lines(&rows, kind_of(&kind), distro) { println!("{line}"); }
             } else if json { println!("{}", doctor::json(&rows)); } else { print!("{}", doctor::text(&rows)); }
             if doctor::missing_required(&rows) { 1 } else { 0 }
         }

@@ -8,6 +8,16 @@
    sudo systemctl enable --now bluetooth.service NetworkManager.service
    ```
 
+   On Gentoo with OpenRC, the same set (enable the `guru` and `hyproverlay` repositories for Quickshell and the Hypr tools), with two USE flags first:
+
+   ```sh
+   printf '%s\n' 'sys-apps/util-linux caps' 'media-video/pipewire sound-server extra' | sudo tee /etc/portage/package.use/pistachio-shell
+   sudo emerge -av --noreplace --changed-use gui-wm/hyprland gui-apps/quickshell media-video/pipewire media-video/wireplumber \
+       net-wireless/bluez net-misc/networkmanager app-misc/ddcutil gui-apps/hyprsunset x11-terms/kitty dev-lang/rust sys-auth/elogind
+   sudo rc-update add bluetooth default && sudo rc-service bluetooth start
+   sudo rc-update add NetworkManager default && sudo rc-service NetworkManager start
+   ```
+
    `rust` is needed: `psc` and the shell's helpers are Rust programs that `install.sh` builds. Python isn't needed. Optional: `gnome-calendar` (it brings `evolution-data-server`) for its events in the month calendar, and for copying text from the screen `sudo pacman -S tesseract tesseract-data-eng tesseract-data-pol`. `psc doctor` lists everything else, found or missing.
 
 
@@ -20,7 +30,7 @@
    ./install.sh
    ```
 
-   It prints one line per step (✓ done, ! a note, ✗ an error, · would do), then a **Check** section from `psc doctor`: whether everything the shell needs is installed, and the exact `sudo pacman -S --needed …` line for anything missing, required and optional apart. It never installs packages itself. Colour is used only on a terminal (and never with `NO_COLOR` set), so a log stays plain text.
+   It prints one line per step (✓ done, ! a note, ✗ an error, · would do), then a **Check** section from `psc doctor`: whether everything the shell needs is installed, and the exact `sudo pacman -S --needed …` line (on Gentoo: the USE flags to add, then a `sudo emerge` line) for anything missing, required and optional apart. It never installs packages itself. Colour is used only on a terminal (and never with `NO_COLOR` set), so a log stays plain text.
 
    Preview with `./install.sh dry`: it checks existing links and reports planned links, helper builds/installs and font installation without changing files, building helpers or downloading fonts.
 

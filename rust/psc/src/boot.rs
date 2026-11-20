@@ -37,6 +37,67 @@ pub fn pretty(entry: &str) -> String {
     if out.is_empty() { entry.to_string() } else { out }
 }
 
+/// The bytes of a LoaderEntryOneShot variable: attributes NON_VOLATILE | BOOTSERVICE_ACCESS |
+/// RUNTIME_ACCESS (7), then the entry as NUL-terminated UTF-16LE (what bootctl wrote).
+pub fn oneshot_bytes(id: &str) -> Vec<u8> {
+    let mut out = vec![7, 0, 0, 0];
+    for unit in id.encode_utf16().chain([0]) {
+        out.extend(unit.to_le_bytes());
+    }
+    out
+}
+
+/// `psc boot-entries set-oneshot ID`, as root (pkexec, from the power menu): boot ID once, next time.
+/// Was `pkexec bootctl set-oneshot` until 21 November 2026 (no bootctl without systemd). Limine reads
+/// LoaderEntryOneShot (its LoaderFeatures has EntryOneShot). Only an entry Limine itself published is
+/// taken, so the password dialog can't be used to write anything else.
+pub fn set_oneshot(sys: &Path, id: &str) -> Result<(), String> {
+    if id.is_empty() || !read(sys, "LoaderEntries").iter().any(|e| e == id) {
+        return Err(format!("{id:?} is not one of Limine's boot entries"));
+    }
+    let file = sys.join(format!("firmware/efi/efivars/LoaderEntryOneShot-{VENDOR}"));
+    if file.exists() {
+        // an older one-shot: efivarfs marks variables it found at mount immutable (chattr -i), and
+        // deleting the file deletes the variable, so the new one is written fresh
+        clear_immutable(&file);
+        std::fs::remove_file(&file).map_err(|e| format!("{}: {e}", file.display()))?;
+    }
+    // one write() of attributes and value: efivarfs takes a variable whole
+    let mut out = std::fs::OpenOptions::new().write(true).create_new(true).open(&file).map_err(|e| format!("{}: {e}", file.display()))?;
+    let bytes = oneshot_bytes(id);
+    match std::io::Write::write(&mut out, &bytes) {
+        Ok(n) if n == bytes.len() => Ok(()),
+        Ok(n) => Err(format!("{}: wrote {n} of {} bytes", file.display(), bytes.len())),
+        Err(e) => Err(format!("{}: {e}", file.display())),
+    }
+}
+
+fn clear_immutable(file: &Path) {
+    use std::os::fd::AsRawFd;
+    const FS_IMMUTABLE_FL: libc::c_int = 0x10;
+    let Ok(f) = std::fs::File::open(file) else { return };
+    let mut flags: libc::c_int = 0;
+    // on files that don't have flags (tmpfs in tests) both calls just fail, harmlessly
+    unsafe {
+        if libc::ioctl(f.as_raw_fd(), libc::FS_IOC_GETFLAGS, &mut flags) == 0 && flags & FS_IMMUTABLE_FL != 0 {
+            flags &= !FS_IMMUTABLE_FL;
+            libc::ioctl(f.as_raw_fd(), libc::FS_IOC_SETFLAGS, &flags);
+        }
+    }
+}
+
+pub fn main(args: &[String]) -> i32 {
+    let sys = Path::new("/sys");
+    match args {
+        [] => { println!("{}", entries(sys)); 0 }
+        [cmd, id] if cmd == "set-oneshot" => match set_oneshot(sys, id) {
+            Ok(()) => 0,
+            Err(e) => { eprintln!("psc boot-entries: {e}"); 1 }
+        },
+        _ => { eprintln!("usage: psc boot-entries [set-oneshot ID]"); 2 }
+    }
+}
+
 pub fn entries(sys: &Path) -> Value {
     let current = read(sys, "LoaderEntrySelected").into_iter().next().unwrap_or_default();
     let list: Vec<Value> = read(sys, "LoaderEntries").into_iter().filter(|e| *e != current).map(|e| json!({"id": e, "name": pretty(&e)})).collect();
@@ -62,6 +123,17 @@ mod tests {
         std::fs::write(vars.join("LoaderEntrySelected-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f"), utf16(&["Arch-Linux--linux-"])).unwrap();
         assert_eq!(entries(&root), json!({"efi": true, "entries": [{"id": "Windows", "name": "Windows"}, {"id": "Arch--tweaked-", "name": "Arch (tweaked)"}]}));
         assert_eq!(entries(&root.join("nowhere")), json!({"efi": false, "entries": []}));
+
+        // set-oneshot: only Limine's own entries; the variable as bootctl wrote it, read back as one entry
+        let oneshot = vars.join("LoaderEntryOneShot-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f");
+        assert!(set_oneshot(&root, "Gentoo").is_err() && set_oneshot(&root, "").is_err() && !oneshot.exists());
+        set_oneshot(&root, "Arch--tweaked-").unwrap();
+        assert_eq!(std::fs::read(&oneshot).unwrap(), utf16(&["Arch--tweaked-"]));
+        assert_eq!(read(&root, "LoaderEntryOneShot"), ["Arch--tweaked-"]);
+        set_oneshot(&root, "Windows").unwrap(); // over an existing variable
+        assert_eq!(read(&root, "LoaderEntryOneShot"), ["Windows"]);
+        assert_eq!(oneshot_bytes("W"), [7, 0, 0, 0, b'W', 0, 0, 0]);
+        assert_eq!(main(&["set-oneshot".into()]), 2);
         let _ = std::fs::remove_dir_all(root);
         assert_eq!(pretty("Arch-Linux--linux-"), "Arch Linux (linux)");
         assert_eq!(pretty("---"), "---");

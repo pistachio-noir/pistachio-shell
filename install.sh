@@ -1,7 +1,7 @@
 #!/bin/sh
 # Links the shell into place (src/ as Quickshell's "pistachio" config; psc, built from rust/, into ~/.local/bin),
 # builds the helper programs in rust/ into ~/.local/bin and installs the Manrope font, then checks what the
-# shell needs (psc doctor) and prints the pacman line for anything missing. It never installs packages itself.
+# shell needs (psc doctor) and prints the pacman (Arch) or emerge (Gentoo) lines for anything missing. It never installs packages itself.
 # Safe to run again, also after moving the repo. It never replaces a real file or folder with a link;
 # the fonts are copied over any older copies.
 #
@@ -174,21 +174,22 @@ case ":$PATH:" in
     *":$bin:"*) step done path "ok" "$(short "$bin") is on your PATH" ;;
     *) step note path "not set" "$(short "$bin") is not on your PATH; add it, or run $(short "$bin/psc")" ;;
 esac
-# psc doctor lists what's found; only a Rust psc from 20 November 2026 on has --packages (not legacy/psc,
-# not a link to it). It exits 1 while something required is missing, so its exit code isn't the test here.
-if [ -x "$bin/psc" ] && [ ! -L "$bin/psc" ] && "$bin/psc" doctor --help 2>/dev/null | grep -q -- --packages; then
+# psc doctor lists what's found; only a Rust psc from 21 November 2026 on has --install (not legacy/psc,
+# not a link to it), which prints the commands for this distribution (pacman, or emerge with the USE
+# flags to add first). It exits 1 while something required is missing, so its exit code isn't the test.
+if [ -x "$bin/psc" ] && [ ! -L "$bin/psc" ] && "$bin/psc" doctor --help 2>/dev/null | grep -q -- --install; then
     required=$("$bin/psc" doctor --packages required 2>/dev/null || true)
     optional=$("$bin/psc" doctor --packages optional 2>/dev/null || true)
     if [ -n "$required" ]; then
         step error needs "missing" "the shell can't run without these:"
-        more "sudo pacman -S --needed $required" >&2
+        "$bin/psc" doctor --install required 2>/dev/null | while IFS= read -r line; do more "$line"; done >&2
     else
         step done needs "ok" "everything the shell needs is installed"
     fi
     if [ -n "$optional" ]; then
         count=$(printf '%s\n' "$optional" | wc -w)
         step note extras "$count missing" "optional; psc doctor says what each one adds"
-        more "sudo pacman -S --needed $optional"
+        "$bin/psc" doctor --install optional 2>/dev/null | while IFS= read -r line; do more "$line"; done
     else
         step done extras "ok" "every optional tool is installed too"
     fi

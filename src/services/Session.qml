@@ -39,7 +39,7 @@ Singleton {
     // if it never is (e.g. another locker holds the screen).
     function suspend() {
         if (secure) {
-            Quickshell.execDetached(["systemctl", "suspend"]);
+            power("suspend");
             return;
         }
         suspending = true;
@@ -52,7 +52,7 @@ Singleton {
             return;
         suspending = false;
         lockWait.stop();
-        Quickshell.execDetached(["systemctl", "suspend"]);
+        power("suspend");
     }
 
     onSecureChanged: if (secure) suspendNow()
@@ -63,23 +63,31 @@ Singleton {
         onTriggered: root.suspendNow()
     }
 
+    // logind over D-Bus (systemd-logind or elogind), through psc: no systemctl on the owner's
+    // Gentoo with OpenRC (21 November 2026)
+    readonly property string psc: Quickshell.env("HOME") + "/.local/bin/psc"
+    function power(action: string) {
+        Quickshell.execDetached([root.psc, "power", action]);
+    }
+
     function reboot() {
-        Quickshell.execDetached(["systemctl", "reboot"]);
+        power("reboot");
     }
 
     function shutdown() {
-        Quickshell.execDetached(["systemctl", "poweroff"]);
+        power("poweroff");
     }
 
     // Restart into another boot entry (owner's call, 14 November 2026). Limine (12.9) publishes its
     // entries in the boot loader interface's EFI variables (LoaderEntries, LoaderEntrySelected), which
     // anyone can read. logind's own reboot-to-entry, which needs no password, only knows entries it finds
-    // on /boot (it refused Limine's "Windows"), so the one-shot entry is set with `bootctl set-oneshot`
-    // as root: pkexec, so the shell's polkit dialog asks for the password; then a normal reboot. Firmware
+    // on /boot (it refused Limine's "Windows"), so the one-shot entry is set as root with
+    // `psc boot-entries set-oneshot` (was `bootctl set-oneshot` until there was no systemd, 21 November
+    // 2026): pkexec, so the shell's polkit dialog asks for the password; then a normal reboot. Firmware
     // setup goes through logind and needs no password (allowed for the active session, checked).
     property var bootEntries: [] // [{ id, name }], the entry booted now left out
     property bool firmwareSetup // UEFI, so the firmware's setup can be asked for
-    property bool bootBusy // waiting for the password or bootctl
+    property bool bootBusy // waiting for the password or psc
 
     function refreshBootEntries() {
         if (!bootList.running)
@@ -90,17 +98,17 @@ Singleton {
         if (bootBusy || !id)
             return;
         bootBusy = true;
-        oneShot.command = ["pkexec", "bootctl", "set-oneshot", id];
+        oneShot.command = ["pkexec", root.psc, "boot-entries", "set-oneshot", id];
         oneShot.running = true;
     }
 
     function rebootToFirmware() {
-        Quickshell.execDetached(["systemctl", "reboot", "--firmware-setup"]);
+        power("firmware");
     }
 
     Process {
         id: bootList
-        command: [Quickshell.env("HOME") + "/.local/bin/psc", "boot-entries"]
+        command: [root.psc, "boot-entries"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -116,7 +124,7 @@ Singleton {
 
     Process {
         id: oneShot
-        // 0: set, so reboot; anything else (Cancel in the password dialog, a wrong password, bootctl
+        // 0: set, so reboot; anything else (Cancel in the password dialog, a wrong password, psc
         // refusing) leaves the system as it is
         onExited: code => {
             root.bootBusy = false;

@@ -167,7 +167,7 @@ pub fn health(sys: &Sys, auth: bool, pid: Option<u32>, sources: Option<&Path>, p
     let mut rows = vec![json!({"id": "shell", "title": "Shell", "detail": "Settings service active", "status": "Running"})];
     if let Some(pid) = pid { rows.push(shell_errors(sys, pid)); }
     // dependencies, fonts, helpers and Python modules: psc doctor's list, the one place it's kept
-    for r in crate::doctor::run(path, home) {
+    for r in crate::doctor::run(path, home, crate::doctor::this_distro()) {
         rows.push(json!({"id": r.id, "title": r.title, "detail": if r.kind == crate::doctor::Kind::Required { "Required" } else { "Optional" },
             "status": if r.found { "Installed" } else { "Missing" }}));
     }

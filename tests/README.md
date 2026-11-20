@@ -66,7 +66,7 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 
 ### Rust
 
-`cd rust && cargo test --workspace`: the helpers' and `psc`'s own unit tests (theme, doctor, tools and the rest).
+`cd rust && cargo test --workspace`: the helpers' and `psc`'s own unit tests (theme, doctor with Gentoo atoms and os-release, set-oneshot bytes, `/proc` children, tools and the rest), plus `psc/tests/power.rs`: `psc power` against a fake logind on a private `dbus-daemon` it starts itself (it first proves psc can't reach the real system bus).
 
 ## Live-system suites (they use the running shell or change real devices)
 

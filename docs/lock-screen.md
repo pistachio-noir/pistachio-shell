@@ -2,10 +2,10 @@
 
 The lock screen checks your password with PAM's `login` stack, as other screen lockers do. That includes Arch's `pam_faillock`: three wrong passwords within 15 minutes lock the account for 10 minutes, the TTY included. A correct password resets the count.
 
-Suspend in the power menu locks the screen first, so the machine wakes up locked. For locking after idle time, turning the screen off, and locking before every suspend (also `systemctl suspend` from a terminal), install `hypridle`, copy the repo's template and start it with Hyprland:
+Suspend in the power menu locks the screen first, so the machine wakes up locked. For locking after idle time, turning the screen off, and locking before every suspend (also `systemctl suspend` or `loginctl suspend` from a terminal), install `hypridle`, copy the repo's template and start it with Hyprland:
 
 ```sh
-sudo pacman -S hypridle
+sudo pacman -S hypridle        # Gentoo: sudo emerge -av gui-apps/hypridle
 cp ~/projects/pistachio-shell/integrations/hypridle.conf ~/.config/hypr/hypridle.conf
 ```
 

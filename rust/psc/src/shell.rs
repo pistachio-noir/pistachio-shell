@@ -1,4 +1,5 @@
 //! The running shell, through `qs` itself: find it, start it, stop it carefully, pass calls on.
+use std::path::Path;
 use std::ffi::OsString;
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
@@ -50,19 +51,38 @@ fn gone(pid: u32, seconds: f64) -> bool {
     true
 }
 
-/// Direct children of a process (of every thread), from /proc.
+/// Direct children of a process (of every thread), from /proc. A kernel without CONFIG_PROC_CHILDREN
+/// (the owner's Gentoo kernel, 21 November 2026) has no task/*/children files: then every process's
+/// parent is read from /proc/*/stat instead.
 pub fn children(pid: u32) -> Vec<u32> {
     let mut out = vec![];
+    let mut listed = false;
     if let Ok(tasks) = std::fs::read_dir(format!("/proc/{pid}/task")) {
         for task in tasks.flatten() {
             if let Ok(text) = std::fs::read_to_string(task.path().join("children")) {
+                listed = true;
                 out.extend(text.split_whitespace().filter_map(|c| c.parse::<u32>().ok()));
             }
         }
     }
+    if !listed {
+        out = children_by_parent(Path::new("/proc"), pid);
+    }
     out.sort_unstable();
     out.dedup();
     out
+}
+
+/// The processes whose parent (stat's 4th field, after the parenthesised name, which may hold spaces
+/// or parentheses itself) is `pid`.
+pub fn children_by_parent(proc: &Path, pid: u32) -> Vec<u32> {
+    let Ok(dir) = std::fs::read_dir(proc) else { return vec![] };
+    dir.flatten().filter_map(|e| {
+        let child: u32 = e.file_name().to_str()?.parse().ok()?;
+        let stat = std::fs::read_to_string(e.path().join("stat")).ok()?;
+        let parent: u32 = stat[stat.rfind(')')? + 1..].split_whitespace().nth(1)?.parse().ok()?;
+        (parent == pid).then_some(child)
+    }).collect()
 }
 
 /// `qs kill` returns at once, and a shell can hang while exiting, so wait until each process is
@@ -121,6 +141,23 @@ pub fn force_stop() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn children_from_stat() {
+        let root = std::env::temp_dir().join(format!("psc-proc-{}", std::process::id()));
+        for (pid, stat) in [("10", "10 (qs) S 1 10"), ("11", "11 (a (b) c) S 10 10"), ("12", "12 (x) R 10 12"), ("13", "13 (y) S 11 13"), ("self", "1 (z) S 10 1")] {
+            std::fs::create_dir_all(root.join(pid)).unwrap();
+            std::fs::write(root.join(pid).join("stat"), stat).unwrap();
+        }
+        let mut got = children_by_parent(&root, 10);
+        got.sort_unstable();
+        assert_eq!(got, [11, 12], "direct children only, names with spaces and parentheses");
+        assert!(children_by_parent(&root.join("nowhere"), 10).is_empty());
+        let _ = std::fs::remove_dir_all(root);
+        // the live kernel either way: this test's own process has the test binary's runner as parent
+        let me = std::process::id();
+        assert!(children(unsafe { libc::getppid() } as u32).contains(&me));
+    }
 
     #[test]
     fn pids_from_qs_list() {

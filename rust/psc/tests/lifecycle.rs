@@ -98,7 +98,14 @@ fn force_restart_kills_children() {
     fake.psc(&["start"]);
     std::thread::sleep(Duration::from_millis(300));
     let pid = fake.shells()[0];
-    let children = std::fs::read_to_string(format!("/proc/{pid}/task/{pid}/children")).unwrap();
+    // task/*/children needs CONFIG_PROC_CHILDREN (off on the owner's Gentoo kernel): else the parents in /proc/*/stat
+    let children = std::fs::read_to_string(format!("/proc/{pid}/task/{pid}/children")).unwrap_or_else(|_| {
+        std::fs::read_dir("/proc").unwrap().flatten().filter_map(|e| {
+            let stat = std::fs::read_to_string(e.path().join("stat")).ok()?;
+            let parent: u32 = stat[stat.rfind(')')? + 1..].split_whitespace().nth(1)?.parse().ok()?;
+            (parent == pid).then(|| e.file_name().to_string_lossy().into_owned())
+        }).collect::<Vec<_>>().join(" ")
+    });
     let child: u32 = children.split_whitespace().next().unwrap().parse().unwrap();
     let out = fake.psc(&["force-restart"]);
     assert!(out.status.success(), "{out:?}");

@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 
-// The content of each stepped page (boards design/FirstRun/). Everything shown comes from the
+// The content of each stepped page (boards pistachio-shell-design/FirstRun/). Everything shown comes from the
 // wizard's inputs; every change goes out through its signals.
 Loader {
     id: root

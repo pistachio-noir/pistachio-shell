@@ -8,7 +8,7 @@ import QtQuick
 import QtQuick.Effects
 import "../launcher/fuzzy.js" as Fuzzy
 
-// The Overview (owner's request and boards, 11 November 2026: design/Overview.html, OverviewAll,
+// The Overview (owner's request and boards, 11 November 2026: pistachio-shell-design/Overview.html, OverviewAll,
 // OverviewDrag, OverviewEmpty, OverviewSearch), reopening "no overview in the shell". Over a dimmed
 // wallpaper: the workspaces along the top (a sketch of each one's windows, New at the end), this
 // workspace's windows as live pictures, and the keys. Tab shows every window by workspace; typing

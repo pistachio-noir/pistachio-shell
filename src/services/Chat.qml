@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 
-// The quick chat (owner's call, 13 November 2026; boards design/QuickChat*.html): short questions to
+// The quick chat (owner's call, 13 November 2026; boards pistachio-shell-design/QuickChat*.html): short questions to
 // Claude Code or Codex, the provider and model chosen in Settings → Lens (the same preferred provider,
 // models and efforts). psc chat runs the requests and saves each chat in ~/quick-chats/;
 // popups/QuickChat.qml draws it above the bar. The helper runs while the chat is open and for five

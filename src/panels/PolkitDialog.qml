@@ -465,7 +465,7 @@ PanelWindow {
         }
     }
 
-    // The TUI card (board design/TUI/launcher-and-shell/PolkitDetails.html): a framed box under the top
+    // The TUI card (board pistachio-shell-design/TUI/launcher-and-shell/PolkitDetails.html): a framed box under the top
     // bar, "[!] authentication required", the message, action and user, "[-] details" opening the
     // vendor and the app that asked, the password with a block cursor, and Cancel / Authenticate.
     PanelFrame {

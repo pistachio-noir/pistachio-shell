@@ -6,7 +6,7 @@ import Quickshell.Wayland // ScreencopyView, the active window's picture (a Wayl
 import QtQuick
 import QtQuick.Controls
 
-// The quick chat in TUI (boards design/TUI/launcher-and-shell/QuickChat{Replying,Context,History}.html):
+// The quick chat in TUI (boards pistachio-shell-design/TUI/launcher-and-shell/QuickChat{Replying,Context,History}.html):
 // a 600 px frame under the top strip, its tab naming who answers (a click picks Claude, ChatGPT or Ask
 // both) and "quick chat" or "recent" beside it. Rows of "you" / "claude" with the answer, code in
 // frames; the context card and an include line; a "> " input with a block cursor; the keys underneath.

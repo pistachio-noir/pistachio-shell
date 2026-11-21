@@ -3,10 +3,10 @@ pragma Singleton
 import Quickshell
 import QtQuick
 
-// The only place with colours and sizes. Values from design/*.dc.html.
+// The only place with colours and sizes. Values from pistachio-shell-design/*.dc.html.
 Singleton {
     property bool tui: false
-    // Colour scheme (owner's call, 14 November 2026; board design/noir-tones.html, "Pure neutral"):
+    // Colour scheme (owner's call, 14 November 2026; board pistachio-shell-design/noir-tones.html, "Pure neutral"):
     // Pistachio Noir, or Noir: neutral greys, light grey for what's active and one red for errors and
     // danger. The accents' names stay, so every file follows without change. shell.qml binds it.
     property bool noir: false
@@ -86,7 +86,7 @@ Singleton {
     readonly property int screenshotTipWidth: 334
     readonly property int settingsWidth: 1040
     readonly property int settingsHeight: tui ? 800 : 760
-    readonly property int setupWidth: 880 // the first-run setup window (boards design/FirstRun/)
+    readonly property int setupWidth: 880 // the first-run setup window (boards pistachio-shell-design/FirstRun/)
     readonly property int setupHeight: 600
 
     // Drop shadows from the boards (CSS box-shadow: 0 <y> <blur> black at <alpha>), for panels and

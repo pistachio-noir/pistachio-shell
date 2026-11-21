@@ -7,7 +7,7 @@ import Quickshell.Widgets
 import QtQuick
 import QtQuick.Controls
 
-// The quick chat (owner's boards design/QuickChat*.html, 13 November 2026): a 560 px panel centred
+// The quick chat (owner's boards pistachio-shell-design/QuickChat*.html, 13 November 2026): a 560 px panel centred
 // 16 px above the bar, growing upwards with the conversation. Start (four suggestions), with context
 // (the selected text as a card, Include: the active window's picture, the clipboard; Snip a region goes on to Lens),
 // replying (the answer as it's written, Esc stops), answer (code blocks with Copy, a callout; Copy,

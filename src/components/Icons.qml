@@ -8,7 +8,7 @@ Singleton {
     readonly property list<string> copy: ["M8 8h14v14H8z", "M4 16H2V2h14v2"]
     readonly property list<string> arrowUp: ["M5 12l7-7 7 7", "M12 19V5"]
     readonly property list<string> stop: ["M6 6h12v12H6z"]
-    // Screenshot toolbar, from design/NewScreenshotMenu.html.
+    // Screenshot toolbar, from pistachio-shell-design/NewScreenshotMenu.html.
     readonly property list<string> crop: ["M6 2v14a2 2 0 0 0 2 2h14", "M18 22V8a2 2 0 0 0-2-2H2"]
     readonly property list<string> grid: ["M4 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z", "M15 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z", "M15 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1Z", "M4 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1Z"]
     readonly property list<string> scanSearch: ["M3 7V5a2 2 0 0 1 2-2h2", "M17 3h2a2 2 0 0 1 2 2v2", "M21 17v2a2 2 0 0 1-2 2h-2", "M7 21H5a2 2 0 0 1-2-2v-2", "M9 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0", "M16 16l-1.9-1.9"]
@@ -62,7 +62,7 @@ Singleton {
     // 12 November 2026; Lucide shield-check and flask-conical)
     readonly property list<string> shieldCheck: ["M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z", "M9 12l2 2 4-4"]
     readonly property list<string> flask: ["M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2", "M8.5 2h7", "M7 16h10"]
-    // the quick chat's (owner's boards design/QuickChat*.html, 13 November 2026; Lucide)
+    // the quick chat's (owner's boards pistachio-shell-design/QuickChat*.html, 13 November 2026; Lucide)
     readonly property list<string> externalLink: ["M15 3h6v6", "M10 14 21 3", "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"]
     readonly property list<string> paperclip: ["M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"]
     readonly property list<string> triangleAlert: ["M21.73 18l-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3", "M12 9v4", "M12 17h.01"]

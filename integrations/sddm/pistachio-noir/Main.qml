@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Effects // RectangularShadow
 
-// Pistachio Noir login screen for SDDM (Qt 6 greeter, theme API 2.0), after design/sddm-*.html:
+// Pistachio Noir login screen for SDDM (Qt 6 greeter, theme API 2.0), after pistachio-shell-design/sddm-*.html:
 // clock and date, the user, the password field, a session menu and keyboard layout bottom-left, and
 // suspend / reboot / shut down bottom-right. SDDM provides sddm, userModel, sessionModel, keyboard,
 // config and primaryScreen. The greeter runs as its own user and can't see the shell, so the palette

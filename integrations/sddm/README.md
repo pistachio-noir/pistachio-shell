@@ -1,6 +1,6 @@
 # Pistachio Noir SDDM theme
 
-A login screen for SDDM in the shell's style, after `design/sddm-session-menu.html` and `design/sddm-wrong-password.html`:
+A login screen for SDDM in the shell's style, after `pistachio-shell-design/sddm-session-menu.html` and `pistachio-shell-design/sddm-wrong-password.html`:
 
 - **Centre:** clock and date, your picture (or a placeholder) and name, the password field. Enter logs in.
 - **Messages:** "Wrong password. Try again." in terracotta, and "Caps Lock is on" in gold.

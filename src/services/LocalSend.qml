@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 
-// LocalSend (owner's request, 2 November 2026; boards design/*localsend*.html): the shell is a LocalSend
+// LocalSend (owner's request, 2 November 2026; boards pistachio-shell-design/*localsend*.html): the shell is a LocalSend
 // device itself, through pistachio-localsend (built from rust/localsend), which speaks the protocol. All of it exists only while
 // the LocalSend app is installed (owner's call); the app itself mustn't run meanwhile, as both need the
 // port. Receiving is off until switched on, and remembered.

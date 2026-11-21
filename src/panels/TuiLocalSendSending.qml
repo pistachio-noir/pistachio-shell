@@ -3,7 +3,7 @@ import qs.components
 import qs.services
 import QtQuick
 
-// LocalSend sending, in the TUI style (board design/TUI/launcher-and-shell/LocalSendSending.html):
+// LocalSend sending, in the TUI style (board pistachio-shell-design/TUI/launcher-and-shell/LocalSendSending.html):
 // "sending to pixel-8 · 6.4 MB/s", then each file with its state and a bracket bar, and Cancel while it
 // runs. The helper reports the whole transfer's bytes and each file's state, so a file's bar is full
 // once sent, the one going gets what has arrived of it, the rest are empty. Over, it says how it ended

@@ -6,7 +6,7 @@ import QtQuick.Controls.Basic as Basic
 import QtQuick.Effects
 import QtQuick.Layouts
 
-// The first-run setup view (boards design/FirstRun/; contract docs/first-run-frontend.md). It only
+// The first-run setup view (boards pistachio-shell-design/FirstRun/; contract docs/first-run-frontend.md). It only
 // shows its inputs and sends signals: SetupController.qml wires it to the shell's services.
 FocusScope {
     id: root

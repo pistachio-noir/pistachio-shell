@@ -4,7 +4,7 @@ Oct 25, 2026 · @sxnvte
 
 ## Decisions so far
 
-We are building a Quickshell (QML) shell for Hyprland in Pistachio Noir. The visual design is done on the [design boards](../design/); this doc plans the code. Nothing is built yet.
+We are building a Quickshell (QML) shell for Hyprland in Pistachio Noir. The visual design is done on the design boards (the separate `pistachio-shell-design` repo, `~/Desktop/pistachio/pistachio-shell-design/`, since 21 November 2026); this doc plans the code. Nothing is built yet.
 
 - **Toolkit:** Quickshell 0.3.2 with QML. A from-scratch shell in C++ or Rust is a separate, later project. mangowm is dropped for now in favour of tighter Hyprland integration.
 - **Look:** a compact pill, centred and floating at the bottom, soft and rounded. Only Pistachio Noir colours, with pistachio reserved for what is active.

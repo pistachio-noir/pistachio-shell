@@ -5,7 +5,7 @@ import Quickshell.Io
 import qs
 import QtQuick
 
-// First-run setup (owner's call, 19 November 2026; boards design/FirstRun/, window
+// First-run setup (owner's call, 19 November 2026; boards pistachio-shell-design/FirstRun/, window
 // setup/FirstRunWindow.qml). It opens by itself once: on the shell's very first start, when there
 // was no saved state yet. A shell that already had state but no "setup done" mark (set up before
 // this existed) is marked done quietly and never sees it. Done or Skip marks it for good;

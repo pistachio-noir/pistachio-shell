@@ -7,7 +7,7 @@ import Quickshell.Io
 import Quickshell.Wayland // layer-shell keyboard focus and screen capture (Wayland protocols, not a compositor module)
 import QtQuick
 
-// Frozen-screen capture with the owner's compact toolbar (design/NewScreenshotMenu.html).
+// Frozen-screen capture with the owner's compact toolbar (pistachio-shell-design/NewScreenshotMenu.html).
 // Crop/save and the existing modes are shared by menu selection, shortcuts and IPC.
 PanelWindow {
     id: root

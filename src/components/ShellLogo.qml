@@ -1,7 +1,7 @@
 import qs
 import QtQuick
 
-// The Pistachio Shell icon (design/pistachio-shell.svg: a desktop with two windows and the bar, and
+// The Pistachio Shell icon (pistachio-shell-design/pistachio-shell.svg: a desktop with two windows and the bar, and
 // the launcher badge), drawn from Theme colours so it follows Noir. First-run setup's logo.
 Item {
     id: root

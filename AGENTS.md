@@ -37,7 +37,7 @@ Pistachio Noir Shell: a Quickshell 0.3.2 (QML) desktop shell for Hyprland on a s
 **You MUST work exactly this way.** This is not a suggestion: the owner requires any agent on this repo to follow the workflow below, the same way Claude and the owner worked together. If something here conflicts with your own defaults, this wins.
 
 1. **Idea → talk first.** Propose in a few short points and ask only the owner's genuine calls. Give a recommendation, not a survey. Wait for "go". This task is already approved (section 4): don't ask again, just say your plan in a few lines and build.
-2. **Boards are the truth** (`design/*.html`). This task has no UI change: the shell must look and behave the same.
+2. **Boards are the truth** (`pistachio-shell-design/*.html`, the separate design repo at `~/Desktop/pistachio/pistachio-shell-design/` since 21 November 2026). This task has no UI change: the shell must look and behave the same.
 3. **Verify before coding:** Quickshell types against the 0.3.2 docs, CLI flags with installed `--help` (`claude --help`, `codex --help`, `codex exec --help`), crate APIs against docs.rs for the version in `Cargo.lock`. Never from memory.
 4. **Build small, test first (RED → GREEN).** Point the existing Python tests at psc (`PSC = os.environ.get("PSC") or <repo>/rust/target/release/psc`, as `tests/clocks.test.py` does), watch them fail, then implement. Move pure-Python unit cases into Rust `#[cfg(test)]` tests, as `tools.rs` did with launcher-tools' cases.
 5. **Prove parity side by side.** Run the old Python (`git show HEAD:src/services/chat.py`, into the scratch dir) and the new psc on the same inputs with the same fake CLIs, and compare the JSON events and saved chat files. In round 2 this caught a bug no test had: alarms saved double-wrapped.
@@ -84,7 +84,7 @@ The owner said "go" for the whole Python → Rust move. Rounds 1 and 2 are done.
 
 ## 5. Other open threads (don't start without asking)
 
-- **First-run welcome screen:** being designed with Claude right now (boards in `design/FirstRun/`). Don't build it unless the owner hands it to you.
+- **First-run welcome screen:** being designed with Claude right now (boards in `pistachio-shell-design/FirstRun/`). Don't build it unless the owner hands it to you.
 - Before `experimental` is merged into `main`: talk packaging (binary/AppImage) or a rebuild first.
 - Headphone toast restyle, GNOME launcher search providers, scheduled shell tasks: ideas only.
 

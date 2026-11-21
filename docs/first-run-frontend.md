@@ -1,6 +1,6 @@
 # First-run setup: view, controller and service
 
-The boards in `design/FirstRun/` define the screens. Codex built the first frontend (19 November 2026); Claude finished it and built the backend the same evening (decision "First-run setup, finished" in `docs/decisions.md`).
+The boards in `pistachio-shell-design/FirstRun/` define the screens. Codex built the first frontend (19 November 2026); Claude finished it and built the backend the same evening (decision "First-run setup, finished" in `docs/decisions.md`).
 
 ## Pieces
 

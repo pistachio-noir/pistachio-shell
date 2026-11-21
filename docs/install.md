@@ -69,4 +69,6 @@
 
 ## Updating and restarting
 
+`main` is the stable branch (a fresh clone's); `experimental` is where new work lands first. Switch with `git switch experimental` (or back with `git switch main`), then run `./install.sh` and `psc restart`, as after any pull that changes `rust/`.
+
 The shell reloads by itself when a file in `src/` changes, so pulling new code or editing it takes effect at once. To restart it fully, run `psc restart` or `psc shell restart`. Settings → Shell health offers Restart and Force restart with confirmation. Force restart immediately kills the shell and its child processes before starting it again; active timers, transfers and other ongoing shell tasks end. `psc log -f` follows the log of the running shell.

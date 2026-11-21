@@ -14,6 +14,6 @@ For each item you're given:
 2. Report: **exists / doesn't exist / not documented**, its exact type or signature, readonly or not, and the doc's own words (quoted, short).
 3. Note anything the docs say that changes how it should be used (units, when a signal fires, "Currently ignores …").
 
-Also say if CLAUDE.md's gotchas already contradict the docs for it (e.g. `expireTimeout` arrives in milliseconds though the docs say seconds; playback streams read `isSink`): check `CLAUDE.md` in the repo.
+Also say if the gotchas in AGENTS.md (and docs/gotchas.md) already contradict the docs for it (e.g. `expireTimeout` arrives in milliseconds though the docs say seconds; playback streams read `isSink`): check `AGENTS.md` and `docs/gotchas.md` in the repo.
 
 Answer as a short table, one row per item. No advice beyond what the docs say; don't guess when a page is silent, say "not documented".

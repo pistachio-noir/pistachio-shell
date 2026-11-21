@@ -60,7 +60,7 @@ var settings = [
     ["experimental", "ambient-preview", "Preview ambient clock", "Ambient clock", "preview show try"],
     ["experimental", "phone-preview", "Phone timer preview", "Phone preview", "phone pomodoro focus timer qr local network share"],
     ["experimental", "dev-features", "Dev features", "Dev features", "developer dev tests test suite run tests shell errors log rebuild psc cargo"],
-    ["appearance", "theming", "Theming integration", "Colours", "theme apps kitty neovim nvim terminal editor integration follow"],
+    ["appearance", "theming", "Theming integration", "Colours", "theme apps kitty neovim nvim vscode vs code code terminal editor integration follow"],
     ["appearance", "colours", "Colours", "Colours", "colours colors scheme noir pistachio grey gray monochrome black white theme"],
     ["appearance", "frost", "Frosted panels", "Surfaces", "solid subtle glassy opacity blur"],
     ["appearance", "shadows", "Drop shadows", "Surfaces", "depth"],

@@ -238,10 +238,10 @@ pub fn check(c: &Check, v: &Value, ctx: &Value) -> Result<Value, String> {
             Ok(json!(out))
         }
         ThemingKeep => {
-            let list = v.as_array().ok_or("expected a list of kitty / neovim")?;
+            let list = v.as_array().ok_or("expected a list of kitty / neovim / vscode")?;
             let mut out: Vec<&str> = vec![];
             for x in list {
-                let s = x.as_str().filter(|s| matches!(*s, "kitty" | "neovim")).ok_or("expected a list of kitty / neovim")?;
+                let s = x.as_str().filter(|s| matches!(*s, "kitty" | "neovim" | "vscode")).ok_or("expected a list of kitty / neovim / vscode")?;
                 if !out.contains(&s) { out.push(s); }
             }
             Ok(json!(out))

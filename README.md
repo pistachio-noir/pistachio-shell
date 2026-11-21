@@ -84,6 +84,6 @@ What you get:
 - [Installation](docs/install.md): packages, `install.sh`, updating and restarting.
 - [psc, IPC commands and Hyprland keybinds](docs/ipc-and-keybinds.md): driving the shell from a terminal or a keybind.
 - [Frosted panels](docs/frosted-panels.md), [lock screen](docs/lock-screen.md) and [login screen](docs/login-screen.md): the parts that need a line in your Hyprland config or a separate install.
-- [Theming and colours](docs/theming.md): how Kitty, Neovim, Text, FM and Notes and Hyprland's borders follow the shell's colours.
+- [Theming and colours](docs/theming.md): how Kitty, Neovim, VS Code, Text, FM and Notes and Hyprland's borders follow the shell's colours.
 - [Troubleshooting](docs/troubleshooting.md).
 - [Repository layout](docs/repository-layout.md), and for how it is built: `docs/plan.md`, `docs/decisions.md`, `docs/gotchas.md`.

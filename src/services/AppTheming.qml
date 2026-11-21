@@ -5,7 +5,7 @@ import Quickshell.Io
 import QtQuick
 
 // Theming integration (owner's call, 19 November 2026; spec docs/superpowers/specs/2026-11-19-theming-
-// integration-design.md): one switch, on by default, under which the shell sets Kitty and Neovim up
+// integration-design.md): one switch, on by default, under which the shell sets Kitty, Neovim and VS Code (21 November) up
 // itself to follow Colours. An app with its own theme is asked about first (`conflict`, shown by
 // Settings' dialog), and the answer is kept per app; switching off removes only the shell's own lines.
 // `psc theme` (rust/psc/src/theme.rs) does the work and answers {"apps": [{id, name, state, detail}]}.

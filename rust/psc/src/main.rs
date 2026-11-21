@@ -22,6 +22,7 @@ mod swatch;
 mod system;
 mod theme;
 mod tools;
+mod vsix;
 mod shell;
 
 use clap::Parser;

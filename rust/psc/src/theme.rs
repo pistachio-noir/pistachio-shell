@@ -5,6 +5,7 @@
 //!   psc theme publish SCHEME (or just SCHEME)   write the choice; switch wired apps (Kitty) live
 //!   psc theme status                            {"apps": [{id, name, state, detail}]}
 //!   psc theme setup APP | use APP | undo APP    act (setup leaves an own theme alone; use doesn't), then status
+//!   (APP: kitty, neovim or vscode)
 //!
 //! States: following (wired up), own (the app has its own theme: asked first), available (can be set
 //! up), missing (not installed), unsupported (detail says why). Owner's call, 19 November 2026: the
@@ -34,6 +35,8 @@ const NVIM_SHARED: &[u8] = include_bytes!("../../../integrations/neovim/lua/pist
 /// What the outside world is: where to look for programs, and how to ask Kitty to reload.
 pub struct Env<'a> {
     pub path: OsString,
+    /// the home folder: VS Code keeps its extensions there (~/.vscode/extensions), not in the config folder
+    pub home: PathBuf,
     pub reload: &'a dyn Fn(),
 }
 
@@ -363,6 +366,284 @@ fn nvim_undo(config: &Path, _env: &Env) -> Result<(), Fail> {
     Ok(())
 }
 
+// --- VS Code --------------------------------------------------------------------------------------
+// (owner's request, 21 November 2026) The theme is an extension, `integrations/vscode/pistachio-noir`
+// (Pistachio Noir and Noir), installed as a .vsix with the editor's own `--install-extension`: VS Code
+// lists only extensions it recorded itself, so a folder copied in by hand never showed up. Following =
+// settings.json's top-level "workbench.colorTheme" on a line of ours, marked with a comment; VS Code
+// applies a settings change at once, so a Colours switch is live. settings.json is JSONC (comments,
+// trailing commas): only that one member's text is changed, every other byte stays as written. A theme
+// of the user's own is replaced only after asking ("use"), and the marker keeps it for undo.
+
+// a block comment right after the value: a line comment would swallow whatever follows on that line
+// (a closing brace, or the next members of a one-line settings.json)
+const VS_MARK: &str = "/* pistachio-shell theming";
+const VS_ID: &str = "pistachio-shell.pistachio-noir";
+const VS_KEY: &str = "workbench.colorTheme";
+const VS_PACKAGE: &[u8] = include_bytes!("../../../integrations/vscode/pistachio-noir/package.json");
+const VS_PISTACHIO: &[u8] = include_bytes!("../../../integrations/vscode/pistachio-noir/themes/pistachio-noir.json");
+const VS_NOIR: &[u8] = include_bytes!("../../../integrations/vscode/pistachio-noir/themes/noir.json");
+const VS_FILES: &[(&str, &[u8])] = &[("package.json", VS_PACKAGE), ("themes/pistachio-noir.json", VS_PISTACHIO), ("themes/noir.json", VS_NOIR)];
+
+/// VS Code and its open builds: where each keeps its settings (under the config folder), its command,
+/// and its extensions (under home). The first one present is the one themed.
+struct Editor { config: &'static str, cli: &'static str, extensions: &'static str }
+const EDITORS: &[Editor] = &[
+    Editor { config: "Code", cli: "code", extensions: ".vscode/extensions" },
+    Editor { config: "VSCodium", cli: "codium", extensions: ".vscode-oss/extensions" },
+    Editor { config: "Code - OSS", cli: "code-oss", extensions: ".vscode-oss/extensions" },
+];
+
+fn vs_theme(scheme: &str) -> &'static str { if scheme == "noir" { "Noir" } else { "Pistachio Noir" } }
+
+fn editor(config: &Path, env: &Env) -> Option<&'static Editor> {
+    EDITORS.iter().find(|e| config.join(e.config).join("User").is_dir() || which(env, e.cli))
+}
+
+fn vs_settings(config: &Path, e: &Editor) -> PathBuf { config.join(e.config).join("User/settings.json") }
+
+/// Past whitespace and JSONC comments.
+fn skip(b: &[u8], mut i: usize) -> usize {
+    while i < b.len() {
+        if b[i].is_ascii_whitespace() {
+            i += 1;
+        } else if b[i..].starts_with(b"//") {
+            while i < b.len() && b[i] != b'\n' { i += 1; }
+        } else if b[i..].starts_with(b"/*") {
+            i = b[i + 2..].windows(2).position(|w| w == b"*/").map(|p| i + 2 + p + 2).unwrap_or(b.len());
+        } else {
+            break;
+        }
+    }
+    i
+}
+
+/// The end of the string starting at `i` (a quote), past its closing quote.
+fn string_end(b: &[u8], mut i: usize) -> Option<usize> {
+    i += 1;
+    while i < b.len() {
+        match b[i] {
+            b'\\' => i += 2,
+            b'"' => return Some(i + 1),
+            b'\n' => return None,
+            _ => i += 1,
+        }
+    }
+    None
+}
+
+/// The end of the value starting at `i`: a string, an object or array (nested), or a bare literal.
+fn value_end(b: &[u8], i: usize) -> Option<usize> {
+    match *b.get(i)? {
+        b'"' => string_end(b, i),
+        b'{' | b'[' => {
+            let (mut depth, mut j) = (0i32, i);
+            while j < b.len() {
+                let k = skip(b, j);
+                if k != j { j = k; continue; }
+                match b[j] {
+                    b'"' => { j = string_end(b, j)?; continue; }
+                    b'{' | b'[' => depth += 1,
+                    b'}' | b']' => { depth -= 1; if depth == 0 { return Some(j + 1); } }
+                    _ => {}
+                }
+                j += 1;
+            }
+            None
+        }
+        _ => Some(i + b[i..].iter().position(|c| b",}] \t\r\n/".contains(c)).unwrap_or(b.len() - i)),
+    }
+}
+
+/// A member of settings.json's top-level object: where its value is, and where its line starts.
+#[derive(Debug, Clone)]
+struct Member { line_start: usize, value: std::ops::Range<usize> }
+
+fn member(text: &str, key: &str) -> Option<Member> {
+    let b = text.as_bytes();
+    let (mut i, mut depth) = (0, 0i32);
+    while i < b.len() {
+        let k = skip(b, i);
+        if k != i { i = k; continue; }
+        match b[i] {
+            b'"' => {
+                let end = string_end(b, i)?;
+                let colon = skip(b, end);
+                if depth == 1 && b.get(colon) == Some(&b':') && serde_json::from_str::<String>(&text[i..end]).ok().as_deref() == Some(key) {
+                    let start = skip(b, colon + 1);
+                    let value = start..value_end(b, start)?;
+                    let line_start = text[..i].rfind('\n').map(|n| n + 1).unwrap_or(0);
+                    return Some(Member { line_start, value });
+                }
+                i = end;
+                continue;
+            }
+            b'{' | b'[' => depth += 1,
+            b'}' | b']' => depth -= 1,
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Our marker right after a member's value: where it ends, and the theme it replaced (`(was "…")`).
+fn marker(text: &str, m: &Member) -> Option<(usize, Option<String>)> {
+    let rest = &text[m.value.end..];
+    let gap = rest.len() - rest.trim_start_matches([' ', '\t']).len();
+    let body = rest[gap..].strip_prefix(VS_MARK)?;
+    let close = body.find("*/")?;
+    let end = m.value.end + gap + VS_MARK.len() + close + 2;
+    let was = body[..close].trim().strip_prefix("(was ").and_then(|w| serde_json::Deserializer::from_str(w).into_iter::<String>().next()?.ok());
+    Some((end, was))
+}
+
+fn marked(text: &str, m: &Member) -> Option<Option<String>> { marker(text, m).map(|(_, was)| was) }
+
+fn mark(was: Option<&str>) -> String {
+    match was { Some(w) => format!(" {VS_MARK} (was {}) */", quoted(w).replace("*/", "*\\/")), None => format!(" {VS_MARK} */") }
+}
+
+fn quoted(text: &str) -> String { serde_json::to_string(text).unwrap_or_default() }
+
+/// settings.json with our theme line: a member of ours is switched; the user's own is replaced and
+/// remembered in the marker; with none, a marked line goes first in the object.
+fn vs_with_theme(text: &str, theme: &str) -> String {
+    if let Some(m) = member(text, VS_KEY) {
+        if marker(text, &m).is_some() {
+            return format!("{}{}{}", &text[..m.value.start], quoted(theme), &text[m.value.end..]);
+        }
+        let was = serde_json::from_str::<String>(&text[m.value.clone()]).unwrap_or_else(|_| text[m.value.clone()].to_string());
+        return format!("{}{}{}{}", &text[..m.value.start], quoted(theme), mark(Some(&was)), &text[m.value.end..]);
+    }
+    let b = text.as_bytes();
+    let open = skip(b, 0);
+    if b.get(open) != Some(&b'{') {
+        return format!("{{\n    \"{VS_KEY}\": {}{}\n}}\n", quoted(theme), mark(None));
+    }
+    let first = skip(b, open + 1);
+    let more = b.get(first) != Some(&b'}');
+    // the indent of the first line inside the object, else four spaces
+    let indent = text[open + 1..].split('\n').nth(1).map(|l| l.len() - l.trim_start().len()).filter(|n| *n > 0).unwrap_or(4);
+    let line = format!("\n{}\"{VS_KEY}\": {}{}{}", " ".repeat(indent), quoted(theme), mark(None), if more { "," } else { "" });
+    format!("{}{}{}", &text[..open + 1], line, &text[open + 1..])
+}
+
+/// settings.json without our line: the user's theme back (`was`), or the line gone, newline and all.
+fn vs_without_theme(text: &str) -> Option<String> {
+    let m = member(text, VS_KEY)?;
+    let (end, was) = marker(text, &m)?;
+    Some(match was {
+        Some(was) => format!("{}{}{}", &text[..m.value.start], quoted(&was), &text[end..]),
+        None => {
+            // what setup inserted: a newline, the member, the marker and the comma after it
+            let from = if m.line_start > 0 && text.as_bytes()[m.line_start - 1] == b'\n' { m.line_start - 1 } else { m.line_start };
+            let to = if text[end..].starts_with(',') { end + 1 } else { end };
+            format!("{}{}", &text[..from], &text[to..])
+        }
+    })
+}
+
+/// The installed copy matches the theme built into psc: recorded in extensions.json at our version,
+/// with the same theme files. Not package.json: VS Code adds its own `__metadata` to it on install.
+fn vs_installed(env: &Env, e: &Editor) -> bool {
+    let version = serde_json::from_slice::<Value>(VS_PACKAGE).ok().and_then(|p| p["version"].as_str().map(String::from)).unwrap_or_default();
+    let folder = env.home.join(e.extensions);
+    let Ok(list) = std::fs::read_to_string(folder.join("extensions.json")) else { return false };
+    let Ok(Value::Array(list)) = serde_json::from_str::<Value>(&list) else { return false };
+    let Some(entry) = list.iter().find(|x| x["identifier"]["id"].as_str().is_some_and(|id| id.eq_ignore_ascii_case(VS_ID))) else { return false };
+    if entry["version"].as_str() != Some(version.as_str()) {
+        return false;
+    }
+    let place = entry["relativeLocation"].as_str().map(|r| folder.join(r)).or_else(|| entry["location"]["path"].as_str().map(PathBuf::from));
+    place.is_some_and(|p| VS_FILES.iter().filter(|(name, _)| *name != "package.json").all(|(name, data)| std::fs::read(p.join(name)).ok().as_deref() == Some(*data)))
+}
+
+fn vs_install(env: &Env, e: &Editor) -> Result<(), Fail> {
+    let cli = std::env::split_paths(&env.path).map(|d| d.join(e.cli)).find(|p| p.is_file())
+        .ok_or_else(|| Fail::Io(format!("the {} command isn't on the PATH, so the theme can't be installed", e.cli)))?;
+    let file = std::env::temp_dir().join(format!("pistachio-noir-{}-{}.vsix", std::process::id(), stamp()));
+    std::fs::write(&file, crate::vsix::package("pistachio-shell", "pistachio-noir", "1.0.0", "Pistachio Noir", VS_FILES))?;
+    let out = std::process::Command::new(&cli).arg("--install-extension").arg(&file).arg("--force").env("PATH", &env.path)
+        .stdin(std::process::Stdio::null()).output();
+    let _ = std::fs::remove_file(&file);
+    let out = out?;
+    if !out.status.success() {
+        let why = String::from_utf8_lossy(&out.stderr).lines().chain(String::from_utf8_lossy(&out.stdout).lines()).last().unwrap_or("").to_string();
+        return Err(Fail::Io(format!("{} couldn't install the theme{}", e.cli, if why.is_empty() { String::new() } else { format!(": {why}") })));
+    }
+    Ok(())
+}
+
+fn vscode_status(config: &Path, env: &Env) -> Result<(&'static str, String), Fail> {
+    let Some(e) = editor(config, env) else { return Ok(("missing", String::new())) };
+    let settings = vs_settings(config, e);
+    if settings.is_symlink() {
+        return Ok(("unsupported", format!("settings.json {LINKED}")));
+    }
+    let text = if settings.exists() { std::fs::read_to_string(&settings)? } else { String::new() };
+    if member(&text, "window.autoDetectColorScheme").is_some_and(|m| &text[m.value] == "true") {
+        return Ok(("unsupported", "it follows the system's light or dark setting (window.autoDetectColorScheme); turn that off to use this".into()));
+    }
+    Ok(match member(&text, VS_KEY) {
+        None => ("available", String::new()),
+        Some(m) if marked(&text, &m).is_some() => if vs_installed(env, e) { ("following", String::new()) } else { ("available", String::new()) },
+        // ours, picked by hand: wired up quietly (the marker keeps that choice for undo)
+        Some(m) if matches!(serde_json::from_str::<String>(&text[m.value.clone()]).ok().as_deref(), Some("Pistachio Noir" | "Noir")) => ("available", String::new()),
+        Some(_) => ("own", String::new()),
+    })
+}
+
+fn vscode_setup(config: &Path, env: &Env, scheme: &str, force: bool) -> Result<(), Fail> {
+    let state = vscode_status(config, env)?.0;
+    if matches!(state, "following" | "unsupported" | "missing") || state == "own" && !force {
+        return Ok(());
+    }
+    let Some(e) = editor(config, env) else { return Ok(()) };
+    if !vs_installed(env, e) {
+        vs_install(env, e)?;
+    }
+    let settings = vs_settings(config, e);
+    if !settings.exists() {
+        return write_atomic(&settings, vs_with_theme("", vs_theme(scheme)).as_bytes());
+    }
+    let before = std::fs::read_to_string(&settings)?;
+    let after = vs_with_theme(&before, vs_theme(scheme));
+    if after != before { rewrite(&settings, &before, &after) } else { Ok(()) }
+}
+
+fn vscode_undo(config: &Path, env: &Env) -> Result<(), Fail> {
+    let Some(e) = editor(config, env) else { return Ok(()) };
+    let settings = vs_settings(config, e);
+    let Ok(before) = std::fs::read_to_string(&settings) else { return Ok(()) };
+    match vs_without_theme(&before) {
+        Some(after) => rewrite(&settings, &before, &after),
+        None => Ok(()), // nothing of ours; the extension stays installed, harmless and pickable by hand
+    }
+}
+
+/// A Colours switch: our line, if there is one, to the matching theme. No backup each time (setup made
+/// one); refused like `rewrite` if the file changed while reading.
+fn vscode_publish(config: &Path, env: &Env, scheme: &str) -> Result<(), Fail> {
+    let Some(e) = editor(config, env) else { return Ok(()) };
+    let settings = vs_settings(config, e);
+    if settings.is_symlink() {
+        return Ok(());
+    }
+    let Ok(before) = std::fs::read_to_string(&settings) else { return Ok(()) };
+    let Some(m) = member(&before, VS_KEY).filter(|m| marked(&before, m).is_some()) else { return Ok(()) };
+    let after = format!("{}{}{}", &before[..m.value.start], quoted(vs_theme(scheme)), &before[m.value.end..]);
+    if after == before {
+        return Ok(());
+    }
+    #[cfg(test)]
+    BEFORE_WRITE.with(|hook| if let Some(f) = hook.borrow().as_ref() { f() });
+    if std::fs::read_to_string(&settings)? != before {
+        return Err(Fail::Changed);
+    }
+    write_atomic(&settings, after.as_bytes())
+}
+
 // --- the app table --------------------------------------------------------------------------------
 
 type Status = fn(&Path, &Env) -> Result<(&'static str, String), Fail>;
@@ -380,6 +661,7 @@ struct App {
 const APPS: &[App] = &[
     App { id: "kitty", name: "Kitty", status: kitty_status, setup: kitty_setup, undo: kitty_undo },
     App { id: "neovim", name: "Neovim", status: nvim_status, setup: nvim_setup, undo: nvim_undo },
+    App { id: "vscode", name: "VS Code", status: vscode_status, setup: vscode_setup, undo: vscode_undo },
 ];
 
 fn entry(app: &App, config: &Path, env: &Env) -> Value {
@@ -429,6 +711,14 @@ pub fn publish(path: &Path, scheme: &str, env: &Env) -> Result<(), String> {
             (env.reload)();
         }
     }
+    // VS Code picks a settings change up at once; a failure there doesn't undo the publication
+    if let Some(config) = path.parent().and_then(Path::parent) {
+        match vscode_publish(config, env, scheme) {
+            Ok(()) => {}
+            Err(Fail::Changed) => eprintln!("VS Code's settings changed while switching its theme; it switches next time"),
+            Err(Fail::Io(e)) => eprintln!("Could not switch VS Code's theme: {e}"),
+        }
+    }
     Ok(())
 }
 
@@ -444,7 +734,8 @@ fn reload_kitty() {
 pub fn main(args: &[String]) -> i32 {
     let config = std::env::var_os("XDG_CONFIG_HOME").filter(|c| !c.is_empty()).map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".config"));
-    let env = Env { path: std::env::var_os("PATH").unwrap_or_default(), reload: &reload_kitty };
+    let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
+    let env = Env { path: std::env::var_os("PATH").unwrap_or_default(), home, reload: &reload_kitty };
     let shared = config.join("pistachio/shared-theme");
     let fail = |e: String| { println!("{}", json!({"error": e})); 1 };
     let args: Vec<&str> = args.iter().map(String::as_str).collect();

@@ -1,0 +1,27 @@
+{
+  "name": "pistachio-noir",
+  "displayName": "Pistachio Noir",
+  "version": "1.0.0",
+  "publisher": "pistachio-shell",
+  "description": "Pistachio Noir and Noir, the Pistachio Noir shell's colours. Installed and switched by the shell (psc theme); also usable on its own.",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Pistachio Noir",
+        "uiTheme": "vs-dark",
+        "path": "./themes/pistachio-noir.json"
+      },
+      {
+        "label": "Noir",
+        "uiTheme": "vs-dark",
+        "path": "./themes/noir.json"
+      }
+    ]
+  }
+}

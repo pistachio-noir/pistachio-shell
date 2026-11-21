@@ -144,7 +144,7 @@ mod tests {
 
     #[test]
     fn children_from_stat() {
-        let root = std::env::temp_dir().join(format!("psc-proc-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("psc-stat-{}", std::process::id()));
         for (pid, stat) in [("10", "10 (qs) S 1 10"), ("11", "11 (a (b) c) S 10 10"), ("12", "12 (x) R 10 12"), ("13", "13 (y) S 11 13"), ("self", "1 (z) S 10 1")] {
             std::fs::create_dir_all(root.join(pid)).unwrap();
             std::fs::write(root.join(pid).join("stat"), stat).unwrap();

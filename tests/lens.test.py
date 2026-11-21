@@ -16,6 +16,10 @@ PSC = os.environ.get("PSC") or str(Path(__file__).resolve().parents[1] / "rust/t
 def copy_services(root, base):
     services = base / "services"
     shutil.copytree(root / "src/services", services, ignore=shutil.ignore_patterns("__pycache__"))
+    # DesktopWidgets.qml imports ../panels/desktopGrid.js (20 November 2026); without it the whole
+    # private config failed to load ("Type LensInput unavailable")
+    (base / "panels").mkdir(exist_ok=True)
+    (base / "panels/desktopGrid.js").symlink_to(root / "src/panels/desktopGrid.js")
     command = 'Quickshell.env("HOME") + "/.local/bin/psc"'
     psc = json.dumps(str(Path(PSC).resolve()))
     for name in ("Chat.qml", "Lens.qml", "ShellSettings.qml"):

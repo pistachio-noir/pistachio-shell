@@ -31,6 +31,13 @@ use std::ffi::OsString;
 fn main() {
     // like other Unix tools, end quietly when the reader goes away (`psc log --errors | head`)
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
+    // ~/.local/bin, where Claude Code's installer puts `claude` (and psc lives), is often only on an
+    // interactive shell's PATH (the owner's ~/.zshrc): the session, so the shell and psc, lacked it on
+    // Gentoo and Quick chat said Claude wasn't installed (21 November 2026). Appended, so it never
+    // shadows a system tool; everything psc starts inherits it.
+    if let Some(path) = with_local_bin(&std::env::var_os("PATH").unwrap_or_default(), std::env::var_os("HOME").as_deref()) {
+        std::env::set_var("PATH", path);
+    }
     let args: Vec<OsString> = std::env::args_os().skip(1).collect();
     // the shell's own helpers (were Python): `psc prefs|theme|system …`, hidden from --help
     match args.first().and_then(|a| a.to_str()) {
@@ -129,5 +136,33 @@ fn done(result: Result<(), String>) -> i32 {
             eprintln!("psc: {e}");
             1
         }
+    }
+}
+
+/// PATH with $HOME/.local/bin appended, or None when it's already there (or there's no HOME).
+fn with_local_bin(path: &std::ffi::OsStr, home: Option<&std::ffi::OsStr>) -> Option<OsString> {
+    let home = home.filter(|h| !h.is_empty())?;
+    let local = std::path::Path::new(home).join(".local/bin");
+    let mut dirs: Vec<std::path::PathBuf> = std::env::split_paths(path).filter(|d| !d.as_os_str().is_empty()).collect();
+    if dirs.iter().any(|d| *d == local) {
+        return None;
+    }
+    dirs.push(local);
+    std::env::join_paths(dirs).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::OsStr;
+
+    #[test]
+    fn local_bin_on_path() {
+        let home = Some(OsStr::new("/home/u"));
+        assert_eq!(with_local_bin(OsStr::new("/usr/bin:/opt/bin"), home), Some("/usr/bin:/opt/bin:/home/u/.local/bin".into()), "appended, last");
+        assert_eq!(with_local_bin(OsStr::new("/home/u/.local/bin:/usr/bin"), home), None, "already there");
+        assert_eq!(with_local_bin(OsStr::new(""), home), Some("/home/u/.local/bin".into()));
+        assert_eq!(with_local_bin(OsStr::new("/usr/bin"), None), None);
+        assert_eq!(with_local_bin(OsStr::new("/usr/bin"), Some(OsStr::new(""))), None);
     }
 }

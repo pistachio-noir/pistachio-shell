@@ -104,6 +104,7 @@ CLAUDE.md was squashed on 19 November 2026 (owner's request: too big). Add a new
 - Hyprland: special workspaces have no id (minimised windows are id -1); runtime `hl.config` is undone by a config reload: reapply on `configreloaded`; run Lua dispatchers with `hyprctl dispatch`, not `eval`; `getoption` prints `bool` for on/off options.
 - A process that ignores SIGPIPE (`pactl subscribe`) outlives the shell: start it via `setpriv --pdeathsig TERM`. `pkill -f <pattern>` kills your own shell command: use `pkill -x` or a pid.
 - A shell restarted from a terminal without `HYPRLAND_INSTANCE_SIGNATURE` knows no windows.
+- The session's PATH may lack `~/.local/bin` (it's in `~/.zshrc` only): psc appends it for itself and what it starts; don't rely on it elsewhere. A shell restarted from a terminal has the terminal's PATH.
 - gio's first D-Bus connection sets SIGPIPE to ignored: restore SIG_DFL in psc after it. No systemd on the owner's box: never call `systemctl`/`bootctl`/`journalctl` from the shell.
 - Kitty refuses a file included twice and reports it as a bad line (check `load_config(..., accumulate_bad_lines=[])`). Kitty takes no comment after an `include` on the same line; LocalSend uploads may be chunked; GNOME Clocks 51 alarms use `ring_time` and need every raw field kept; Stop/Snooze go to GNOME's `stop-alarm`/`snooze-alarm` actions.
 - Test with the app's own reader where it matters (Kitty's loader, Neovim headless, real QML through QtTest): checking a file's text alone missed the Kitty bug.

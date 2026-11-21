@@ -15,7 +15,7 @@ mocks['Media']='property var players:[];'
 mocks['ShellSettings']+='property bool desktopCat:true;property string catSkin:"cream";'
 with tempfile.TemporaryDirectory(prefix='pistachio-cat-input-') as d:
  base=Path(d);shutil.copytree(ROOT/'src/components',base/'components');(base/'panels').mkdir();(base/'services').mkdir();(base/'runtime').mkdir(mode=0o700)
- for n in ['DesktopCat.qml','DesktopIcons.qml']:shutil.copy(ROOT/'src/panels'/n,base/'panels'/n)
+ for n in ['DesktopCat.qml','DesktopIcons.qml','desktopGrid.js']:shutil.copy(ROOT/'src/panels'/n,base/'panels'/n)
  shutil.copy(ROOT/'src/Theme.qml',base/'Theme.qml')
  wallpaper=(ROOT/'src/panels/Wallpaper.qml').read_text()
  active=re.search(r'^\s+active: (.+)',wallpaper[wallpaper.index('id: desktopCat'):],re.M).group(1)

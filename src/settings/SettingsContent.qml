@@ -207,6 +207,9 @@ Column {
                 { id: "ambient-delay", kind: "choice", title: "Show after", subtitle: () => "Minutes without input. Locking (hypridle) is separate.", choices: () => [{value:2,title:"2 min"},{value:3,title:"3 min"},{value:5,title:"5 min"}], value: () => Ambient.delay, set: Ambient.setDelay },
                 action("ambient-preview", "Preview", "Shows it for 10 seconds.", "Preview", () => Ambient.preview())
             ]),
+            group("Dev features", [
+                toggle("dev-features", "Dev features", "Launcher actions for working on the shell: Dev tests, Dev tests (with windows), Shell errors and Rebuild psc. Off by default.", () => ShellSettings.devFeatures, ShellSettings.setDevFeatures)
+            ]),
             group("Phone preview", [
                 toggle("phone-preview", "Phone timer preview", "Share the active Focus or Pomodoro timer on your local network.", () => ShellSettings.phonePreview, ShellSettings.setPhonePreview)
             ]),

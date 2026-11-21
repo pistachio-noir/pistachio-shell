@@ -11,7 +11,7 @@ with tempfile.TemporaryDirectory() as tmp:
     tmp = pathlib.Path(tmp)
     log = tmp / 'log'
     qs = tmp / 'qs'
-    qs.write_text('#!/bin/sh\ncase "$1" in list) printf "Process ID: %s\\n" "$TEST_SHELL_PID";; *) printf "%s\\n" "$*" >> "$TEST_LOG";; esac\n')
+    qs.write_text('#!/bin/sh\ncase "$*" in *list) printf "Process ID: %s\\n" "$TEST_SHELL_PID";; *) printf "%s\\n" "$*" >> "$TEST_LOG";; esac\n')
     qs.chmod(0o755)
     helper = tmp / 'pistachio-auth'
     shutil.copy('/usr/bin/sleep', helper)
@@ -22,7 +22,9 @@ with tempfile.TemporaryDirectory() as tmp:
     reaper.start()
     env = dict(os.environ, PATH=str(tmp) + ':' + os.environ['PATH'], TEST_SHELL_PID=str(shell.pid), TEST_LOG=str(log))
     try:
-        result = subprocess.run([str(root / 'bin/psc'), 'force-restart'], env=env, capture_output=True, text=True, timeout=10)
+        # the Rust psc (bin/psc, the old script, is gone since 19 November 2026); PSC= for another build
+        psc = os.environ.get('PSC') or str(root / 'rust/target/release/psc')
+        result = subprocess.run([psc, 'force-restart'], env=env, capture_output=True, text=True, timeout=10)
         assert result.returncode == 0, result.stderr
         reaper.join(timeout=2)
         assert shell.returncode == -9, shell.returncode

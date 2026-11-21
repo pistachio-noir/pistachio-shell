@@ -15,7 +15,7 @@ for (const area of [
 ]) {
     const point = place(area, width, height, pillWidth, pillHeight);
     assert(point, JSON.stringify(area));
-    const pill = {...point,width:pillWidth,height:pillHeight};
+    const pill = Object.assign({}, point, {width:pillWidth,height:pillHeight}); // no object spread: Quickshell's JS engine can't parse it (tests/js.sh without node)
     assert(!overlaps(area,pill), JSON.stringify({area,pill}));
     assert(pill.x>=8 && pill.y>=8 && pill.x+pill.width<=width-8 && pill.y+pill.height<=height-8);
 }

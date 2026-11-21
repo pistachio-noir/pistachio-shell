@@ -31,7 +31,13 @@ Singleton {
         { id: "overview", name: "Overview", target: ["overview", "toggle"] },
         { id: "chat", name: "Quick chat · Ask AI", target: ["chat", "open"] },
         { id: "sound", name: "Sound settings", target: ["settings", "section", "sound"] },
-        { id: "network", name: "Network settings", target: ["settings", "section", "network"] }
+        { id: "network", name: "Network settings", target: ["settings", "section", "network"] },
+        // Experimental → Dev features (opt-in; owner, 21 November 2026): background jobs run by DevTools;
+        // `=== true`, as only available:false hides an action and the switch must default off
+        { id: "dev-tests", name: "Dev tests", available: ShellSettings.devFeatures === true, dev: "tests" },
+        { id: "dev-tests-native", name: "Dev tests (with windows)", available: ShellSettings.devFeatures === true, dev: "native" },
+        { id: "dev-errors", name: "Shell errors", available: ShellSettings.devFeatures === true, dev: "errors" },
+        { id: "dev-rebuild", name: "Rebuild psc", available: ShellSettings.devFeatures === true, dev: "rebuild" }
     ].concat([
         ["appearance","Appearance"],["display","Display & night light"],["notifications","Notifications"],
         ["bluetooth","Bluetooth"],["localsend","LocalSend"],["lens-settings","Lens"],["apps-settings","Apps & places"],
@@ -76,12 +82,13 @@ Singleton {
         }
         const action=actions.find(a => a.id===d.target);
         if (action.available===false) return null;
-        return {kind:"shellaction",key:"shellaction:"+d.target,title:action.name,subtitle:aliasFor(d) ? "Alias · "+aliasFor(d) : "Shell action",descriptor:d};
+        return {kind:"shellaction",key:"shellaction:"+d.target,title:action.name,subtitle:aliasFor(d) ? "Alias · "+aliasFor(d) : action.dev ? "Dev features · runs in Background jobs" : "Shell action",descriptor:d};
     }
     function activateAction(d) {
         const a=actions.find(a => a.id===d.target);
         if (!a || a.available===false) return;
         if (a.id === "jobs") showJobs();
+        else if (a.dev) DevTools.run(a.dev);
         else { queuedAction=a.target; actionDelay.restart(); }
     }
     Timer { id:actionDelay; interval:240; onTriggered:Quickshell.execDetached(["qs","-c","pistachio","ipc","call"].concat(root.queuedAction)) }

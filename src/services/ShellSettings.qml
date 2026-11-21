@@ -33,6 +33,9 @@ Singleton {
     function setClipboardHistory(value: bool) { Store.saved.clipboardHistory = value; }
     readonly property bool phonePreview: Store.saved.phonePreview === true
     function setPhonePreview(value: bool) { Store.saved.phonePreview = value; }
+    // opt-in only (owner, 21 November 2026); kept on this machine, not in the settings export
+    readonly property bool devFeatures: Store.saved.devFeatures === true
+    function setDevFeatures(value: bool) { Store.saved.devFeatures = value; }
     readonly property bool gameMode: Store.saved.gameMode === true
     function setGameMode(value: bool) { Store.saved.gameMode = value; }
     readonly property var gameClasses: Array.from(Store.saved.gameClasses ?? [])

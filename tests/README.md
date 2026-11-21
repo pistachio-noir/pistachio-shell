@@ -8,6 +8,10 @@ Run the isolated ones from the repo root. They use temporary homes, stand-in pro
 never touch the owner's devices, settings, chats, calendars or accounts. **The live suites in the last section
 change the real system: don't run them casually.**
 
+**All the safe ones at once:** `sh tests/run.sh` (also Launcher → Dev tests, with Experimental → Dev features on):
+one ✓/✗/· line per suite and a summary, logs in `~/.cache/pistachio-shell/dev-tests/`; `--native` adds the
+suites that open windows. It never runs the live-system suites. Tests needing PyGObject are skipped without it.
+
 ## Isolated suites (safe to run)
 
 | Run | What it checks |
@@ -52,6 +56,7 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 | `cat-interaction` | the desktop cat, reusing the `tui-launcher` fixture's stand-ins |
 | `chat`, `lens` | the Quick chat and Lens helpers against fake `claude`/`codex` programs |
 | `first-run`, `first-run-backend` | the first-run view with fixture values; its backend and controller |
+| `dev-features` | the real `DevTools` service with a stand-in LauncherTools and `notify-send`: commands, the repo through a linked config, toasts and their click |
 | `overview-wallpaper` | native Wayland pixel regression, temporary images only |
 | `launcher-preview`, `launcher-tools-ui` | launcher preview process ownership; native tools panel |
 | `recording`, `screenshots` | the recording service and overlay; the screenshot picker and crops |

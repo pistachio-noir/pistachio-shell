@@ -549,7 +549,9 @@ PanelWindow {
             toggle: () => ShellSettings.setTuiHyprland(!ShellSettings.tuiHyprland) },
             { kind: "switch", key: "desktop-widgets", title: "Desktop widgets", icon: Icons.grid, on: () => DesktopWidgets.enabled,
                 status: () => DesktopWidgets.enabled ? "On · clock, weather, CPU/RAM" : "Off", toggle: () => DesktopWidgets.setEnabled(!DesktopWidgets.enabled) },
-            { kind: "clock-command", key: "arrange-widgets", title: "Arrange desktop widgets", glyph: Icons.grid, run: () => { open = false; DesktopWidgets.arrange(); } }]);
+            { kind: "clock-command", key: "arrange-widgets", title: "Arrange desktop widgets", glyph: Icons.grid, run: () => { open = false; DesktopWidgets.arrange(); } },
+            { kind: "switch", key: "dev-features", title: "Dev features", icon: Icons.wrench, on: () => ShellSettings.devFeatures,
+                status: () => ShellSettings.devFeatures ? "On · Dev tests, Shell errors, Rebuild psc" : "Off", toggle: () => ShellSettings.setDevFeatures(!ShellSettings.devFeatures) }]);
         return card("Quick controls", q, quick).concat(card("Settings", q, [
             { kind: "settingslink", key: "settings", title: "Settings", subtitle: "Sound, Bluetooth, appearance, Lens and more", glyph: Icons.sliders }
         ]), experimental.length ? [section("Experimental"), ...experimental] : []);

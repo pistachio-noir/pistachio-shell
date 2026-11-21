@@ -34,6 +34,7 @@ Singleton {
         property bool monochromeWallpaper // optional grayscale wallpaper in Noir
         property bool clipboardHistory // clipboard history is opt-in
         property bool phonePreview // local phone timer preview is opt-in
+        property bool devFeatures // Experimental → Dev features: launcher actions for working on the shell, opt-in
         property bool gameMode // game mode is opt-in (Experimental)
         property bool desktopWidgets // desktop widgets are opt-in (Experimental)
         property bool ambientClock // the ambient clock is opt-in (Experimental)

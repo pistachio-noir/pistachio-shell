@@ -11,7 +11,7 @@ A Quickshell 0.3.2 (QML) desktop shell for Hyprland on a single-monitor desktop 
 - `docs/decisions.md`: **every decision in full** (dates, reasons, details). The list below is the short form.
 - `docs/gotchas.md`: **every gotcha in full**, with what was checked. Search it before debugging anything odd.
 - `docs/plan.md` (architecture, components), `docs/audio-bluetooth.md` (PipeWire, BlueZ, brightness, OSD), `docs/first-run-frontend.md` (the first-run setup's contract), `docs/superpowers/` (the specs and plans behind larger changes).
-- `docs/todos/TODO_DD-MM-YY.md`: the day's work, the owner's hand checks and deferred minors. Start from the newest.
+- `todos/TODO_DD-MM-YY.md` (local only: ignored by git, not in the repo since 21 November 2026): the day's work, the owner's hand checks and deferred minors. Start from the newest.
 - `tests/README.md`: what each test covers.
 - **`agent-skills/`**: skills for agents (the Agent Skills format, a `SKILL.md` per folder). **Before building or changing anything the user sees, read `agent-skills/pistachio-shell-ui/SKILL.md`**: the look, Classic and TUI, the QML patterns, recipes for settings and launcher rows, and how to check it.
 - **Design boards**, the visual source of truth: the separate repo `pistachio-shell-design`, checked out at `~/Desktop/pistachio/pistachio-shell-design/` (moved out of this repo on 21 November 2026). One HTML board per screen, `index.html` links them; `pistachio-shell-design/<board>` in comments and docs means a file there. Sibling apps (Pistachio FM, Text) live beside it under `~/Desktop/pistachio/`, each with its own instructions.
@@ -49,7 +49,7 @@ install.sh      links src/ into place, builds rust/, installs psc and the helper
 3. **Verify before coding:** Quickshell types against https://quickshell.org/docs/v0.3.2/ (never another version), CLI flags against the installed `--help`, crate APIs for the versions in `Cargo.lock`, machine facts with live read-only checks. Never from memory.
 4. **Build small, test first.** Reproduce a bug and get a failing check before the fix; write its cause into `docs/gotchas.md`.
 5. **Test for real, then clean up:** the relevant suites, the real entry point, the shell's reload and log. Remove temporary fixtures and restore any preference you changed for a check.
-6. **Write it down the same session:** the feature reference (`docs/README.LLM.md`), the short decision below, the full text in `docs/decisions.md` and `docs/gotchas.md`, and today's TODO (`docs/todos/TODO_DD-MM-YY.md`) with the owner's hand checks as unticked boxes. **Never tick a hand check the owner didn't do.**
+6. **Write it down the same session:** the feature reference (`docs/README.LLM.md`), the short decision below, the full text in `docs/decisions.md` and `docs/gotchas.md`, and today's TODO (`todos/TODO_DD-MM-YY.md`, local, ignored by git) with the owner's hand checks as unticked boxes. **Never tick a hand check the owner didn't do.**
 7. **Review before you report:** read your whole diff in a separate pass (behaviour a user would notice, process lifetimes, error paths). Fix real problems with a failing check first; list minor ones as deferred in the TODO.
 8. **Report honestly:** what changed, what was tested and how (the commands), what failed, what wasn't checked. Then the commit message as text.
 
@@ -63,7 +63,7 @@ install.sh      links src/ into place, builds rust/, installs psc and the helper
 ## Decisions (already made, do not reopen; full text in docs/decisions.md)
 
 **Platform**
-- Quickshell 0.3.2 + QML; a from-scratch C++/Rust shell is a separate later project. Before merging `experimental` into `main`, talk packaging (binary/AppImage) or a rebuild (owner, 19 Nov).
+- Quickshell 0.3.2 + QML; a from-scratch C++/Rust shell is a separate later project. Packaging (a binary or AppImage) is shelved (owner, 21 Nov: "lets ditch the packaging for now"); merging `experimental` into `main` doesn't wait for it any more. The shell installs from the repo with `install.sh`.
 - Hyprland only, through the thin `Compositor` singleton (UI never imports a compositor module). Single monitor, desktop PC: no battery/UPower, wired Ethernet, no Wi-Fi.
 - Rust helpers run all day (`pistachio-auth`, `pistachio-devices bluetooth|drives`, `pistachio-localsend`), exit when stdin closes or the shell dies. On-demand helpers are hidden `psc` commands, run by the shell as `$HOME/.local/bin/psc`: `prefs`, `theme`, `system`, `boot-entries`, `power`, `swatch`, `capture`, `mic-check`, `phone-timer`, `files`, `library`, `clocks`, `launcher-tools`, `chat`, `lens`, `events`. So Settings' health, export/import, theming, Quick chat, Lens and more need the Rust psc installed.
 - `psc` (owner's call, 19 Nov; spec `docs/superpowers/specs/2026-11-19-psc-rust-design.md`): start/stop/call the shell, `status`, `log --errors`, `ipc`, `doctor` (mirrors `docs/requirements.md`: keep them in step; `--packages`, `--install` gives install.sh the pacman or emerge lines), `completions`, `setup`. Its tests use a stand-in `qs` (`QS=`).

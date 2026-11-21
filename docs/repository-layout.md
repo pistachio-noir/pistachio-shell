@@ -11,7 +11,7 @@ pistachio-shell/
 ├─ tools/          make-emoji.py (rebuilds the launcher's emoji list) and make-sound.py (rebuilds the notification sound)
 ├─ agent-skills/   skills for coding agents (Agent Skills format): pistachio-shell-ui, how to design and build the shell's UI
 ├─ tests/          checks of the shell and its helpers; tests/README.md says what each one covers ("Running and testing it" in AGENTS.md)
-├─ docs/           README.LLM.md (the full feature reference, every feature, key and setting; the README until 21 November 2026), todos/ (the dated TODOs with the owner's hand checks), images/, this and the other pages (requirements, install, ipc-and-keybinds, frosted-panels, lock-screen, login-screen, troubleshooting, theming), plus plan.md (architecture, components, build phases), decisions.md, gotchas.md, audio-bluetooth.md, compositors.md and superpowers/ (the plans and specs behind the larger changes)
+├─ docs/           README.LLM.md (the full feature reference, every feature, key and setting; the README until 21 November 2026), images/, this and the other pages (requirements, install, ipc-and-keybinds, frosted-panels, lock-screen, login-screen, troubleshooting, theming), plus plan.md (architecture, components, build phases), decisions.md, gotchas.md, audio-bluetooth.md, compositors.md and superpowers/ (the plans and specs behind the larger changes)
 ├─ AGENTS.md       the guide for every coding agent (Codex, Claude Code…): project, workflow, decisions, rules, gotchas
 └─ CLAUDE.md       imports AGENTS.md; only Claude Code's extras (its agents and /wrap-up)
 ```

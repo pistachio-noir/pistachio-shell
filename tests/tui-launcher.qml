@@ -89,10 +89,13 @@ ShellRoot {
     check(launcher.rows[0].title==="Alias"&&launcher.rows[launcher.current].key==="alias:web","exact alias remains first and selected");
     input.keyClick(Qt.Key_Return);check(Apps.launched==="fixture0"&&!launcher.open,"alias Enter retains launch action");
    } else if(name==="hyprland") {
+    // on the Appearance card since 21 November 2026 (it left Experimental with its setting)
     launcher.show("system");field.text="experimental";input.wait(80);
-    const section=launcher.rows.findIndex(r=>r.kind==="section"&&r.title==="Experimental");
+    check(!launcher.rows.some(r=>r.key==="tui-hyprland"),"the Hyprland toggle left the Experimental card");
+    field.text="appearance";input.wait(80);
+    const section=launcher.rows.findIndex(r=>r.kind==="section"&&r.title==="Appearance");
     const row=launcher.rows[section+1];
-    check(section>=0&&row?.key==="tui-hyprland"&&!row.on(),"Experimental contains the opt-in Hyprland toggle");
+    check(section>=0&&row?.key==="tui-hyprland"&&!row.on(),"Appearance contains the opt-in Hyprland toggle");
     launcher.activate(row,0,false);check(row.on(),"launcher turns the integration on");
     launcher.activate(row,0,false);check(!row.on(),"launcher turns the integration off");
    } else if(name==="style") {

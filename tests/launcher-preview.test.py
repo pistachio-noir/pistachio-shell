@@ -43,7 +43,16 @@ class PreviewLifecycle(unittest.TestCase):
    try:
     for _ in range(3): self.send(helper,{'action':'run','command':'true'})
     time.sleep(2.5)
-    children=[c for c in pathlib.Path(f'/proc/{helper.pid}/task/{helper.pid}/children').read_text().split()]
+    # task/*/children needs CONFIG_PROC_CHILDREN (off on the owner's Gentoo kernel): else each process's parent from /proc/*/stat
+    listing=pathlib.Path(f'/proc/{helper.pid}/task/{helper.pid}/children')
+    if listing.exists(): children=listing.read_text().split()
+    else:
+     children=[]
+     for p in pathlib.Path('/proc').iterdir():
+      if not p.name.isdigit(): continue
+      try: stat=(p/'stat').read_text()
+      except OSError: continue
+      if int(stat[stat.rindex(')')+1:].split()[1])==helper.pid: children.append(p.name)
     zombies=[c for c in children if pathlib.Path(f'/proc/{c}/stat').read_text().split(') ')[1].startswith('Z')]
     self.assertEqual(zombies,[],'finished job runners are reaped')
    finally: helper.stdin.close(); helper.wait(timeout=5)

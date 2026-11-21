@@ -35,15 +35,25 @@ Singleton {
 
     Process {
         id: reader
+        // one line per fact, always: a tool that's missing or fails prints an empty line, so the rest
+        // can't shift into the wrong rows (Gentoo, 21 November 2026: no qtpaths6 where Arch has it, and
+        // the branch showed as the Qt version). Qt: qtpaths under its Arch or Gentoo name, else qmake6.
         command: ["sh", "-c", `
-            git -C "$1" log -1 --format='%h|%cs|%s'
-            git -C "$1" rev-list --count HEAD
-            git -C "$1" status --porcelain | wc -l
-            git -C "$1" remote get-url origin
-            qs --version | head -1
-            hyprctl version -j | grep -m1 '"version"'
-            qtpaths6 --qt-version 2>/dev/null || /usr/lib/qt6/bin/qtpaths6 --qt-version
-            git -C "$1" branch --show-current`, "sh", Quickshell.shellPath("")]
+            one() { out=$("$@" 2>/dev/null | head -n 1); printf '%s\\n' "$out"; }
+            qt() {
+                for q in qtpaths6 qtpaths /usr/lib/qt6/bin/qtpaths6 /usr/lib64/qt6/bin/qtpaths6 /usr/lib64/qt6/bin/qtpaths; do
+                    v=$("$q" --qt-version 2>/dev/null) && [ -n "$v" ] && { echo "$v"; return; }
+                done
+                qmake6 -query QT_VERSION
+            }
+            one git -C "$1" log -1 --format='%h|%cs|%s'
+            one git -C "$1" rev-list --count HEAD
+            one sh -c 'git -C "$1" status --porcelain | wc -l' sh "$1"
+            one git -C "$1" remote get-url origin
+            one qs --version
+            one sh -c 'hyprctl version -j | grep -m1 "\\"version\\""'
+            one qt
+            one git -C "$1" branch --show-current`, "sh", Quickshell.shellPath("")]
         stdout: StdioCollector {
             onStreamFinished: {
                 const l = text.split("\n");

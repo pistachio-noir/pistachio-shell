@@ -23,11 +23,20 @@ Pistachio Noir Shell is everything around your windows: the bar, the launcher, n
 
 It is made for one person's desk first: a single monitor, a wired connection and a keyboard that gets used a lot. If that sounds like yours, pull up a chair.
 
-<!-- Showcase: add a screenshot as docs/images/showcase.png and uncomment this block.
-<p align="center">
-  <img src="docs/images/showcase.png" alt="Pistachio Noir Shell with the bar, the launcher and quick settings open" width="900">
-</p>
--->
+<table>
+<tr>
+<td width="50%" align="center">
+  <img src="docs/images/showcase-classic.png" alt="Classic: the floating bar at the bottom with what's playing, workspaces, the clock and the status chip, desktop folders on the left and the pixel cat in headphones" width="100%">
+  <br>
+  <sub><b>Classic</b>: soft pills at the bottom, folders on the desktop, a cat with good taste in music.</sub>
+</td>
+<td width="50%" align="center">
+  <img src="docs/images/showcase-tui.png" alt="TUI: a square monospaced strip along the top with workspaces, the date and time, CPU, memory, volume, Bluetooth and notifications, and the pixel cat" width="100%">
+  <br>
+  <sub><b>TUI</b>: one square strip along the top. Same cat. Same headphones.</sub>
+</td>
+</tr>
+</table>
 
 ## Features
 

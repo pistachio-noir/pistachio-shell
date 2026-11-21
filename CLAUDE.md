@@ -1,9 +1,3 @@
----
-title: Untitled
-author: sx
-date: 2026-11-17T08:59:29Z
----
-
 # Pistachio Noir Shell
 
 @AGENTS.md

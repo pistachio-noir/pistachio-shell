@@ -1,6 +1,6 @@
 // A setting's stable id is also the destination for search and IPC navigation.
 var pages = [
-    ["appearance", "Appearance", "Panels, wallpaper and the details around them.", "Personal", "image"],
+    ["appearance", "Appearance", "Style, colours, panels, wallpaper and the desktop.", "Personal", "image"],
     ["display", "Display & night light", "Brightness, warmth and your daily schedule.", "Personal", "sun"],
     ["sound", "Sound", "Choose your devices and get the levels right.", "Personal", "volume"],
     ["notifications", "Notifications", "Decide when the desktop asks for your attention.", "Personal", "bell"],
@@ -13,7 +13,7 @@ var pages = [
     ["integrations", "Integrations", "Other apps the shell works with.", "Shell", "layers"],
     ["system", "System monitor", "A quiet look at what your desktop is doing.", "Shell", "cpu"],
     ["health", "Shell health", "Local helpers, dependencies and CLI sign-in status.", "Shell", "info"],
-    ["experimental", "Experimental", "The TUI style, and features still being tested.", "Shell", "flask"],
+    ["experimental", "Experimental", "Features still being tested: game mode, ambient clock, dev features.", "Shell", "flask"],
     ["about", "About", "Made for your desktop.", "Shell", "info"]
 ];
 var settings = [
@@ -43,9 +43,9 @@ var settings = [
     ["sound","mic-check","Microphone check","Devices","test sample record meter playback"],
     ["sound","player","Media player","Devices","mpris auto selection"],
     ["network","ipv4","IP addresses","Connection details","ipv4 ipv6 gateway dns ethernet copy"],
-    ["experimental", "style", "Style", "Style", "classic tui appearance terminal look"],
-    ["experimental", "tui-hyprland", "Hyprland integration", "Style", "tui compositor square window corners borders rounding"],
-    ["experimental", "cat-skin", "Cat skin", "Desktop cat", "cat coat pet pixel cream ginger midnight"],
+    ["appearance", "style", "Style", "Style", "classic tui appearance terminal look"],
+    ["appearance", "tui-hyprland", "Hyprland integration", "Style", "tui compositor square window corners borders rounding"],
+    ["appearance", "cat-skin", "Cat coat", "Desktop", "cat coat skin pet pixel cream ginger midnight"],
     ["health", "restart-shell", "Restart shell", "Restart", "restart reload"],
     ["health", "force-restart-shell", "Force restart shell", "Restart", "restart force kill helpers"],
     ["appearance", "monochrome-wallpaper", "Monochrome wallpaper", "Desktop", "wallpaper monochrome grayscale greyscale noir background"],
@@ -53,12 +53,12 @@ var settings = [
     ["experimental", "game-mode", "Game mode", "Game mode", "game gaming fullscreen steam animations blur quiet"],
     ["experimental", "game-classes", "Extra game windows", "Game mode", "game window class steam"],
     ["appearance", "desktop-cat", "Desktop cat", "Desktop", "cat pet pixel desktop"],
-    ["experimental", "desktop-widgets", "Desktop widgets", "Desktop widgets", "widgets clock weather cpu ram memory desktop arrange studio"],
-    ["experimental", "arrange-widgets", "Arrange widgets", "Desktop widgets", "arrange widgets move layout grid studio desktop"],
+    ["appearance", "desktop-widgets", "Desktop widgets", "Desktop widgets", "widgets clock weather cpu ram memory desktop arrange studio"],
+    ["appearance", "arrange-widgets", "Arrange widgets", "Desktop widgets", "arrange widgets move layout grid studio desktop"],
     ["experimental", "ambient-clock", "Ambient clock", "Ambient clock", "ambient idle clock screensaver big clock now playing"],
     ["experimental", "ambient-delay", "Ambient clock delay", "Ambient clock", "idle minutes delay wait"],
     ["experimental", "ambient-preview", "Preview ambient clock", "Ambient clock", "preview show try"],
-    ["experimental", "phone-preview", "Phone timer preview", "Phone preview", "phone pomodoro focus timer qr local network share"],
+    ["focus", "phone-preview", "Phone timer preview", "Phone preview", "phone pomodoro focus timer qr local network share"],
     ["experimental", "dev-features", "Dev features", "Dev features", "developer dev tests test suite run tests shell errors log rebuild psc cargo"],
     ["appearance", "theming", "Theming integration", "Colours", "theme apps kitty neovim nvim vscode vs code code terminal editor integration follow"],
     ["appearance", "colours", "Colours", "Colours", "colours colors scheme noir pistachio grey gray monochrome black white theme"],

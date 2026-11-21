@@ -187,20 +187,12 @@ Column {
     function read(id, title, value, subtitle) { return { id: id, title: title, value: typeof value === "function" ? value : () => value, subtitle: typeof subtitle === "function" ? subtitle : () => subtitle || "" }; }
     function time(id, title, get, set) { return { id: id, kind: "time", title: title, value: get, set: set }; }
     function buildGroups(page = root.page) {
-        // Experimental (owner's call, 15 November 2026; sorted 19 November): the TUI style and features still
-        // being tested; Colours, wallpaper/cat, clipboard and restart live on their own pages
+        // Experimental (owner's call, 15 November 2026; sorted 19 November; 21 November: Style, cat coats and
+        // desktop widgets moved to Appearance, the phone preview to Focus): features still being tested
         if (page === "experimental") return [
-            group("Style", [
-                { id: "style", kind: "choice", title: "Style", subtitle: () => "Applied live across the shell.", choices: () => [{value:"classic",title:"Classic"},{value:"tui",title:"TUI"}], value: () => ShellSettings.appearanceStyle, set: ShellSettings.setAppearanceStyle },
-                toggle("tui-hyprland", "Hyprland integration", "Square window corners while TUI is active.", () => ShellSettings.tuiHyprland, ShellSettings.setTuiHyprland)
-            ]),
             group("Game mode", [
                 impact(toggle("game-mode", "Game mode", "While a fullscreen game is focused: quiet notifications, no animations or blur.", () => ShellSettings.gameMode, ShellSettings.setGameMode), "saves"),
                 action("game-classes", "Extra game windows", () => ShellSettings.gameClasses.length ? ShellSettings.gameClasses.join(", ") : "Steam, Sober and gamescope only", "Change", () => SettingsHub.beginEdit("games"))
-            ]),
-            group("Desktop widgets", [
-                impact(toggle("desktop-widgets", "Desktop widgets", "Clock, weather, CPU/RAM and more on empty desktops. CPU/RAM and Disk & GPU read every 1.5 s while shown.", () => DesktopWidgets.enabled, DesktopWidgets.setEnabled), "medium"),
-                action("arrange-widgets", "Arrange widgets", "Place them on the desktop's grid; changes save as you go.", "Arrange…", () => DesktopWidgets.arrange())
             ]),
             group("Ambient clock", [
                 impact(toggle("ambient-clock", "Ambient clock", "After a few idle minutes on a workspace with no windows: a big clock, what's playing and a running timer. Any key or movement brings the desktop back.", () => Ambient.enabled, Ambient.setEnabled), "low"),
@@ -209,16 +201,13 @@ Column {
             ]),
             group("Dev features", [
                 toggle("dev-features", "Dev features", "Launcher actions for working on the shell: Dev tests, Dev tests (with windows), Shell errors and Rebuild psc. Off by default.", () => ShellSettings.devFeatures, ShellSettings.setDevFeatures)
-            ]),
-            group("Phone preview", [
-                toggle("phone-preview", "Phone timer preview", "Share the active Focus or Pomodoro timer on your local network.", () => ShellSettings.phonePreview, ShellSettings.setPhonePreview)
-            ]),
-            group("Desktop cat", [
-                { id: "cat-skin", kind: "choice", title: "Cat skin", subtitle: () => "Choose a coat for the desktop cat.",
-                    choices: () => Theme.catSkins, value: () => ShellSettings.catSkin, set: ShellSettings.setCatSkin }
             ])
         ];
         if (page === "appearance") return [
+            group("Style", [
+                { id: "style", kind: "choice", title: "Style", subtitle: () => "Applied live across the shell.", choices: () => [{value:"classic",title:"Classic"},{value:"tui",title:"TUI"}], value: () => ShellSettings.appearanceStyle, set: ShellSettings.setAppearanceStyle },
+                toggle("tui-hyprland", "Hyprland integration", "Square window corners while TUI is active.", () => ShellSettings.tuiHyprland, ShellSettings.setTuiHyprland)
+            ]),
             group("Colours", [
                 { id: "colours", kind: "choice", title: "Colours", subtitle: () => "Pistachio Noir, or Noir in greys with one red for errors.", choices: () => [{value:"pistachio",title:"Pistachio Noir"},{value:"noir",title:"Noir"}], value: () => ShellSettings.colourScheme, set: ShellSettings.setColourScheme },
                 toggle("theming", "Theming integration", "Kitty, Neovim and VS Code follow Colours. An app with its own theme is asked about first.", () => AppTheming.enabled, AppTheming.setEnabled),
@@ -234,7 +223,14 @@ Column {
                 action("wallpaper", "Wallpaper", "Your images, with a fit kept for each one.", "Choose wallpaper", () => SettingsHub.wallpapersRequested()),
                 ...(Theme.tui ? [] : [impact(toggle("desktop", "Desktop icons", "Show files and folders from your Desktop.", () => Desktop.enabled, Desktop.setEnabled), "low")]),
                 impact(toggle("monochrome-wallpaper", "Monochrome wallpaper", "Desaturate the wallpaper in Noir. Original image stays unchanged.", () => ShellSettings.monochromeWallpaper, ShellSettings.setMonochromeWallpaper), "low"),
-                impact(toggle("desktop-cat", "Desktop cat", "Meoww", () => ShellSettings.desktopCat, ShellSettings.setDesktopCat), "low")
+                impact(toggle("desktop-cat", "Desktop cat", "Meoww", () => ShellSettings.desktopCat, ShellSettings.setDesktopCat), "low"),
+                // the coat only while the cat is on (owner, 21 November 2026)
+                ...(ShellSettings.desktopCat ? [{ id: "cat-skin", kind: "choice", title: "Cat coat", subtitle: () => "Cream, Ginger or Midnight.",
+                    choices: () => Theme.catSkins, value: () => ShellSettings.catSkin, set: ShellSettings.setCatSkin }] : [])
+            ]),
+            group("Desktop widgets", [
+                impact(toggle("desktop-widgets", "Desktop widgets", "Clock, weather, CPU/RAM and more on empty desktops. CPU/RAM and Disk & GPU read every 1.5 s while shown.", () => DesktopWidgets.enabled, DesktopWidgets.setEnabled), "medium"),
+                action("arrange-widgets", "Arrange widgets", "Place them on the desktop's grid; changes save as you go.", "Arrange…", () => DesktopWidgets.arrange())
             ]),
             group("At a glance", [toggle("workspace", "Workspace OSD", "On workspace changes.", () => ShellSettings.workspaceOsd, ShellSettings.setWorkspaceOsd), toggle("tabbed", "Tabbed OSD", "When tabs switch.", () => ShellSettings.tabbedOsd, ShellSettings.setTabbedOsd)])
         ];
@@ -282,6 +278,9 @@ Column {
                     choose("pomodoroBreak", "Break", "After each round.", [3, 5, 10, 15], " min"),
                     choose("pomodoroLongBreak", "Long break", "After the last round.", [10, 15, 20, 30], " min"),
                     choose("pomodoroRounds", "Rounds", "Work rounds before the long break.", [2, 3, 4, 5, 6], "")
+                ]),
+                group("Phone preview", [
+                    toggle("phone-preview", "Phone timer preview", "Share the active Focus or Pomodoro timer on your local network.", () => ShellSettings.phonePreview, ShellSettings.setPhonePreview)
                 ]),
                 group("Allowed during Focus", apps.length ? apps.map(a => toggle("allow:" + a, a, "Its toasts still show during Focus (not in Zen).", () => FocusMode.allowed.includes(a), on => FocusMode.setAllowed(a, on)))
                     : [read("allowed", "No apps yet", "", "Apps appear here once they have sent a notification.")])

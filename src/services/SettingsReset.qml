@@ -8,8 +8,10 @@ Singleton {
     id: root
     property string reviewing
     readonly property var defaults: ({
-        experimental: {appearanceStyle:"classic",tuiHyprland:false,tuiTrayOpen:false,phonePreview:false,devFeatures:false,gameMode:false,desktopWidgets:false,ambientClock:false,ambientDelay:3,gameClasses:[],catSkin:"cream"},
-        appearance: {themingIntegration:true,themingKeep:[],colourScheme:"pistachio",monochromeWallpaper:false,desktopCat:false,frosted:false,frostStyle:"subtle",shadows:true,desktopIcons:true,workspaceOsd:true,tabbedOsd:true},
+        // Style, the cat coat and desktop widgets moved to Appearance (21 November 2026); the phone preview went
+        // to Focus, which has no reset (owner's call)
+        experimental: {devFeatures:false,gameMode:false,ambientClock:false,ambientDelay:3,gameClasses:[]},
+        appearance: {appearanceStyle:"classic",tuiHyprland:false,tuiTrayOpen:false,catSkin:"cream",desktopWidgets:false,themingIntegration:true,themingKeep:[],colourScheme:"pistachio",monochromeWallpaper:false,desktopCat:false,frosted:false,frostStyle:"subtle",shadows:true,desktopIcons:true,workspaceOsd:true,tabbedOsd:true},
         display: {nightSchedule:false,nightFrom:1200,nightTo:420},
         sound: {headphonesTakeOver:true,volumeTick:true},
         notifications: {dnd:false,dndSchedule:false,dndFollowsNight:false,dndFrom:1320,dndTo:420,quietFullscreen:true,quietCalls:true,notificationSound:true,notificationRules:{}},

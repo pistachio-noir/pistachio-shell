@@ -544,17 +544,18 @@ PanelWindow {
             { kind: "switch", key: "zen", title: "Zen mode", icon: Icons.moon, on: () => FocusMode.zen, status: () => FocusMode.zen ? (FocusMode.session?.owner === "zen" ? `${FocusMode.phaseName()} · ${FocusMode.clock(FocusMode.left())}` : "Bar hidden · toasts wait") : Store.saved.zenPomodoro ? "Off · with a Pomodoro" : "Off", toggle: () => FocusMode.toggleZen() },
             { kind: "switch", key: "pomodoro", title: "Pomodoro", icon: Icons.clock, on: () => FocusMode.pomodoring, status: () => FocusMode.pomodoring ? `${FocusMode.phaseName()} · ${FocusMode.clock(FocusMode.left())} left` : `Off · ${Store.saved.pomodoroWork}/${Store.saved.pomodoroBreak} min`, toggle: () => FocusMode.togglePomodoro() },
             { kind: "switch", key: "focus", title: "Focus session", icon: Icons.lightbulb, on: () => FocusMode.focusing, status: () => FocusMode.focusing ? `${FocusMode.phaseName()} · ${FocusMode.clock(FocusMode.left())} left` : Store.saved.focusPomodoro ? `Off · Pomodoro ${Store.saved.pomodoroWork}/${Store.saved.pomodoroBreak} min` : `Off · ${Store.saved.focusMinutes} min`, toggle: () => FocusMode.toggleFocus() });
-        const experimental = card("Experimental", q, [{ kind: "switch", key: "tui-hyprland", title: "Hyprland integration",
+        // Hyprland integration and desktop widgets left Experimental with their settings (21 November 2026)
+        const appearance = card("Appearance", q, [{ kind: "switch", key: "tui-hyprland", title: "Hyprland integration",
             icon: Icons.sliders, on: () => ShellSettings.tuiHyprland, status: () => ShellSettings.tuiHyprland ? "On · square corners in TUI" : "Off · square corners in TUI",
             toggle: () => ShellSettings.setTuiHyprland(!ShellSettings.tuiHyprland) },
             { kind: "switch", key: "desktop-widgets", title: "Desktop widgets", icon: Icons.grid, on: () => DesktopWidgets.enabled,
                 status: () => DesktopWidgets.enabled ? "On · clock, weather, CPU/RAM" : "Off", toggle: () => DesktopWidgets.setEnabled(!DesktopWidgets.enabled) },
-            { kind: "clock-command", key: "arrange-widgets", title: "Arrange desktop widgets", glyph: Icons.grid, run: () => { open = false; DesktopWidgets.arrange(); } },
-            { kind: "switch", key: "dev-features", title: "Dev features", icon: Icons.wrench, on: () => ShellSettings.devFeatures,
+            { kind: "clock-command", key: "arrange-widgets", title: "Arrange desktop widgets", glyph: Icons.grid, run: () => { open = false; DesktopWidgets.arrange(); } }]);
+        const experimental = card("Experimental", q, [{ kind: "switch", key: "dev-features", title: "Dev features", icon: Icons.wrench, on: () => ShellSettings.devFeatures,
                 status: () => ShellSettings.devFeatures ? "On · Dev tests, Shell errors, Rebuild psc" : "Off", toggle: () => ShellSettings.setDevFeatures(!ShellSettings.devFeatures) }]);
         return card("Quick controls", q, quick).concat(card("Settings", q, [
             { kind: "settingslink", key: "settings", title: "Settings", subtitle: "Sound, Bluetooth, appearance, Lens and more", glyph: Icons.sliders }
-        ]), experimental.length ? [section("Experimental"), ...experimental] : []);
+        ]), appearance.length ? [section("Appearance"), ...appearance] : [], experimental.length ? [section("Experimental"), ...experimental] : []);
     }
 
     function bluetoothRows(q: string): var {

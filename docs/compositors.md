@@ -62,7 +62,7 @@ clear", "Hyprland hands the keyboard back to the tab"). Another compositor may b
 ## 4. Settings, state and text (no behaviour; rename or gate)
 
 - `tuiHyprland` (the "Hyprland integration" switch): `ShellSettings`, `Store`, `SettingsReset`, `prefs.rs`,
-  `settings/catalog.js`, `SettingsContent`, `Launcher` (System → Experimental)
+  `settings/catalog.js`, `SettingsContent`, `Launcher` (System → Appearance)
 - `Store.saved.zenGaps`, `gameLayoutSaved`, `workspacePresets`: Hyprland values saved to put back
 - Settings labels: System page "Hyprland", About page versions, `SettingsDialog` hint ("Find one with `hyprctl activewindow`")
 - Text only: `WizardWelcome`, `Showoff` ("a shell for hyprland"), the quick chat's system prompt in `chat.rs`,

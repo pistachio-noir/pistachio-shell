@@ -19,8 +19,9 @@ ShellRoot {
     }
     function need(name) { const item=find(win.contentItem,name) || find(win.dialog.contentItem,name); if(!item) throw new Error("Missing "+name); return item; }
     function hasText(item, value) { if (item.visible && item.text === value) return true; for (const child of item.children) if (hasText(child,value)) return true; return false; }
-    function check(ok, why) { if(!ok) throw new Error(why); }
-    function click(item) { try { input.mouseClick(item,item.width/2,item.height/2); } catch(e) { throw new Error("Click failed: "+item.objectName+" "+e.message); } input.wait(30); }
+    property string lastPassed // named in a failed click: where the test got to
+    function check(ok, why) { if(!ok) throw new Error(why); lastPassed=why; }
+    function click(item) { try { input.mouseClick(item,item.width/2,item.height/2); } catch(e) { throw new Error("Click failed: "+item.objectName+" "+e.message+" (after: "+lastPassed+")"); } input.wait(30); }
     function scrollInto(item) {
         let scroll=item.parent;
         while(scroll && scroll.contentY===undefined) scroll=scroll.parent;
@@ -128,7 +129,7 @@ ShellRoot {
         check(Math.abs(previousTab.background.scale-0.96)<0.001,"tab selection animation finishes");
         page("appearance");
         const before=ShellSettings.shadows;
-        click(need("toggle-shadows"));
+        scrollInto(need("toggle-shadows"));click(need("toggle-shadows")); // below the Style group since 21 November
         check(ShellSettings.shadows!==before,"switch applies immediately");
         page("lens");
         const model=need("choice-lensClaudeModel");
@@ -198,18 +199,23 @@ ShellRoot {
         win.dialog.cancel();input.wait(60);check(AppTheming.kept.includes("neovim") && !win.dialog.visible,"Keep mine keeps the app's theme");
         AppTheming.conflict=AppTheming.apps[0];input.wait(60);check(win.dialog.visible && hasText(win.dialog.contentItem,"Kitty has its own theme"),"the next conflict shows after the first");
         win.dialog.submit();input.wait(60);check(AppTheming.used==="kitty" && !win.dialog.visible,"Use Pistachio in the dialog sets it up");
-        const placed={appearance:["setting-colours","setting-monochrome-wallpaper","setting-desktop-cat"],apps:["setting-clipboard-history"],health:["setting-restart-shell","setting-force-restart-shell"],experimental:["setting-style","setting-tui-hyprland","setting-game-mode","setting-game-classes","setting-phone-preview","setting-dev-features","setting-cat-skin"]};
+        const placed={appearance:["setting-style","setting-tui-hyprland","setting-colours","setting-monochrome-wallpaper","setting-desktop-cat","setting-desktop-widgets","setting-arrange-widgets"],focus:["setting-phone-preview"],apps:["setting-clipboard-history"],health:["setting-restart-shell","setting-force-restart-shell"],experimental:["setting-game-mode","setting-game-classes","setting-ambient-clock","setting-dev-features"]};
         for (const where of Object.keys(placed)) { page(where);input.wait(60); for (const id of placed[where]) check(!!find(win.contentItem,id),id+" is on "+where); }
-        page("appearance");const catToggle=need("toggle-desktop-cat");scrollInto(catToggle);click(catToggle);check(ShellSettings.desktopCat,"cat switch enables preference");click(catToggle);check(!ShellSettings.desktopCat,"cat switch disables preference");
-        page("experimental");input.wait(60);for (const id of ["setting-colours","setting-monochrome-wallpaper","setting-desktop-cat","setting-clipboard-history","setting-restart-shell"]) check(!find(win.contentItem,id),id+" left Experimental");
+        page("appearance");const catToggle=need("toggle-desktop-cat");scrollInto(catToggle);click(catToggle);check(ShellSettings.desktopCat,"cat switch enables preference");input.wait(60);const catAgain=need("toggle-desktop-cat");scrollInto(catAgain);click(catAgain);check(!ShellSettings.desktopCat,"cat switch disables preference"); // the coat row comes and goes, so the list is rebuilt: find the switch again
+        page("experimental");input.wait(60);for (const id of ["setting-colours","setting-monochrome-wallpaper","setting-desktop-cat","setting-clipboard-history","setting-restart-shell","setting-style","setting-tui-hyprland","setting-cat-skin","setting-desktop-widgets","setting-phone-preview"]) check(!find(win.contentItem,id),id+" left Experimental");
+        // the coat shows only while the cat is on (owner, 21 November 2026)
+        page("appearance");input.wait(60);check(!ShellSettings.desktopCat && !find(win.contentItem,"setting-cat-skin"),"no coat choice while the cat is off");
+        ShellSettings.setDesktopCat(true);input.wait(60);check(!!find(win.contentItem,"setting-cat-skin"),"the coat choice shows with the cat");
         const roundingToggle=need("toggle-tui-hyprland");scrollInto(roundingToggle);
         click(roundingToggle);check(ShellSettings.tuiHyprland, "Settings turns Hyprland integration on");
         const catSkin=need("choice-cat-skin");scrollInto(catSkin);click(catSkin);
         input.keyClick(Qt.Key_Down);input.keyClick(Qt.Key_Return);input.wait(30);
         check(ShellSettings.catSkin==="ginger","cat coat picker applies Ginger");
         SettingsReset.review("experimental");SettingsReset.apply("experimental");
-        check(!ShellSettings.tuiHyprland, "Experimental reset turns the integration off");
-        check(ShellSettings.catSkin==="cream","Experimental reset restores the original coat");
+        check(ShellSettings.tuiHyprland && ShellSettings.catSkin==="ginger","Experimental reset leaves what moved to Appearance");
+        SettingsReset.review("appearance");SettingsReset.apply("appearance");
+        check(!ShellSettings.tuiHyprland, "Appearance reset turns the integration off");
+        check(ShellSettings.catSkin==="cream" && !ShellSettings.desktopCat,"Appearance reset restores the original coat, and the cat goes");
         page("experimental");scrollInto(need("toggle-game-mode"));click(need("toggle-game-mode"));input.wait(20);check(ShellSettings.gameMode,"game mode switch turns on");
         click(need("action-game-classes"));input.wait(50);check(SettingsHub.editKey==="games","extra game windows edit opens");
         need("settings-edit-field").text="Minecraft, foo";input.keyClick(Qt.Key_Return);input.wait(20);
@@ -324,10 +330,11 @@ ShellRoot {
         const wasTick=ShellSettings.volumeTick;click(need("toggle-tick"));
         check(ShellSettings.volumeTick!==wasTick, "TUI search control applies real preference");
         tuiSearch.text="";
-        page("health");for (const mode of ["restart", "force-restart"]) { const button=need("action-"+mode+"-shell"); scrollInto(button); click(button); check(win.dialog.visible && SettingsHub.restartMode===mode,"restart asks for confirmation"); win.dialog.cancel(); check(SettingsHub.restartMode==="","restart cancellation"); } page("experimental");input.wait(60);const phoneToggle=need("toggle-phone-preview");scrollInto(phoneToggle);click(phoneToggle);check(ShellSettings.phonePreview,"phone preview switch enables preference");click(phoneToggle);check(!ShellSettings.phonePreview,"phone preview switch disables preference");const devToggle=need("toggle-dev-features");scrollInto(devToggle);click(devToggle);check(ShellSettings.devFeatures,"dev features switch enables preference");click(devToggle);check(!ShellSettings.devFeatures,"dev features switch disables preference");page("apps");input.wait(60);const clipToggle=need("toggle-clipboard-history");scrollInto(clipToggle);click(clipToggle);check(ShellSettings.clipboardHistory,"clipboard history switch enables preference");click(clipToggle);check(!ShellSettings.clipboardHistory,"clipboard history switch disables preference");page("appearance");input.wait(60);const monoToggle=need("toggle-monochrome-wallpaper");scrollInto(monoToggle);click(monoToggle);check(ShellSettings.monochromeWallpaper,"wallpaper switch enables preference");click(monoToggle);check(!ShellSettings.monochromeWallpaper,"wallpaper switch disables preference");page("experimental");input.wait(60);const styleChoice=need("choice-style");scrollInto(styleChoice);click(styleChoice);
+        page("health");for (const mode of ["restart", "force-restart"]) { const button=need("action-"+mode+"-shell"); scrollInto(button); click(button); check(win.dialog.visible && SettingsHub.restartMode===mode,"restart asks for confirmation"); win.dialog.cancel(); check(SettingsHub.restartMode==="","restart cancellation"); } page("focus");input.wait(60);const phoneToggle=need("toggle-phone-preview");scrollInto(phoneToggle);click(phoneToggle);check(ShellSettings.phonePreview,"phone preview switch enables preference");click(phoneToggle);check(!ShellSettings.phonePreview,"phone preview switch disables preference");page("experimental");input.wait(60);const devToggle=need("toggle-dev-features");scrollInto(devToggle);click(devToggle);check(ShellSettings.devFeatures,"dev features switch enables preference");click(devToggle);check(!ShellSettings.devFeatures,"dev features switch disables preference");page("apps");input.wait(60);const clipToggle=need("toggle-clipboard-history");scrollInto(clipToggle);click(clipToggle);check(ShellSettings.clipboardHistory,"clipboard history switch enables preference");click(clipToggle);check(!ShellSettings.clipboardHistory,"clipboard history switch disables preference");page("appearance");input.wait(60);const monoToggle=need("toggle-monochrome-wallpaper");scrollInto(monoToggle);click(monoToggle);check(ShellSettings.monochromeWallpaper,"wallpaper switch enables preference");click(monoToggle);check(!ShellSettings.monochromeWallpaper,"wallpaper switch disables preference");page("appearance");input.wait(60);const styleChoice=need("choice-style");scrollInto(styleChoice);click(styleChoice);
         input.keyClick(Qt.Key_Up);input.keyClick(Qt.Key_Return);input.wait(150);
         check(!Theme.tui && ShellSettings.appearanceStyle==="classic", "Appearance selector switches to Classic live");
-        click(styleChoice);input.keyClick(Qt.Key_Down);input.keyClick(Qt.Key_Return);input.wait(150);
+        // on Appearance, Classic brings Desktop icons back and the list is rebuilt: find the choice again
+        input.wait(60);const styleAgain=need("choice-style");scrollInto(styleAgain);click(styleAgain);input.keyClick(Qt.Key_Down);input.keyClick(Qt.Key_Return);input.wait(150);
         check(Theme.tui && ShellSettings.appearanceStyle==="tui", "Appearance selector switches to TUI live");
         ShellSettings.setAppearanceStyle("classic");input.wait(180);
         win.implicitWidth=1040;win.implicitHeight=760;input.wait(Quickshell.env("PISTACHIO_SETTINGS_NATIVE")==="1"?300:30);

@@ -46,23 +46,22 @@ const fn presets() -> Check { Presets }
 /// (section, toml key, store key, check). tests/prefs.test.py reads the store keys from these lines
 /// and checks they match Preferences.qml's titles: keep one row per line in this shape.
 pub const SCHEMA: &[(&str, &str, &str, Check)] = &[
+    ("appearance", "style", "appearanceStyle", choice(&["classic", "tui"])),
+    ("appearance", "tui_hyprland", "tuiHyprland", bool_()),
+    ("appearance", "cat_skin", "catSkin", choice(&["cream", "ginger", "midnight"])),
+    ("appearance", "desktop_widgets", "desktopWidgets", bool_()),
     ("appearance", "frosted", "frosted", bool_()),
     ("appearance", "frost_style", "frostStyle", choice(&["subtle", "glassy"])),
     ("appearance", "shadows", "shadows", bool_()),
     ("appearance", "desktop_icons", "desktopIcons", bool_()),
     ("appearance", "workspace_osd", "workspaceOsd", bool_()),
     ("appearance", "tabbed_osd", "tabbedOsd", bool_()),
-    ("experimental", "style", "appearanceStyle", choice(&["classic", "tui"])),
-    ("experimental", "tui_hyprland", "tuiHyprland", bool_()),
     ("experimental", "colours", "colourScheme", choice(&["pistachio", "noir"])),
     ("experimental", "tui_tray_open", "tuiTrayOpen", bool_()),
-    ("experimental", "phone_preview", "phonePreview", bool_()),
     ("experimental", "desktop_cat", "desktopCat", bool_()),
-    ("experimental", "cat_skin", "catSkin", choice(&["cream", "ginger", "midnight"])),
     ("experimental", "clipboard_history", "clipboardHistory", bool_()),
     ("experimental", "monochrome_wallpaper", "monochromeWallpaper", bool_()),
     ("experimental", "game_mode", "gameMode", bool_()),
-    ("experimental", "desktop_widgets", "desktopWidgets", bool_()),
     ("experimental", "ambient_clock", "ambientClock", bool_()),
     ("experimental", "ambient_delay", "ambientDelay", choice_int(&[2, 3, 5])),
     ("appearance", "theming_integration", "themingIntegration", bool_()),
@@ -85,6 +84,7 @@ pub const SCHEMA: &[(&str, &str, &str, Check)] = &[
     ("notifications", "sound", "notificationSound", bool_()),
     ("notifications", "rules", "notificationRules", rules()),
     ("focus", "zen_pomodoro", "zenPomodoro", bool_()),
+    ("focus", "phone_preview", "phonePreview", bool_()),
     ("focus", "focus_pomodoro", "focusPomodoro", bool_()),
     ("focus", "focus_minutes", "focusMinutes", choice_int(&[15, 25, 30, 45, 50, 60, 90, 120])),
     ("focus", "zen_during_focus", "focusZen", bool_()),
@@ -120,6 +120,16 @@ pub const SCHEMA: &[(&str, &str, &str, Check)] = &[
     ("launcher", "pins", "launcherPins", pins()),
     ("launcher", "aliases", "launcherAliases", aliases()),
     ("launcher", "presets", "workspacePresets", presets()),
+];
+
+/// Settings that moved out of Settings → Experimental (owner, 21 November 2026) moved in the file too;
+/// an older export still has them in their old section: (old section, toml key, section now).
+const MOVED: &[(&str, &str, &str)] = &[
+    ("experimental", "style", "appearance"),
+    ("experimental", "tui_hyprland", "appearance"),
+    ("experimental", "cat_skin", "appearance"),
+    ("experimental", "desktop_widgets", "appearance"),
+    ("experimental", "phone_preview", "focus"),
 ];
 
 const SECTIONS: &[(&str, &str)] = &[
@@ -459,11 +469,16 @@ pub fn read(text: &str, ctx: &Value) -> Result<(Map<String, Value>, Vec<Value>),
     let data = data.as_object().unwrap();
     let mut values = Map::new();
     let mut skipped = vec![];
+    let at = |section: &str, tk: &str| data.get(section).and_then(Value::as_object).and_then(|t| t.get(tk)).cloned();
     for (section, tk, sk, c) in SCHEMA {
-        if let Some(v) = data.get(*section).and_then(Value::as_object).and_then(|t| t.get(*tk)) {
-            match check(c, v, ctx) {
+        // where it is now, else where an older export kept it
+        let found = at(section, tk).map(|v| (section.to_string(), v)).or_else(|| {
+            MOVED.iter().find(|m| m.1 == *tk && m.2 == *section).and_then(|m| at(m.0, tk).map(|v| (m.0.to_string(), v)))
+        });
+        if let Some((place, v)) = found {
+            match check(c, &v, ctx) {
                 Ok(ok) => { values.insert(sk.to_string(), ok); }
-                Err(reason) => skipped.push(json!({"key": format!("{section}.{tk}"), "reason": reason})),
+                Err(reason) => skipped.push(json!({"key": format!("{place}.{tk}"), "reason": reason})),
             }
         }
     }
@@ -472,7 +487,7 @@ pub fn read(text: &str, ctx: &Value) -> Result<(Map<String, Value>, Vec<Value>),
             skipped.push(json!({"key": section, "reason": "unknown section"}));
         } else if let Some(t) = table.as_object() {
             for tk in t.keys() {
-                if !SCHEMA.iter().any(|r| r.0 == section && r.1 == tk) {
+                if !SCHEMA.iter().any(|r| r.0 == section && r.1 == tk) && !MOVED.iter().any(|m| m.0 == section && m.1 == tk) {
                     skipped.push(json!({"key": format!("{section}.{tk}"), "reason": "unknown setting"}));
                 }
             }
@@ -536,6 +551,37 @@ pub fn main(args: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn moved_out_of_experimental() {
+        let ctx = json!({"actions": [], "claudeModels": [], "codexModels": []});
+        let mut values = Map::new();
+        for (k, v) in [("appearanceStyle", json!("tui")), ("tuiHyprland", json!(true)), ("catSkin", json!("ginger")), ("desktopWidgets", json!(true)), ("phonePreview", json!(true)), ("gameMode", json!(true))] {
+            values.insert(k.into(), v);
+        }
+        let text = to_toml(&values).unwrap();
+        let table: toml::Table = text.parse().unwrap();
+        for key in ["style", "tui_hyprland", "cat_skin", "desktop_widgets"] {
+            assert!(table["appearance"].get(key).is_some(), "{key} under [appearance]:\n{text}");
+        }
+        assert!(table["focus"].get("phone_preview").is_some(), "{text}");
+        let experimental: Vec<&String> = table["experimental"].as_table().unwrap().keys().collect();
+        assert_eq!(experimental, ["game_mode"], "only what is still Experimental stays there");
+        let (back, skipped) = read(&text, &ctx).unwrap();
+        assert_eq!(Value::Object(back), Value::Object(values.clone()));
+        assert!(skipped.is_empty(), "{skipped:?}");
+
+        // an export from before the move: still read, nothing called unknown
+        let old = "[experimental]\nstyle = \"tui\"\ntui_hyprland = true\ncat_skin = \"ginger\"\ndesktop_widgets = true\nphone_preview = true\ngame_mode = true\n";
+        let (back, skipped) = read(old, &ctx).unwrap();
+        assert_eq!(Value::Object(back), Value::Object(values));
+        assert!(skipped.is_empty(), "{skipped:?}");
+        // both places: where it is now wins; a bad old value is named where it was
+        let (back, _) = read("[experimental]\nstyle = \"classic\"\n[appearance]\nstyle = \"tui\"\n", &ctx).unwrap();
+        assert_eq!(back["appearanceStyle"], "tui");
+        let (_, skipped) = read("[experimental]\nstyle = \"fancy\"\n", &ctx).unwrap();
+        assert_eq!(skipped[0]["key"], "experimental.style");
+    }
 
     #[test]
     fn checks_match_prefs_py() {

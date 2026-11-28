@@ -26,6 +26,7 @@ rust/           Cargo workspace: psc (the CLI and the shell's on-demand helpers,
 integrations/   what the shell sets up elsewhere: kitty/, neovim/, vscode/ (theme extension), sddm/, hypridle.conf
 tests/          isolated suites with stand-ins (tests/run.sh runs every safe one) and a few live-system suites
 tools/          dev-only generators (emoji list, notification sound, OLED Noir and other app themes)
+extras/         artwork to use by hand: wallpapers/ (made by tools/make-wallpapers.py, local only: ignored by git)
 agent-skills/   skills for coding agents: pistachio-shell-ui (designing and building the shell's UI)
 legacy/psc      the old shell-script psc, install.sh's fallback
 docs/           guides, README.LLM.md, decisions, gotchas, plan, images/, todos/, superpowers/

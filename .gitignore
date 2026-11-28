@@ -5,3 +5,4 @@
 /rust/target/
 /.backup/
 /.aws/
+/tools/make-wallpapers.py

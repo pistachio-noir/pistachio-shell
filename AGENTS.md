@@ -92,6 +92,7 @@ install.sh      links src/ into place, builds rust/, installs psc and the helper
 - Theming integration (on by default; `AppTheming` + `psc theme`): Kitty, Neovim and VS Code follow Colours (VS Code: `integrations/vscode/` installed as a `.vsix` via `code --install-extension`, one marked `workbench.colorTheme` line in settings.json). An app's own theme is asked about first; switching off removes only the shell's own lines. Text, FM and Notes always follow the shared colour file.
 - Game mode (Experimental, off): a fullscreen game → quiet toasts, animations and blur off at runtime, OSD on start/end.
 - Desktop cat (Appearance, off) on desktops without tiled windows: coats Cream, Ginger and Midnight; pets, a laptop pose, a clock for running timers, headphones during playback; an About easter egg after ten presses.
+- Alarms need GNOME Clocks (28 Nov): without it `psc clocks list` is `[]`, the shell doesn't call it, `alarm` says so; doctor lists it as optional.
 - Minimising windows to `special:minimized`. LocalSend in quick settings while the LocalSend app is installed (port 53317 shared, the app must not run). Bluetooth devices paired from the shell are connected right after pairing. Integrations switches per other app (`ShellSettings.integration(id)`). Restart / Force restart in Shell health.
 
 ## Style rules

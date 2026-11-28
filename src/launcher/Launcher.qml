@@ -249,6 +249,8 @@ PanelWindow {
             title = arg ? `Start timer · ${arg}` : "Set a timer…";
             action = arg ? () => { Clocks.startTimer(v.ms, v.label); open = false; } : askTimer;
         } else if (kind === "alarm") {
+            if (!Clocks.clocksInstalled)
+                return [{kind:"empty", key:"clock-invalid", title:"Alarms need GNOME Clocks; timers and the stopwatch work without it"}];
             const v = arg ? alarmInput(arg) : null;
             if (arg && !v) return [{kind:"empty", key:"clock-invalid", title:"Try alarm 7:30 wake up"}];
             title = arg ? `Set alarm · ${arg}` : "Set an alarm…";
@@ -373,10 +375,9 @@ PanelWindow {
             ["?", "This cheat sheet"],
             [";", "Clipboard history; Enter copies an item"],
             ["timer", "Start a timer, e.g. timer 5m tea"],
-            ["alarm", "Set an alarm, e.g. alarm 7:30 wake up"],
             ["stopwatch", "Start or control the stopwatch"],
             ["12*3", "A calculation: the answer shows at the top"]
-        ].concat([["ask", "Ask AI: the quick chat above the bar, with a question or without"]], Apps.claudeApp ? [["claude", "Ask Claude: a new chat in Claude Desktop"]] : [],
+        ].concat(Clocks.clocksInstalled ? [["alarm", "Set an alarm, e.g. alarm 7:30 wake up"]] : [], [["ask", "Ask AI: the quick chat above the bar, with a question or without"]], Apps.claudeApp ? [["claude", "Ask Claude: a new chat in Claude Desktop"]] : [],
             Cider.installed && Cider.enabled ? [["m", "Apple Music in Cider: Enter plays, Shift+Enter plays next"]] : [],
             Qalc.installed ? [["=", "libqalculate: equations, units, currencies, bases; Enter copies"]] : [],
             [["kill", "Your running programs; Enter ends one"]], ShellSettings.integration("tldr") ? [["tldr", "Examples for a command; Enter copies one"]] : [])

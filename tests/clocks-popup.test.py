@@ -1,9 +1,11 @@
 """The real Clocks service with a stand-in clocks.py: Stop and Snooze close the alarm popup whether
-GNOME Clocks answers or fails, and Snooze queues the shell's own re-ring. No bus, no real alarms."""
+GNOME Clocks answers or fails, and Snooze queues the shell's own re-ring. Without GNOME Clocks the
+helper is never run (it aborted every minute before 28 November 2026). No bus, no real alarms."""
 import os, pathlib, shutil, subprocess, tempfile, time
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FAKE = '''import json, os, sys
 cmd = sys.argv[1]
+open(os.environ["CALLS"] + ".all", "a").write(cmd + "\\n")
 if cmd in ("stop", "snooze"):
     open(os.environ["CALLS"], "a").write(cmd + " " + sys.argv[2] + "\\n")
     sys.exit(int(os.environ.get("FAIL", "0")))
@@ -23,7 +25,7 @@ ShellRoot {
     }
 }
 '''
-def check(fail):
+def check(fail, installed=True):
     with tempfile.TemporaryDirectory(prefix="pistachio-clocks-") as d:
         base = pathlib.Path(d); (base / "services").mkdir(); (base / "runtime").mkdir(mode=0o700)
         # Clocks runs `$HOME/.local/bin/psc clocks …`: its copy here runs the stand-in, never the real psc
@@ -32,7 +34,7 @@ def check(fail):
         assert service.count(real) == 2, "Clocks' psc command changed: update this fixture"
         (base / "services/Clocks.qml").write_text(service.replace(real, '["python3", Quickshell.shellPath("services/clocks.py")'))
         (base / "services/clocks.py").write_text(FAKE)
-        for name, body in {"Apps": "property var list: []", "ShellSettings": "function integration(id) { return true; }"}.items():
+        for name, body in {"Apps": "property var list: " + ('[{ id: "org.gnome.clocks" }]' if installed else "[]"), "ShellSettings": "function integration(id) { return true; }"}.items():
             (base / f"services/{name}.qml").write_text("pragma Singleton\nimport Quickshell\nimport QtQuick\nSingleton { " + body + " }\n")
         (base / "shell.qml").write_text(SHELL)
         calls = base / "calls"
@@ -53,6 +55,11 @@ def check(fail):
                     time.sleep(0.05)
                 ipc("ring"); wait('{"ringing":true,"snoozed":0}')
                 ipc("stop"); wait('{"ringing":false,"snoozed":0}')
+                if not installed:
+                    time.sleep(0.5)
+                    assert not (base / "calls.all").exists(), (base / "calls.all").read_text()
+                    return print("ok: without GNOME Clocks, Stop closes the popup and psc clocks is never run")
+                assert "list" in (base / "calls.all").read_text()
                 ipc("ring"); ipc("snooze"); wait('{"ringing":false,"snoozed":1}')
                 assert calls.read_text().split("\n")[:2] == ["stop a1", "snooze a1"], calls.read_text()
             finally:
@@ -62,3 +69,4 @@ def check(fail):
     print(f"ok: Stop and Snooze close the popup and reach GNOME Clocks ({'GNOME fails' if fail else 'GNOME answers'})")
 check(False)
 check(True)
+check(False, installed=False)

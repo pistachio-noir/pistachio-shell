@@ -48,7 +48,7 @@ PanelWindow {
             out.push({ text: Clocks.stopwatch.since ? "Pause the stopwatch" : "Resume the stopwatch", glyph: Icons.stopwatch, run: () => Clocks.pauseStopwatch() },
                 { text: `Lap (${Clocks.stopwatch.laps.length} so far)`, glyph: Icons.plus, run: () => Clocks.lap() },
                 { text: "Stop the stopwatch", glyph: Icons.close, danger: true, run: () => Clocks.stopStopwatch() });
-        if (Clocks.enabled)
+        if (Clocks.alarmsAvailable)
             out.push({ text: "Alarm…", glyph: Icons.bell, run: () => root.alarmRequested() });
         for (const a of Clocks.alarms)
             out.push({ text: `${a.active ? "On" : "Off"} · ${a.hour}:${String(a.minute).padStart(2, "0")} ${a.name}`, glyph: a.active ? Icons.check : Icons.bellOff, run: () => Clocks.setAlarm(a.id, !a.active) });

@@ -11,6 +11,10 @@
 //!
 //! GNOME Clocks 51 keeps an alarm on with `ring_time` and saves fields the shell doesn't use
 //! (`sound_uri`…): every raw field and its type are kept when the shell writes.
+//!
+//! Without GNOME Clocks (its `org.gnome.clocks` schema not installed) `list` prints `[]` and the rest
+//! fail with "GNOME Clocks isn't installed": gio aborts the process on a missing schema, which made
+//! the shell's minute-by-minute `list` crash (28 November 2026).
 use gio::prelude::*;
 use gio::glib;
 use glib::{Variant, VariantTy};
@@ -100,8 +104,21 @@ fn listing(alarms: &[Alarm]) -> Value {
     Value::Array(alarms.iter().map(|a| json!({"id": a.id, "name": a.name, "hour": a.hour, "minute": a.minute, "days": a.days, "active": a.active})).collect())
 }
 
+/// Clocks' schema is there (gio::Settings::new aborts the process when it isn't).
+fn installed() -> bool {
+    gio::SettingsSchemaSource::default().and_then(|s| s.lookup("org.gnome.clocks", true)).is_some()
+}
+
 pub fn main(args: &[String]) -> i32 {
     let a: Vec<&str> = args.iter().map(String::as_str).collect();
+    if !installed() {
+        if matches!(a.as_slice(), [] | ["list"]) {
+            println!("[]");
+            return 0;
+        }
+        eprintln!("psc clocks: GNOME Clocks isn't installed");
+        return 1;
+    }
     let settings = gio::Settings::new("org.gnome.clocks");
     let mut alarms = read(&settings);
     let done: Result<(), String> = match a.as_slice() {

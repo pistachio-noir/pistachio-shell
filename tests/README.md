@@ -44,7 +44,7 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 | `app-theming` | the real `AppTheming` service with a stand-in Store and a stand-in `psc theme` |
 | `neovim-theme` | Neovim, headless, follows the shared theme live, OLED Noir's marker too (uses `integrations/neovim`) |
 | `game-mode` | the real `GameMode` service with stand-in Compositor and ShellSettings |
-| `clocks`, `clocks-popup` | the Clocks helper; Stop and Snooze closing the alarm popup |
+| `clocks`, `clocks-popup` | the Clocks helper; Stop and Snooze closing the alarm popup; without GNOME Clocks the helper is never run |
 | `phone-timer` | `psc phone-timer`, run the way FocusMode runs it: state page, Pause/Skip/End POSTs passed on as actions |
 | `ambient-clock` | the ambient clock (Experimental): real service and layer with stand-ins and idle set by hand: switch, idle and empty-desktop rule, no input taken, media and timer lines, a fast fade-out, delay choices, preview, TUI font (native, shows briefly) |
 | `desktop-widgets` | desktop widgets (Experimental): the real layer, studio and service with stand-ins: half-cell default layout, the centre cross and a centred drop, all six blocks from +, the TUI grid under the strip, hidden with a tiled window or in Zen, CPU/RAM readings only while shown, the studio's drag/snap, refused drop, ✕, +, Esc, IPC status (native, shows briefly); the grid rules are `desktop-grid.test.js` |
@@ -71,7 +71,7 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 
 ### Rust
 
-`cd rust && cargo test --workspace`: the helpers' and `psc`'s own unit tests (theme incl. VS Code: JSONC edits, a stand-in `code`, own theme and undo; the .vsix zip read by Python's zipfile; doctor with Gentoo atoms and os-release, set-oneshot bytes, `/proc` children, tools and the rest), plus `psc/tests/power.rs`: `psc power` against a fake logind on a private `dbus-daemon` it starts itself (it first proves psc can't reach the real system bus).
+`cd rust && cargo test --workspace`: the helpers' and `psc`'s own unit tests (theme incl. VS Code: JSONC edits, a stand-in `code`, own theme and undo; the .vsix zip read by Python's zipfile; doctor with Gentoo atoms and os-release, set-oneshot bytes, `/proc` children, tools and the rest), plus `psc/tests/power.rs`: `psc power` against a fake logind on a private `dbus-daemon` it starts itself (it first proves psc can't reach the real system bus). Since 28 November 2026 also `psc/tests/clocks.rs`: `psc clocks` with no GNOME Clocks schema prints `[]` or a plain error instead of aborting.
 
 ## Live-system suites (they use the running shell or change real devices)
 

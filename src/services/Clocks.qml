@@ -13,9 +13,12 @@ Singleton {
     id: root
 
     readonly property bool clocksInstalled: Apps.list.some(a => a.id === "org.gnome.clocks")
+    onClocksInstalledChanged: run(["list"])
     // its alarms rung by the shell; off in Settings → Integrations, and Clocks rings them itself again
     readonly property bool enabled: ShellSettings.integration("clocks")
     onEnabledChanged: run(["list"])
+    // alarms can be made and listed: they are GNOME Clocks' own, so none without it (28 November 2026)
+    readonly property bool alarmsAvailable: enabled && clocksInstalled
     property var alarms: [] // { id, name, hour, minute, days, active }
     property var timers: [] // { id, label, duration (ms), endsAt (ms, while running), left (ms, while paused) }
     property var stopwatch: null // { since (ms, while running), elapsed (ms before it), laps: [ms] }
@@ -129,6 +132,10 @@ Singleton {
     // snooze-alarm actions), and the popup closes once it has answered, or failed to (a hung Clocks
     // must not leave the popup up for good).
     function tellClocks(action: string, r) {
+        if (!clocksInstalled) {
+            ringing = null;
+            return;
+        }
         if (stopper.running)
             return;
         stopper.action = action;
@@ -139,7 +146,13 @@ Singleton {
     property var snoozed: [] // { at, ring }
     property string lastMinute // so an alarm rings once in its minute
 
+    // never without Clocks: `psc clocks` has nothing to read then (gio aborted it before 28 November
+    // 2026, once a minute, from the Timer below)
     function run(args) {
+        if (!clocksInstalled) {
+            alarms = [];
+            return;
+        }
         helper.exec({ command: [Quickshell.env("HOME") + "/.local/bin/psc", "clocks"].concat(args) });
     }
 
@@ -147,12 +160,17 @@ Singleton {
         id: helper
         stdout: StdioCollector {
             onStreamFinished: {
+                if (!text.trim())
+                    return; // it failed: stderr says why
                 try {
                     root.alarms = root.enabled ? JSON.parse(text) : [];
                 } catch (e) {
                     console.warn("clocks:", text);
                 }
             }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: if (text.trim()) console.warn("clocks:", text.trim())
         }
     }
 

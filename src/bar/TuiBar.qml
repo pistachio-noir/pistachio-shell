@@ -19,6 +19,12 @@ PanelWindow {
     property real progress: shown ? 1 : 0
     Behavior on progress { NumberAnimation { duration: Theme.motionDuration; easing.type: Theme.easing } }
     onHidingChanged: if (hiding) revealed = false
+    // cpu and mem: the system monitor (btop, owner's call 28 November 2026); a right click, or no btop,
+    // opens Settings → System as before
+    function monitor(button: int) {
+        if (button === Qt.RightButton || !Apps.openMonitor())
+            SettingsHub.openPage("system", "");
+    }
     function startIntro() {}
     function endIntro() {}
     // `bar peek` works in Zen too (owner's call, 15 November 2026); only the top edge stays quiet there
@@ -99,8 +105,8 @@ PanelWindow {
         Row {
             id:fixedStatus
             Row { id:essentials
-            TuiBarButton { objectName:"tui-cpu";text:"cpu";value:SystemStats.cpu<0?"—":Math.round(SystemStats.cpu*100)+"%";tint:Theme.clay;onClicked:{SettingsHub.openPage("system","");} }
-            TuiBarButton { objectName:"tui-mem";text:"mem";value:SystemStats.memUsed.toFixed(1)+"G";tint:Theme.gold;onClicked:{SettingsHub.openPage("system","");} }
+            TuiBarButton { objectName:"tui-cpu";text:"cpu";value:SystemStats.cpu<0?"—":Math.round(SystemStats.cpu*100)+"%";tint:Theme.clay;onClicked:button=>root.monitor(button) }
+            TuiBarButton { objectName:"tui-mem";text:"mem";value:SystemStats.memUsed.toFixed(1)+"G";tint:Theme.gold;onClicked:button=>root.monitor(button) }
             TuiBarButton { text:"vol";value:Audio.muted?"muted":Math.round(Audio.volume*100)+"%";tint:Theme.lavender;active:root.controller.controls?.open??false;onClicked:button=>{if(button===Qt.MiddleButton)Audio.toggleMute();else root.controller.toggle(root.controller.controls);};onScrolled:delta=>Audio.setVolume(Math.max(0,Math.min(1,Audio.volume+(delta>0?0.05:-0.05)))) }
             TuiBarButton { objectName:"tui-bluetooth";text:"bt";value:Bluetooth.enabled?(Bluetooth.battery>=0?Bluetooth.battery+"%":Bluetooth.connectedName?"on":"idle"):"off";tint:Theme.sageBlue;Accessible.name:"Bluetooth settings";onClicked:SettingsHub.openPage("bluetooth","") }
             TuiBarButton { objectName:"tui-mic-cue";visible:Audio.micMuted||Audio.recorders.length>0;text:"mic";value:Audio.micMuted?"muted":"in use";tint:Theme.clay;Accessible.name:Audio.micMuted?"Microphone muted":"Microphone in use by "+Audio.recorders.map(n=>Audio.appName(n)).join(", ");onClicked:root.controller.toggle(root.controller.controls) }

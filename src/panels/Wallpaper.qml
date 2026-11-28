@@ -49,7 +49,12 @@ PanelWindow {
     // windows, so a pointer resting there could pull typing away from a window.
     WlrLayershell.keyboardFocus: !Theme.tui && Desktop.enabled && !(Compositor.workspaces.find(w => w.active)?.occupied ?? true) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     mask: Theme.tui && !Showoff.active ? catRegion : null
-    Region { id: catRegion; item: desktopCat.visible ? desktopCat : null }
+    Region {
+        id: catRegion
+        item: desktopCat.visible ? desktopCat : null
+        // the CPU/RAM widget takes a click too: it opens the system monitor
+        Region { item: widgets.shown && Apps.monitorApp !== null ? widgets.statsWidget : null }
+    }
 
     // Showoff mode: the wallpaper settles in from a little closer as it starts, and a click on it (the
     // desktop between the panels) ends it.
@@ -108,6 +113,7 @@ PanelWindow {
 
     // desktop widgets (Experimental, 20 November 2026): over the wallpaper, under the icons
     DesktopWidgetLayer {
+        id: widgets
         anchors.fill: parent
     }
 
@@ -129,7 +135,7 @@ PanelWindow {
         sourceComponent: DesktopIcons {
             id: desktop
             onCatHover: (position, inside) => desktopCat.hovered = inside && desktopCat.visible && desktopCat.contains(desktopCat.mapFromItem(desktop, position.x, position.y))
-            onCatClick: position => { if (desktopCat.visible && desktopCat.contains(desktopCat.mapFromItem(desktop, position.x, position.y))) desktopCat.pet(); }
+            onCatClick: position => { if (widgets.monitorAt(position.x, position.y)) Apps.openMonitor(); else if (desktopCat.visible && desktopCat.contains(desktopCat.mapFromItem(desktop, position.x, position.y))) desktopCat.pet(); }
             onRenameRequested: item => root.renameRequested(item)
             onNewFolderRequested: cell => root.newFolderRequested(cell)
             onWallpapersRequested: root.wallpapersRequested()

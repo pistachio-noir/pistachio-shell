@@ -62,6 +62,16 @@ Singleton {
     }
 
 
+    // the system monitor (owner, 28 November 2026): btop in the terminal, from the CPU/RAM desktop widget
+    // and the TUI bar's cpu and mem
+    readonly property var monitorApp: list.find(a => a.id === "btop") ?? null
+    function openMonitor(): bool {
+        if (!monitorApp)
+            return false;
+        launch(monitorApp);
+        return true;
+    }
+
     // Claude Desktop, if it's installed (its desktop entry), for the launcher's "claude …" (owner's
     // request, 1 November 2026)
     readonly property var claudeApp: ShellSettings.integration("claude") ? list.find(a => a.id === "com.anthropic.Claude") ?? null : null // or off in Settings → Integrations

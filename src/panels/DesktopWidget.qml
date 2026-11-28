@@ -18,6 +18,7 @@ Item {
     property bool live: true
 
     readonly property bool tui: Theme.tui
+    property bool opensMonitor // the desktop's CPU/RAM block opens btop on a click
     readonly property string title: ({ clock: "clock", weather: "weather", stats: "cpu / ram", media: "now playing", timers: "timers", system: "disk / gpu" })[kind] ?? kind
 
     readonly property bool watching: live && (kind === "stats" || kind === "system")
@@ -158,7 +159,17 @@ Item {
         }
     }
 
-    // CPU/RAM: two meters
+    // CPU/RAM: two meters. On the desktop (`opensMonitor`, not in the studio) a click opens the system
+    // monitor: here in TUI; in Classic the desktop's own click comes first and asks
+    // DesktopWidgetLayer.monitorAt
+    MouseArea {
+        anchors.fill: parent
+        enabled: root.opensMonitor && root.kind === "stats" && Apps.monitorApp !== null
+        visible: enabled
+        cursorShape: Qt.PointingHandCursor
+        onClicked: Apps.openMonitor()
+    }
+
     Column {
         visible: root.kind === "stats"
         anchors.verticalCenter: parent.verticalCenter

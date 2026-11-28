@@ -38,7 +38,7 @@ fn state(t: &T, env: &Env, app: &str) -> Value {
 fn publication_and_kitty_reload() {
     let t = T::new("publish", &[]);
     let reloads = Cell::new(0);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| reloads.set(reloads.get() + 1) };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|app| if app == "kitty" { reloads.set(reloads.get() + 1) } };
     let path = t.file("pistachio/shared-theme");
     publish(&path, "noir", &env).unwrap();
     assert_eq!(t.read("pistachio/shared-theme"), "noir\n");
@@ -60,7 +60,7 @@ fn publication_and_kitty_reload() {
 #[test]
 fn kitty_setup_undo_and_states() {
     let t = T::new("kitty", &["kitty", "nvim"]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     let original = "font_size 12\nbackground_opacity 0.9\n";
     t.put("kitty/kitty.conf", original);
     assert_eq!(state(&t, &env, "kitty")["state"], "available");
@@ -99,7 +99,7 @@ fn kitty_setup_undo_and_states() {
 #[test]
 fn kitty_old_marked_line_repaired() {
     let t = T::new("kittyold", &["kitty"]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     let broken = "include pistachio-noir.conf\nfont_size 12\ninclude pistachio-shared.conf  # pistachio-shell theming\n";
     t.put("kitty/kitty.conf", broken);
     assert_eq!(state(&t, &env, "kitty")["state"], "available");
@@ -116,7 +116,7 @@ fn kitty_old_marked_line_repaired() {
 #[test]
 fn neovim_setup_undo_and_states() {
     let t = T::new("nvim", &["kitty", "nvim"]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     let plain = "vim.opt.number = true\nrequire(\"lazy\").setup({})\n";
     t.put("nvim/init.lua", plain);
     assert_eq!(state(&t, &env, "neovim")["state"], "available");
@@ -152,7 +152,7 @@ fn neovim_setup_undo_and_states() {
 #[test]
 fn changed_file_left_alone() {
     let t = T::new("race", &["kitty"]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     let original = "font_size 12\n";
     t.put("kitty/kitty.conf", original);
     let conf = t.file("kitty/kitty.conf");
@@ -169,10 +169,11 @@ fn changed_file_left_alone() {
 #[test]
 fn missing_and_symlinked() {
     let t = T::new("missing", &[]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     std::fs::create_dir_all(&t.dir).unwrap();
     let states: Vec<_> = status(&t.dir, &env).iter().map(|a| a["state"].as_str().unwrap().to_string()).collect();
-    assert_eq!(states, ["missing", "missing", "missing"], "kitty, neovim, vscode");
+    assert_eq!(states, ["missing", "missing", "missing", "available", "missing", "missing", "missing", "missing"],
+        "kitty, neovim, vscode, gtk (always there), vesktop, btop, yazi, zathura");
     t.put("dotfiles/kitty.conf", "font_size 12\n");
     std::fs::create_dir_all(t.file("kitty")).unwrap();
     std::os::unix::fs::symlink(t.file("dotfiles/kitty.conf"), t.file("kitty/kitty.conf")).unwrap();
@@ -185,7 +186,7 @@ fn missing_and_symlinked() {
 #[test]
 fn setup_failure_says_why() {
     let t = T::new("readonly", &["nvim"]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     t.put("nvim/init.lua", "x = 1\n");
     std::fs::set_permissions(t.file("nvim"), std::os::unix::fs::PermissionsExt::from_mode(0o555)).unwrap();
     let s = act(&t.dir, &env, "neovim", "setup").unwrap();
@@ -199,7 +200,7 @@ fn kitty_itself_reads_the_setup_as_noir() {
         return; // only where Kitty is installed: its own loader must read our include
     };
     let t = T::new("kittyload", &["kitty"]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     t.put("kitty/kitty.conf", "include pistachio-noir.conf\n");
     t.put("pistachio/shared-theme", "noir\n");
     act(&t.dir, &env, "kitty", "setup");
@@ -217,7 +218,7 @@ fn kitty_itself_reads_pistachio_beside_the_users_own_include() {
         return;
     };
     let t = T::new("kittytwice", &["kitty"]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     t.put("kitty/kitty.conf", "include pistachio-noir.conf
 font_size 12
 ");
@@ -246,7 +247,7 @@ fn cli_status_is_one_json_line() {
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 1, "{text}");
     let v: Value = serde_json::from_str(lines[0]).unwrap();
-    assert_eq!(v["apps"].as_array().unwrap().len(), 3);
+    assert_eq!(v["apps"].as_array().unwrap().len(), 8);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -358,7 +359,7 @@ fn installed_by_code(t: &T) {
 #[test]
 fn vscode_setup_undo_and_states() {
     let t = T::new("vscode", &[]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     assert_eq!(state(&t, &env, "vscode")["state"], "missing");
     fake_code(&t, false);
     assert_eq!(state(&t, &env, "vscode")["state"], "available", "the code command alone");
@@ -368,7 +369,9 @@ fn vscode_setup_undo_and_states() {
     assert!(log.starts_with("--install-extension ") && log.trim_end().ends_with(".vsix --force"), "{log}");
     let vsix = std::fs::read(t.bin.join("got.vsix")).unwrap();
     assert_eq!(&vsix[..4], b"PK\x03\x04");
-    assert!(!std::fs::read_dir(std::env::temp_dir()).unwrap().any(|e| e.unwrap().file_name().to_string_lossy().starts_with(&format!("pistachio-noir-{}-", std::process::id()))), "the .vsix is removed");
+    // its own file (the one `code` was given): the other VS Code tests make theirs meanwhile, in the same folder
+    let given = log.trim_end().trim_start_matches("--install-extension ").trim_end_matches(" --force");
+    assert!(given.ends_with(".vsix") && !Path::new(given).exists(), "the .vsix is removed: {given}");
     assert_eq!(t.read("Code/User/settings.json"), vs_with_theme(VS_SAMPLE, "Pistachio Noir"));
     assert_eq!(t.backups("Code/User"), 1);
     assert_eq!(s["state"], "available", "not following until VS Code recorded the extension");
@@ -426,7 +429,7 @@ fn vscode_setup_undo_and_states() {
 #[test]
 fn vscode_refusals() {
     let t = T::new("vscode-no", &[]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     fake_code(&t, true);
     t.put("Code/User/settings.json", VS_SAMPLE);
     let s = act(&t.dir, &env, "vscode", "setup").unwrap();
@@ -464,7 +467,7 @@ fn vscode_refusals() {
 fn oled_publication() {
     let t = T::new("oled", &[]);
     let reloads = Cell::new(0);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| reloads.set(reloads.get() + 1) };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|app| if app == "kitty" { reloads.set(reloads.get() + 1) } };
     let path = t.file("pistachio/shared-theme");
     t.put("kitty/pistachio-shared.conf", "include noir.conf\n");
     publish(&path, "oled", &env).unwrap();
@@ -493,7 +496,7 @@ fn oled_publication() {
 #[test]
 fn oled_vscode_and_kitty_setup() {
     let t = T::new("oledapps", &["kitty"]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     fake_code(&t, false);
     t.put("Code/User/settings.json", VS_SAMPLE);
     t.put("pistachio/shared-theme", "noir\n");
@@ -517,7 +520,7 @@ fn kitty_itself_reads_the_setup_as_oled() {
         return;
     };
     let t = T::new("kittyoled", &["kitty"]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     t.put("kitty/kitty.conf", "include pistachio-noir.conf\n");
     t.put("pistachio/shared-theme", "noir\n");
     t.put("pistachio/shared-oled", "on\n");
@@ -532,7 +535,7 @@ fn kitty_itself_reads_the_setup_as_oled() {
 #[test]
 fn publish_refreshes_a_following_neovim() {
     let t = T::new("nvimfresh", &["nvim"]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     t.put("nvim/init.lua", "vim.opt.number = true\n");
     act(&t.dir, &env, "neovim", "setup").unwrap();
     t.put("nvim/colors/pistachio-noir.lua", "-- older colours\n");
@@ -554,7 +557,7 @@ fn publish_refreshes_a_following_neovim() {
 #[test]
 fn publish_reinstalls_an_old_vscode_extension() {
     let t = T::new("vsfresh", &[]);
-    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
     fake_code(&t, false);
     t.put("Code/User/settings.json", VS_SAMPLE);
     t.put("pistachio/shared-theme", "noir\n");
@@ -569,4 +572,213 @@ fn publish_reinstalls_an_old_vscode_extension() {
     installed_by_code(&t);
     publish(&t.file("pistachio/shared-theme"), "noir", &env).unwrap();
     assert_eq!(installs(), 2, "up to date: no install");
+}
+
+// --- the apps of 28 November 2026 (theme/extra.rs) ------------------------------------------------
+
+use std::os::unix::fs::MetadataExt;
+
+fn counted<'a>(seen: &'a std::cell::RefCell<Vec<String>>) -> impl Fn(&str) + 'a {
+    move |app: &str| seen.borrow_mut().push(app.to_string())
+}
+
+#[test]
+fn new_apps_missing_then_available() {
+    let t = T::new("extra-missing", &["btop", "yazi", "zathura", "vesktop"]);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
+    std::fs::create_dir_all(&t.dir).unwrap();
+    for app in ["gtk", "vesktop", "btop", "yazi", "zathura"] {
+        assert_eq!(state(&t, &env, app)["state"], "available", "{app}");
+    }
+}
+
+/// A stand-in gsettings: `get` prints the saved theme, `set` saves it and every call is logged.
+fn fake_gsettings(t: &T, theme: &str) {
+    let state = t.dir.parent().unwrap().join("gtk-theme");
+    std::fs::write(&state, format!("'{theme}'\n")).unwrap();
+    let script = format!("#!/bin/sh\necho \"$@\" >> {0}.log\nif [ \"$1\" = get ]; then read -r l < {0}; echo \"$l\"; else printf \"'%s'\\n\" \"$4\" > {0}; fi\n", state.display());
+    std::fs::write(t.bin.join("gsettings"), script).unwrap();
+    std::fs::set_permissions(t.bin.join("gsettings"), std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+}
+fn gtk_theme(t: &T) -> String {
+    std::fs::read_to_string(t.dir.parent().unwrap().join("gtk-theme")).unwrap().trim().trim_matches('\'').to_string()
+}
+
+#[test]
+fn gtk_follows_and_undoes() {
+    let t = T::new("extra-gtk", &[]);
+    fake_gsettings(&t, "Adwaita");
+    std::fs::create_dir_all(t.home().join(".local/share/themes/adw-gtk3-dark/gtk-3.0")).unwrap();
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
+    // a gtk.css with rules of the user's own, no colours: the import goes first, the rules stay
+    t.put("gtk-4.0/gtk.css", "window { margin: 1px; }\n");
+    assert_eq!(state(&t, &env, "gtk")["state"], "available");
+    t.put("pistachio/shared-theme", "noir\n");
+    assert_eq!(act(&t.dir, &env, "gtk", "setup").unwrap()["state"], "following");
+    let css = t.read("gtk-4.0/gtk.css");
+    assert!(css.starts_with("/* pistachio-shell theming") && css.contains("@import url(\"pistachio-shared.css\");\nwindow { margin: 1px; }\n"), "{css}");
+    assert_eq!(t.read("gtk-4.0/pistachio-shared.css"), extra_file("gtk/gtk4-noir.css"));
+    assert_eq!(t.read("gtk-3.0/pistachio-shared.css"), extra_file("gtk/gtk3-noir.css"));
+    assert!(t.read("gtk-3.0/gtk.css").contains("(gtk-theme was \"Adwaita\")"), "{}", t.read("gtk-3.0/gtk.css"));
+    assert_eq!(gtk_theme(&t), "adw-gtk3-dark");
+    // a switch rewrites both colour files
+    publish(&t.file("pistachio/shared-theme"), "oled", &env).unwrap();
+    assert_eq!(t.read("gtk-4.0/pistachio-shared.css"), extra_file("gtk/gtk4-oled-noir.css"));
+    assert_eq!(t.read("gtk-3.0/pistachio-shared.css"), extra_file("gtk/gtk3-oled-noir.css"));
+    // undo: the user's file as it was, the shell's files gone, GTK 3's theme back
+    act(&t.dir, &env, "gtk", "undo").unwrap();
+    assert_eq!(t.read("gtk-4.0/gtk.css"), "window { margin: 1px; }\n");
+    assert!(!t.file("gtk-3.0/gtk.css").exists() && !t.file("gtk-4.0/pistachio-shared.css").exists() && !t.file("gtk-3.0/pistachio-shared.css").exists());
+    assert_eq!(gtk_theme(&t), "Adwaita");
+    assert_eq!(state(&t, &env, "gtk")["state"], "available");
+}
+
+#[test]
+fn gtk_own_colours_are_asked_about_and_come_back() {
+    let t = T::new("extra-gtk-own", &[]);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
+    let mine = "/* mine */\n@define-color accent_bg_color #FF0000;\n:root { --window-bg-color: #101010; }\n";
+    t.put("gtk-4.0/gtk.css", mine);
+    assert_eq!(state(&t, &env, "gtk")["state"], "own");
+    act(&t.dir, &env, "gtk", "setup").unwrap();
+    assert_eq!(t.read("gtk-4.0/gtk.css"), mine, "a quiet setup leaves an own theme alone");
+    assert_eq!(act(&t.dir, &env, "gtk", "use").unwrap()["state"], "following");
+    assert_eq!(t.read("gtk-4.0/gtk.css.pistachio-own"), mine);
+    assert!(!t.read("gtk-4.0/gtk.css").contains("#FF0000"));
+    assert_eq!(t.backups("gtk-4.0"), 1);
+    // the user adds a rule after the shell's lines, then switches off: their file, then that rule
+    let now = t.read("gtk-4.0/gtk.css");
+    t.put("gtk-4.0/gtk.css", &(now + "label { font-weight: 700; }\n"));
+    act(&t.dir, &env, "gtk", "undo").unwrap();
+    assert_eq!(t.read("gtk-4.0/gtk.css"), format!("{mine}label {{ font-weight: 700; }}\n"));
+    assert!(!t.file("gtk-4.0/gtk.css.pistachio-own").exists());
+    // a theme picked in gsettings is the user's own too
+    let t = T::new("extra-gtk-theme", &[]);
+    fake_gsettings(&t, "Catppuccin-Mocha");
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
+    std::fs::create_dir_all(&t.dir).unwrap();
+    assert_eq!(state(&t, &env, "gtk")["state"], "own");
+}
+
+fn extra_file(p: &str) -> String {
+    std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../integrations").join(p)).unwrap()
+}
+
+#[test]
+fn btop_follows_switches_live_and_undoes() {
+    let t = T::new("extra-btop", &["btop"]);
+    let seen = std::cell::RefCell::new(vec![]);
+    let reload = counted(&seen);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &reload };
+    let conf = "#? Config file for btop\ncolor_theme = \"Default\"\ntheme_background = true\n";
+    t.put("btop/btop.conf", conf);
+    assert_eq!(state(&t, &env, "btop")["state"], "available");
+    assert_eq!(act(&t.dir, &env, "btop", "setup").unwrap()["state"], "following");
+    assert_eq!(t.read("btop/btop.conf"), conf.replace("\"Default\"", "\"pistachio-shell\""));
+    let theme = t.read("btop/themes/pistachio-shell.theme");
+    assert!(theme.ends_with(&extra_file("btop/pistachio-noir.theme")) && theme.lines().next().unwrap().contains("color_theme was \"Default\""), "{theme}");
+    assert_eq!(*seen.borrow(), ["btop"], "a running btop reads its config again (SIGUSR2)");
+    publish(&t.file("pistachio/shared-theme"), "noir", &env).unwrap();
+    assert!(t.read("btop/themes/pistachio-shell.theme").ends_with(&extra_file("btop/noir.theme")));
+    assert_eq!(seen.borrow().iter().filter(|a| *a == "btop").count(), 2);
+    publish(&t.file("pistachio/shared-theme"), "noir", &env).unwrap();
+    assert_eq!(seen.borrow().iter().filter(|a| *a == "btop").count(), 2, "no reload when nothing changed");
+    act(&t.dir, &env, "btop", "undo").unwrap();
+    assert_eq!(t.read("btop/btop.conf"), conf);
+    assert!(!t.file("btop/themes/pistachio-shell.theme").exists());
+    // an own theme: asked first, and back after undo
+    let own = conf.replace("Default", "dracula");
+    t.put("btop/btop.conf", &own);
+    assert_eq!(state(&t, &env, "btop")["state"], "own");
+    act(&t.dir, &env, "btop", "use").unwrap();
+    assert!(t.read("btop/btop.conf").contains("color_theme = \"pistachio-shell\""));
+    act(&t.dir, &env, "btop", "undo").unwrap();
+    assert_eq!(t.read("btop/btop.conf"), own);
+}
+
+#[test]
+fn yazi_follows_and_puts_an_own_theme_back() {
+    let t = T::new("extra-yazi", &["yazi"]);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
+    std::fs::create_dir_all(&t.dir).unwrap();
+    assert_eq!(act(&t.dir, &env, "yazi", "setup").unwrap()["state"], "following");
+    assert!(t.read("yazi/theme.toml").contains("[flavor]\ndark = \"pistachio-shell\"\nlight = \"pistachio-shell\"\n"));
+    assert_eq!(t.read("yazi/flavors/pistachio-shell.yazi/flavor.toml"), extra_file("yazi/pistachio-noir.toml"));
+    assert_eq!(t.read("yazi/flavors/pistachio-shell.yazi/tmtheme.xml"), extra_file("yazi/pistachio-noir.tmtheme.xml"));
+    publish(&t.file("pistachio/shared-theme"), "oled", &env).unwrap();
+    assert_eq!(t.read("yazi/flavors/pistachio-shell.yazi/flavor.toml"), extra_file("yazi/oled-noir.toml"));
+    act(&t.dir, &env, "yazi", "undo").unwrap();
+    assert!(!t.file("yazi/theme.toml").exists() && !t.file("yazi/flavors/pistachio-shell.yazi").exists());
+    let mine = "[mgr]\ncwd = { fg = \"red\" }\n";
+    t.put("yazi/theme.toml", mine);
+    assert_eq!(state(&t, &env, "yazi")["state"], "own");
+    act(&t.dir, &env, "yazi", "use").unwrap();
+    assert_eq!(state(&t, &env, "yazi")["state"], "following");
+    act(&t.dir, &env, "yazi", "undo").unwrap();
+    assert_eq!(t.read("yazi/theme.toml"), mine);
+    assert!(!t.file("yazi/theme.toml.pistachio-own").exists());
+}
+
+#[test]
+fn zathura_follows_reloads_and_undoes() {
+    let t = T::new("extra-zathura", &["zathura"]);
+    let seen = std::cell::RefCell::new(vec![]);
+    let reload = counted(&seen);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &reload };
+    t.put("zathura/zathurarc", "set recolor true\nset recolor-keephue true\n");
+    assert_eq!(state(&t, &env, "zathura")["state"], "available", "a switch isn't a colour");
+    let mine = "set selection-clipboard clipboard\nset default-bg \"#000000\"\n";
+    t.put("zathura/zathurarc", mine);
+    assert_eq!(state(&t, &env, "zathura")["state"], "own");
+    act(&t.dir, &env, "zathura", "use").unwrap();
+    assert!(t.read("zathura/zathurarc").starts_with(mine) && t.read("zathura/zathurarc").ends_with("\ninclude pistachio-shared\n"), "comes last, so it wins");
+    assert_eq!(t.read("zathura/pistachio-shared"), extra_file("zathura/pistachio-noir"));
+    publish(&t.file("pistachio/shared-theme"), "noir", &env).unwrap();
+    assert_eq!(t.read("zathura/pistachio-shared"), extra_file("zathura/noir"));
+    assert_eq!(seen.borrow().iter().filter(|a| *a == "zathura").count(), 2, "open windows read their config again");
+    act(&t.dir, &env, "zathura", "undo").unwrap();
+    assert_eq!(t.read("zathura/zathurarc"), mine);
+    assert!(!t.file("zathura/pistachio-shared").exists());
+}
+
+#[test]
+fn vesktop_block_is_written_in_place() {
+    let t = T::new("extra-vesktop", &["vesktop"]);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
+    let mine = ".mine { color: red; }\n";
+    t.put("vesktop/settings/quickCss.css", mine);
+    t.put("vesktop/settings/settings.json", "{\"useQuickCss\": true, \"enabledThemes\": []}");
+    let inode = || std::fs::metadata(t.file("vesktop/settings/quickCss.css")).unwrap().ino();
+    let first = inode();
+    assert_eq!(act(&t.dir, &env, "vesktop", "setup").unwrap()["state"], "following");
+    let css = t.read("vesktop/settings/quickCss.css");
+    assert!(css.starts_with(mine) && css.contains(extra_file("vesktop/pistachio-noir.css").trim()), "{css}");
+    assert_eq!(t.backups("vesktop/settings"), 1, "setup backs it up");
+    publish(&t.file("pistachio/shared-theme"), "noir", &env).unwrap();
+    assert_eq!(t.backups("vesktop/settings"), 1, "a colour switch makes no new backup");
+    let css = t.read("vesktop/settings/quickCss.css");
+    assert!(css.starts_with(mine) && css.contains(extra_file("vesktop/noir.css").trim()) && css.matches("theming: start").count() == 1, "{css}");
+    assert_eq!(inode(), first, "Vencord's file watch stays on the same file");
+    act(&t.dir, &env, "vesktop", "undo").unwrap();
+    assert_eq!(t.read("vesktop/settings/quickCss.css"), mine);
+    assert_eq!(inode(), first);
+    // a Vencord theme of the user's own is asked about; QuickCSS off is said
+    t.put("vesktop/settings/settings.json", "{\"useQuickCss\": false, \"enabledThemes\": [\"midnight.theme.css\"]}");
+    assert_eq!(state(&t, &env, "vesktop")["state"], "own");
+    act(&t.dir, &env, "vesktop", "use").unwrap();
+    let s = state(&t, &env, "vesktop");
+    assert!(s["state"] == "following" && s["detail"].as_str().unwrap().contains("QuickCSS"), "{s}");
+}
+
+#[test]
+fn new_apps_symlinked_configs_are_left_alone() {
+    let t = T::new("extra-links", &["btop", "yazi", "zathura", "vesktop"]);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|_| {} };
+    t.put("dotfiles/x", "x\n");
+    for (app, file) in [("gtk", "gtk-4.0/gtk.css"), ("btop", "btop/btop.conf"), ("yazi", "yazi/theme.toml"), ("zathura", "zathura/zathurarc"), ("vesktop", "vesktop/settings/quickCss.css")] {
+        std::fs::create_dir_all(t.file(file).parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink(t.file("dotfiles/x"), t.file(file)).unwrap();
+        assert_eq!(act(&t.dir, &env, app, "use").unwrap()["state"], "unsupported", "{app}");
+        assert_eq!(t.read("dotfiles/x"), "x\n", "{app}");
+    }
 }

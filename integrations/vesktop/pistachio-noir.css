@@ -1,0 +1,86 @@
+/* Pistachio Noir, the Pistachio shell's Colours (made by tools/make-app-themes.py from src/Theme.qml), for Vesktop (Discord's colour variables) */
+:root,
+.theme-dark:not(.custom-user-profile-theme),
+.theme-darker:not(.custom-user-profile-theme),
+.theme-midnight:not(.custom-user-profile-theme),
+.visual-refresh.theme-dark {
+  --background-base-lowest: #0D0F09 !important;
+  --background-base-lower: #15170F !important;
+  --background-base-low: #15170F !important;
+  --background-surface-high: #1D2016 !important;
+  --background-surface-higher: #1D2016 !important;
+  --background-surface-highest: #2A2F1F !important;
+  --background-primary: #15170F !important;
+  --background-secondary: #1D2016 !important;
+  --background-secondary-alt: #1D2016 !important;
+  --background-tertiary: #0D0F09 !important;
+  --background-floating: #1D2016 !important;
+  --background-nested-floating: #1D2016 !important;
+  --background-accent: #2A2F1F !important;
+  --background-mod-subtle: rgba(42, 47, 31, 0.5) !important;
+  --background-mod-normal: rgba(42, 47, 31, 0.8) !important;
+  --background-mod-strong: #39412A !important;
+  --background-mod-muted: rgba(42, 47, 31, 0.4) !important;
+  --background-modifier-hover: rgba(42, 47, 31, 0.5) !important;
+  --background-modifier-active: rgba(42, 47, 31, 0.8) !important;
+  --background-modifier-selected: #2A2F1F !important;
+  --background-modifier-accent: #2A2F1F !important;
+  --chat-background-default: #15170F !important;
+  --card-background-default: #1D2016 !important;
+  --modal-background: #1D2016 !important;
+  --input-background: #1D2016 !important;
+  --channeltextarea-background: #1D2016 !important;
+  --text-default: #E5E9D8 !important;
+  --text-normal: #E5E9D8 !important;
+  --text-strong: #F6F8EF !important;
+  --text-muted: #A3B08F !important;
+  --text-subtle: #A3B08F !important;
+  --header-primary: #F6F8EF !important;
+  --header-secondary: #A3B08F !important;
+  --text-link: #7DA3B3 !important;
+  --text-positive: #7FC9A8 !important;
+  --text-warning: #E0B15E !important;
+  --text-danger: #DB8267 !important;
+  --channels-default: #A3B08F !important;
+  --channel-icon: #A3B08F !important;
+  --icon-default: #A3B08F !important;
+  --icon-muted: #626F51 !important;
+  --interactive-normal: #A3B08F !important;
+  --interactive-hover: #E5E9D8 !important;
+  --interactive-active: #F6F8EF !important;
+  --interactive-muted: #626F51 !important;
+  --interactive-text-default: #A3B08F !important;
+  --interactive-text-hover: #E5E9D8 !important;
+  --interactive-text-active: #F6F8EF !important;
+  --interactive-icon-default: #A3B08F !important;
+  --interactive-icon-hover: #E5E9D8 !important;
+  --interactive-icon-active: #F6F8EF !important;
+  --interactive-background-hover: rgba(42, 47, 31, 0.5) !important;
+  --interactive-background-active: #2A2F1F !important;
+  --interactive-background-selected: #2A2F1F !important;
+  --border-subtle: #2A2F1F !important;
+  --border-normal: #39412A !important;
+  --border-strong: #39412A !important;
+  --border-faint: #2A2F1F !important;
+  --brand-500: #9FD88A !important;
+  --brand-560: #9FD88A !important;
+  --brand-600: #9FD88A !important;
+  --background-brand: #9FD88A !important;
+  --control-brand-foreground: #9FD88A !important;
+  --control-brand-foreground-new: #9FD88A !important;
+  --control-primary-background-default: #9FD88A !important;
+  --control-primary-background-hover: #9FD88A !important;
+  --control-primary-background-active: #9FD88A !important;
+  --control-primary-text-default: #15170F !important;
+  --button-filled-brand-background: #9FD88A !important;
+  --button-filled-brand-background-hover: #9FD88A !important;
+  --button-filled-brand-text: #15170F !important;
+  --scrollbar-thin-thumb: #39412A !important;
+  --scrollbar-auto-thumb: #39412A !important;
+  --scrollbar-auto-track: transparent !important;
+  --status-danger: #DB8267 !important;
+  --status-warning: #E0B15E !important;
+  --status-positive: #7FC9A8 !important;
+  --mention-foreground: #F6F8EF !important;
+  --mention-background: rgba(224, 177, 94, 0.12) !important;
+}

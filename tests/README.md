@@ -42,6 +42,7 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 | Test | What it checks |
 |---|---|
 | `app-theming` | the real `AppTheming` service with a stand-in Store and a stand-in `psc theme` |
+| `app-themes` | the GTK, btop, yazi, zathura and Vesktop theme files match `src/Theme.qml`; `psc theme setup` for GTK and yazi in a throwaway config, then GTK 4's and GTK 3's own CSS parser (a small C program, needs gcc and the GTK headers) and yazi itself in a pseudo terminal read it in all three schemes; undo. psc gets no `pkill` and no session bus |
 | `neovim-theme` | Neovim, headless, follows the shared theme live, OLED Noir's marker too (uses `integrations/neovim`) |
 | `game-mode` | the real `GameMode` service with stand-in Compositor and ShellSettings |
 | `clocks`, `clocks-popup` | the Clocks helper; Stop and Snooze closing the alarm popup; without GNOME Clocks the helper is never run |
@@ -71,7 +72,7 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 
 ### Rust
 
-`cd rust && cargo test --workspace`: the helpers' and `psc`'s own unit tests (theme incl. VS Code: JSONC edits, a stand-in `code`, own theme and undo; the .vsix zip read by Python's zipfile; doctor with Gentoo atoms and os-release, set-oneshot bytes, `/proc` children, tools and the rest), plus `psc/tests/power.rs`: `psc power` against a fake logind on a private `dbus-daemon` it starts itself (it first proves psc can't reach the real system bus). Since 28 November 2026 also `psc/tests/clocks.rs`: `psc clocks` with no GNOME Clocks schema prints `[]` or a plain error instead of aborting.
+`cd rust && cargo test --workspace`: the helpers' and `psc`'s own unit tests (theme incl. VS Code: JSONC edits, a stand-in `code`, own theme and undo; the .vsix zip read by Python's zipfile; doctor with Gentoo atoms and os-release, set-oneshot bytes, `/proc` children, tools and the rest), plus `psc/tests/power.rs`: `psc power` against a fake logind on a private `dbus-daemon` it starts itself (it first proves psc can't reach the real system bus). Since 28 November 2026 also: the GTK, Vesktop, btop, yazi and zathura themes (setup, a switch, undo restoring the user's file byte for byte, own themes, the reload calls, Vesktop's file keeping its inode), and `psc/tests/clocks.rs`: `psc clocks` with no GNOME Clocks schema prints `[]` or a plain error instead of aborting.
 
 ## Live-system suites (they use the running shell or change real devices)
 

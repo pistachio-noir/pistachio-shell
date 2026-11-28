@@ -7,7 +7,7 @@
 //!   compare exactly, and a `shared-oled` marker beside it that Kitty, Neovim, VS Code, FM and Text read)
 //!   psc theme status                            {"apps": [{id, name, state, detail}]}
 //!   psc theme setup APP | use APP | undo APP    act (setup leaves an own theme alone; use doesn't), then status
-//!   (APP: kitty, neovim or vscode)
+//!   (APP: kitty, neovim, vscode, gtk, vesktop, btop, yazi or zathura; the last five in theme/extra.rs)
 //!
 //! States: following (wired up), own (the app has its own theme: asked first), available (can be set
 //! up), missing (not installed), unsupported (detail says why). Owner's call, 19 November 2026: the
@@ -35,12 +35,13 @@ const KITTY_OLED: &[u8] = include_bytes!("../../../integrations/kitty/kitty-oled
 const NVIM_COLORS: &[u8] = include_bytes!("../../../integrations/neovim/colors/pistachio-noir.lua");
 const NVIM_SHARED: &[u8] = include_bytes!("../../../integrations/neovim/lua/pistachio-shared.lua");
 
-/// What the outside world is: where to look for programs, and how to ask Kitty to reload.
+/// What the outside world is: where to look for programs, and how to ask a running app (its id: kitty,
+/// btop, zathura) to read its config again.
 pub struct Env<'a> {
     pub path: OsString,
     /// the home folder: VS Code keeps its extensions there (~/.vscode/extensions), not in the config folder
     pub home: PathBuf,
-    pub reload: &'a dyn Fn(),
+    pub reload: &'a dyn Fn(&str),
 }
 
 #[derive(Debug)]
@@ -211,7 +212,7 @@ fn kitty_setup(config: &Path, env: &Env, scheme: &str, force: bool) -> Result<()
             rewrite(&conf, &before, &(with_newline(&kept) + &block))?;
         }
     }
-    (env.reload)();
+    (env.reload)("kitty");
     Ok(())
 }
 
@@ -247,7 +248,7 @@ fn kitty_undo(config: &Path, env: &Env) -> Result<(), Fail> {
     if include.exists() {
         std::fs::remove_file(include)?;
     }
-    (env.reload)();
+    (env.reload)("kitty");
     Ok(())
 }
 
@@ -672,6 +673,18 @@ const APPS: &[App] = &[
     App { id: "kitty", name: "Kitty", status: kitty_status, setup: kitty_setup, undo: kitty_undo },
     App { id: "neovim", name: "Neovim", status: nvim_status, setup: nvim_setup, undo: nvim_undo },
     App { id: "vscode", name: "VS Code", status: vscode_status, setup: vscode_setup, undo: vscode_undo },
+    App { id: "gtk", name: "GTK apps", status: extra::gtk_status, setup: extra::gtk_setup, undo: extra::gtk_undo },
+    App { id: "vesktop", name: "Vesktop", status: extra::vesktop_status, setup: extra::vesktop_setup, undo: extra::vesktop_undo },
+    App { id: "btop", name: "btop", status: extra::btop_status, setup: extra::btop_setup, undo: extra::btop_undo },
+    App { id: "yazi", name: "yazi", status: extra::yazi_status, setup: extra::yazi_setup, undo: extra::yazi_undo },
+    App { id: "zathura", name: "zathura", status: extra::zathura_status, setup: extra::zathura_setup, undo: extra::zathura_undo },
+];
+
+/// The newer apps' colour switch (theme/extra.rs): each does nothing unless the app follows.
+type Publish = fn(&Path, &Env, &str) -> Result<(), Fail>;
+const PUBLISH: &[(&str, Publish)] = &[
+    ("GTK", extra::gtk_publish), ("Vesktop", extra::vesktop_publish), ("btop", extra::btop_publish),
+    ("yazi", extra::yazi_publish), ("zathura", extra::zathura_publish),
 ];
 
 fn entry(app: &App, config: &Path, env: &Env) -> Value {
@@ -727,7 +740,7 @@ pub fn publish(path: &Path, scheme: &str, env: &Env) -> Result<(), String> {
         let content = kitty_scheme(scheme);
         if std::fs::read_to_string(&kitty).unwrap_or_default() != content {
             write_atomic(&kitty, content.as_bytes()).map_err(|e| format!("{e:?}"))?;
-            (env.reload)();
+            (env.reload)("kitty");
         }
     }
     // VS Code picks a settings change up at once; a failure there doesn't undo the publication
@@ -745,15 +758,32 @@ pub fn publish(path: &Path, scheme: &str, env: &Env) -> Result<(), String> {
             Err(Fail::Changed) => eprintln!("VS Code's settings changed while switching its theme; it switches next time"),
             Err(Fail::Io(e)) => eprintln!("Could not switch VS Code's theme: {e}"),
         }
+        for (name, publish) in PUBLISH {
+            match publish(config, env, scheme) {
+                Ok(()) => {}
+                Err(Fail::Changed) => eprintln!("{name}'s config changed while switching its colours; it switches next time"),
+                Err(Fail::Io(e)) => eprintln!("Could not switch {name}'s colours: {e}"),
+            }
+        }
     }
     Ok(())
 }
 
-fn reload_kitty() {
+/// Kitty reads its config again on SIGUSR1, btop on SIGUSR2 (btop.cpp, 1.4.7: config and theme),
+/// zathura through its D-Bus SourceConfig (one bus name per window).
+fn reload_app(app: &str) {
     let uid = unsafe { libc::getuid() }.to_string();
-    let code = std::process::Command::new("pkill").args(["-USR1", "-u", &uid, "-x", "kitty"]).status().map(|s| s.code().unwrap_or(2)).unwrap_or(2);
-    if !matches!(code, 0 | 1) {
-        eprintln!("Could not reload Kitty configuration");
+    let signal = |sig: &str, name: &str| {
+        let code = std::process::Command::new("pkill").args([sig, "-u", &uid, "-x", name]).status().map(|s| s.code().unwrap_or(2)).unwrap_or(2);
+        if !matches!(code, 0 | 1) {
+            eprintln!("Could not reload {name}'s configuration");
+        }
+    };
+    match app {
+        "kitty" => signal("-USR1", "kitty"),
+        "btop" => signal("-USR2", "btop"),
+        "zathura" => extra::zathura_source_config(),
+        _ => {}
     }
 }
 
@@ -762,7 +792,7 @@ pub fn main(args: &[String]) -> i32 {
     let config = std::env::var_os("XDG_CONFIG_HOME").filter(|c| !c.is_empty()).map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".config"));
     let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
-    let env = Env { path: std::env::var_os("PATH").unwrap_or_default(), home, reload: &reload_kitty };
+    let env = Env { path: std::env::var_os("PATH").unwrap_or_default(), home, reload: &reload_app };
     let shared = config.join("pistachio/shared-theme");
     let fail = |e: String| { println!("{}", json!({"error": e})); 1 };
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
@@ -788,6 +818,8 @@ pub fn main(args: &[String]) -> i32 {
         Err(e) => fail(e),
     }
 }
+
+mod extra;
 
 #[cfg(test)]
 mod tests;

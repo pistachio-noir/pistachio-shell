@@ -1,0 +1,46 @@
+/* Pistachio Noir, the Pistachio shell's Colours (made by tools/make-app-themes.py from src/Theme.qml)
+   for GTK 4 and libadwaita apps; restart an app to see a change */
+:root {
+  --accent-bg-color: #9FD88A;
+  --accent-fg-color: #15170F;
+  --accent-color: #9FD88A;
+  --destructive-bg-color: #DB8267;
+  --destructive-fg-color: #15170F;
+  --destructive-color: #DB8267;
+  --success-bg-color: #7FC9A8;
+  --success-fg-color: #15170F;
+  --success-color: #7FC9A8;
+  --warning-bg-color: #E0B15E;
+  --warning-fg-color: #15170F;
+  --warning-color: #E0B15E;
+  --error-bg-color: #DB8267;
+  --error-fg-color: #15170F;
+  --error-color: #DB8267;
+  --window-bg-color: #15170F;
+  --window-fg-color: #E5E9D8;
+  --view-bg-color: #15170F;
+  --view-fg-color: #E5E9D8;
+  --headerbar-bg-color: #1D2016;
+  --headerbar-fg-color: #E5E9D8;
+  --headerbar-border-color: #2A2F1F;
+  --headerbar-backdrop-color: #1D2016;
+  --sidebar-bg-color: #1D2016;
+  --sidebar-fg-color: #E5E9D8;
+  --sidebar-backdrop-color: #1D2016;
+  --sidebar-border-color: #2A2F1F;
+  --secondary-sidebar-bg-color: #15170F;
+  --secondary-sidebar-fg-color: #E5E9D8;
+  --secondary-sidebar-backdrop-color: #15170F;
+  --secondary-sidebar-border-color: #2A2F1F;
+  --card-bg-color: #1D2016;
+  --card-fg-color: #E5E9D8;
+  --dialog-bg-color: #1D2016;
+  --dialog-fg-color: #E5E9D8;
+  --popover-bg-color: #1D2016;
+  --popover-fg-color: #E5E9D8;
+  --thumbnail-bg-color: #2A2F1F;
+  --thumbnail-fg-color: #E5E9D8;
+  --overview-bg-color: #0D0F09;
+  --overview-fg-color: #E5E9D8;
+  --scrollbar-outline-color: #15170F;
+}

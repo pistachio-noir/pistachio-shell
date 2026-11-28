@@ -1,0 +1,103 @@
+# Noir, the Pistachio shell's Colours (made by tools/make-app-themes.py from src/Theme.qml)
+# a yazi flavor: ~/.config/yazi/flavors/pistachio-shell.yazi/flavor.toml
+
+[mgr]
+cwd = { fg = "#C8C8C8" }
+find_keyword = { fg = "#D2D2D2", bold = true, italic = true, underline = true }
+find_position = { fg = "#BEBEBE", bg = "reset", bold = true, italic = true }
+symlink_target = { fg = "#A6A6A6", italic = true }
+marker_copied = { fg = "#BDBDBD", bg = "#BDBDBD" }
+marker_cut = { fg = "#C9675C", bg = "#C9675C" }
+marker_marked = { fg = "#B4B4B4", bg = "#B4B4B4" }
+marker_selected = { fg = "#D2D2D2", bg = "#D2D2D2" }
+count_copied = { fg = "#111111", bg = "#BDBDBD" }
+count_cut = { fg = "#111111", bg = "#C9675C" }
+count_selected = { fg = "#111111", bg = "#D2D2D2" }
+border_style = { fg = "#333333" }
+
+[tabs]
+active = { fg = "#111111", bg = "#BDBDBD", bold = true }
+inactive = { fg = "#A6A6A6", bg = "#262626" }
+
+[mode]
+normal_main = { fg = "#111111", bg = "#BDBDBD", bold = true }
+normal_alt = { fg = "#BDBDBD", bg = "#262626" }
+select_main = { fg = "#111111", bg = "#B4B4B4", bold = true }
+select_alt = { fg = "#B4B4B4", bg = "#262626" }
+unset_main = { fg = "#111111", bg = "#C9675C", bold = true }
+unset_alt = { fg = "#C9675C", bg = "#262626" }
+
+[indicator]
+parent = { fg = "#E6E6E6", bg = "#262626" }
+current = { fg = "#111111", bg = "#BDBDBD" }
+preview = { underline = true }
+
+[status]
+overall = { fg = "#E6E6E6", bg = "#1A1A1A" }
+perm_sep = { fg = "#5E5E5E" }
+perm_type = { fg = "#B4B4B4" }
+perm_read = { fg = "#D2D2D2" }
+perm_write = { fg = "#C9675C" }
+perm_exec = { fg = "#C8C8C8" }
+progress_label = { fg = "#F7F7F7", bold = true }
+progress_normal = { fg = "#BDBDBD", bg = "#262626" }
+progress_error = { fg = "#C9675C", bg = "#262626" }
+
+[which]
+border = { fg = "#333333" }
+mask = { bg = "#1A1A1A" }
+cand = { fg = "#C8C8C8" }
+rest = { fg = "#A6A6A6" }
+desc = { fg = "#BEBEBE" }
+separator_style = { fg = "#333333" }
+
+[confirm]
+border = { fg = "#333333" }
+title = { fg = "#F7F7F7" }
+btn_yes = { fg = "#111111", bg = "#BDBDBD" }
+
+[spot]
+border = { fg = "#333333" }
+title = { fg = "#F7F7F7" }
+tbl_col = { fg = "#B4B4B4" }
+tbl_cell = { fg = "#111111", bg = "#BDBDBD" }
+
+[notify]
+title_info = { fg = "#C8C8C8" }
+title_warn = { fg = "#D2D2D2" }
+title_error = { fg = "#C9675C" }
+
+[pick]
+border = { fg = "#333333" }
+active = { fg = "#BDBDBD", bold = true }
+
+[input]
+border = { fg = "#333333" }
+selected = { fg = "#111111", bg = "#BDBDBD" }
+
+[cmp]
+border = { fg = "#333333" }
+active = { fg = "#111111", bg = "#BDBDBD" }
+
+[tasks]
+border = { fg = "#333333" }
+hovered = { fg = "#BDBDBD", bold = true }
+
+[help]
+border = { fg = "#333333" }
+chord = { fg = "#C8C8C8" }
+hovered = { fg = "#111111", bg = "#BDBDBD", bold = true }
+
+[filetype]
+rules = [
+	{ mime = "**/image/*", fg = "#D2D2D2" },
+	{ mime = "**/{audio,video}/*", fg = "#BEBEBE" },
+	{ mime = "**/application/{zip,rar,7z*,tar,gzip,xz,zstd,bzip*,lzma,compress,archive,cpio,arj,xar,ms-cab*}", fg = "#C4C4C4" },
+	{ mime = "**/application/{pdf,doc,rtf}", fg = "#B4B4B4" },
+	{ mime = "vfs/{absent,stale}", fg = "#5E5E5E" },
+	{ url = "*", is = "orphan", bg = "#C9675C" },
+	{ url = "*", is = "exec", fg = "#C8C8C8" },
+	{ url = "*", is = "dummy", bg = "#C9675C" },
+	{ url = "*/", is = "dummy", bg = "#C9675C" },
+	{ url = "*/", fg = "#B4B4B4" },
+]

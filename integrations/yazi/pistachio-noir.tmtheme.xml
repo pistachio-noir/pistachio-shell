@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Pistachio Noir, the Pistachio shell's Colours (made by tools/make-app-themes.py from src/Theme.qml): code in yazi's previews -->
+<plist version="1.0">
+<dict>
+	<key>name</key><string>Pistachio Noir</string>
+	<key>settings</key>
+	<array>
+		<dict>
+			<key>settings</key>
+			<dict>
+				<key>background</key><string>#15170F</string>
+				<key>foreground</key><string>#F6F8EF</string>
+				<key>caret</key><string>#9FD88A</string>
+				<key>selection</key><string>#39412A</string>
+				<key>lineHighlight</key><string>#1D2016</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>name</key><string>Comment</string>
+			<key>scope</key><string>comment</string>
+			<key>settings</key><dict><key>foreground</key><string>#A3B08F</string></dict>
+		</dict>
+		<dict>
+			<key>name</key><string>String</string>
+			<key>scope</key><string>string</string>
+			<key>settings</key><dict><key>foreground</key><string>#7FC9A8</string></dict>
+		</dict>
+		<dict>
+			<key>name</key><string>Number</string>
+			<key>scope</key><string>constant.numeric, constant.language, constant.character</string>
+			<key>settings</key><dict><key>foreground</key><string>#D9975A</string></dict>
+		</dict>
+		<dict>
+			<key>name</key><string>Keyword</string>
+			<key>scope</key><string>keyword, storage, keyword.operator.word</string>
+			<key>settings</key><dict><key>foreground</key><string>#AC8ED0</string></dict>
+		</dict>
+		<dict>
+			<key>name</key><string>Function</string>
+			<key>scope</key><string>entity.name.function, support.function, meta.function-call</string>
+			<key>settings</key><dict><key>foreground</key><string>#E0B15E</string></dict>
+		</dict>
+		<dict>
+			<key>name</key><string>Type</string>
+			<key>scope</key><string>entity.name.type, entity.name.class, support.type, support.class, storage.type</string>
+			<key>settings</key><dict><key>foreground</key><string>#7DA3B3</string></dict>
+		</dict>
+		<dict>
+			<key>name</key><string>Variable</string>
+			<key>scope</key><string>variable, variable.parameter, entity.name.tag</string>
+			<key>settings</key><dict><key>foreground</key><string>#D9975A</string></dict>
+		</dict>
+		<dict>
+			<key>name</key><string>Invalid</string>
+			<key>scope</key><string>invalid</string>
+			<key>settings</key><dict><key>foreground</key><string>#DB8267</string></dict>
+		</dict>
+	</array>
+</dict>
+</plist>

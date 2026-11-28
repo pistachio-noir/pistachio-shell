@@ -192,7 +192,7 @@ Column {
         if (page === "experimental") return [
             // OLED black (owner, 22 November 2026): here while its colours are tried out
             group("OLED black", [
-                impact(toggle("oled", "OLED black", () => (ShellSettings.colourScheme === "noir" ? "" : "Works with Noir colours only (Appearance → Colours). ") + "A true black background, with darker surfaces, text and accents on it. Drop shadows and frosted panels wait while it's on. Kitty, Neovim and VS Code follow with Theming integration; Text and Files always do.", () => ShellSettings.oled, ShellSettings.setOled), "saves")
+                impact(toggle("oled", "OLED black", () => (ShellSettings.colourScheme === "noir" ? "" : "Works with Noir colours only (Appearance → Colours). ") + "A true black background, with darker surfaces, text and accents on it. Drop shadows and frosted panels wait while it's on. The apps under Theming integration follow too; Text and Files always do.", () => ShellSettings.oled, ShellSettings.setOled), "saves")
             ]),
             group("Game mode", [
                 impact(toggle("game-mode", "Game mode", "While a fullscreen game is focused: quiet notifications, no animations or blur.", () => ShellSettings.gameMode, ShellSettings.setGameMode), "saves"),
@@ -214,10 +214,10 @@ Column {
             ]),
             group("Colours", [
                 { id: "colours", kind: "choice", title: "Colours", subtitle: () => "Pistachio Noir, or Noir in greys with one red for errors.", choices: () => [{value:"pistachio",title:"Pistachio Noir"},{value:"noir",title:"Noir"}], value: () => ShellSettings.colourScheme, set: ShellSettings.setColourScheme },
-                toggle("theming", "Theming integration", "Kitty, Neovim and VS Code follow Colours. An app with its own theme is asked about first.", () => AppTheming.enabled, AppTheming.setEnabled),
+                toggle("theming", "Theming integration", "Kitty, Neovim, VS Code, GTK apps, Vesktop, btop, yazi and zathura follow Colours. An app with its own theme is asked about first.", () => AppTheming.enabled, AppTheming.setEnabled),
                 ...(AppTheming.enabled ? AppTheming.apps.map(a => a.state === "own"
                     ? action("theming-" + a.id, a.name, AppTheming.kept.includes(a.id) ? "Your own theme, kept" : "Your own theme", "Use Pistachio", () => AppTheming.use(a.id))
-                    : read("theming-" + a.id, a.name, ({following: "Follows Colours", available: "Not set up yet", missing: "Not installed", unsupported: a.detail || "Couldn't set up"})[a.state] || a.state)) : [])
+                    : read("theming-" + a.id, a.name, ({following: a.detail ? "Follows Colours · " + a.detail : "Follows Colours", available: "Not set up yet", missing: "Not installed", unsupported: a.detail || "Couldn't set up"})[a.state] || a.state)) : [])
             ]),
             group("Surfaces", [
                 impact({ id: "frost", kind: "choice", title: "Frosted panels", subtitle: () => ShellSettings.oledLive ? "Off while OLED black is on (Experimental). Your choice is kept." : "Choose how much of the desktop shows through.", choices: () => [{value:"solid",title:"Solid"},{value:"subtle",title:"Subtle"},{value:"glassy",title:"Glassy"}], value: () => !ShellSettings.frosted ? "solid" : ShellSettings.glassy ? "glassy" : "subtle", set: v => { ShellSettings.setGlassy(v === "glassy"); ShellSettings.setFrosted(v !== "solid"); } }, "medium"),

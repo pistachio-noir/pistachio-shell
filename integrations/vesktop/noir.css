@@ -1,0 +1,86 @@
+/* Noir, the Pistachio shell's Colours (made by tools/make-app-themes.py from src/Theme.qml), for Vesktop (Discord's colour variables) */
+:root,
+.theme-dark:not(.custom-user-profile-theme),
+.theme-darker:not(.custom-user-profile-theme),
+.theme-midnight:not(.custom-user-profile-theme),
+.visual-refresh.theme-dark {
+  --background-base-lowest: #0B0B0B !important;
+  --background-base-lower: #111111 !important;
+  --background-base-low: #111111 !important;
+  --background-surface-high: #1A1A1A !important;
+  --background-surface-higher: #1A1A1A !important;
+  --background-surface-highest: #262626 !important;
+  --background-primary: #111111 !important;
+  --background-secondary: #1A1A1A !important;
+  --background-secondary-alt: #1A1A1A !important;
+  --background-tertiary: #0B0B0B !important;
+  --background-floating: #1A1A1A !important;
+  --background-nested-floating: #1A1A1A !important;
+  --background-accent: #262626 !important;
+  --background-mod-subtle: rgba(38, 38, 38, 0.5) !important;
+  --background-mod-normal: rgba(38, 38, 38, 0.8) !important;
+  --background-mod-strong: #333333 !important;
+  --background-mod-muted: rgba(38, 38, 38, 0.4) !important;
+  --background-modifier-hover: rgba(38, 38, 38, 0.5) !important;
+  --background-modifier-active: rgba(38, 38, 38, 0.8) !important;
+  --background-modifier-selected: #262626 !important;
+  --background-modifier-accent: #262626 !important;
+  --chat-background-default: #111111 !important;
+  --card-background-default: #1A1A1A !important;
+  --modal-background: #1A1A1A !important;
+  --input-background: #1A1A1A !important;
+  --channeltextarea-background: #1A1A1A !important;
+  --text-default: #E6E6E6 !important;
+  --text-normal: #E6E6E6 !important;
+  --text-strong: #F7F7F7 !important;
+  --text-muted: #A6A6A6 !important;
+  --text-subtle: #A6A6A6 !important;
+  --header-primary: #F7F7F7 !important;
+  --header-secondary: #A6A6A6 !important;
+  --text-link: #B4B4B4 !important;
+  --text-positive: #C8C8C8 !important;
+  --text-warning: #D2D2D2 !important;
+  --text-danger: #C9675C !important;
+  --channels-default: #A6A6A6 !important;
+  --channel-icon: #A6A6A6 !important;
+  --icon-default: #A6A6A6 !important;
+  --icon-muted: #5E5E5E !important;
+  --interactive-normal: #A6A6A6 !important;
+  --interactive-hover: #E6E6E6 !important;
+  --interactive-active: #F7F7F7 !important;
+  --interactive-muted: #5E5E5E !important;
+  --interactive-text-default: #A6A6A6 !important;
+  --interactive-text-hover: #E6E6E6 !important;
+  --interactive-text-active: #F7F7F7 !important;
+  --interactive-icon-default: #A6A6A6 !important;
+  --interactive-icon-hover: #E6E6E6 !important;
+  --interactive-icon-active: #F7F7F7 !important;
+  --interactive-background-hover: rgba(38, 38, 38, 0.5) !important;
+  --interactive-background-active: #262626 !important;
+  --interactive-background-selected: #262626 !important;
+  --border-subtle: #262626 !important;
+  --border-normal: #333333 !important;
+  --border-strong: #333333 !important;
+  --border-faint: #262626 !important;
+  --brand-500: #BDBDBD !important;
+  --brand-560: #BDBDBD !important;
+  --brand-600: #BDBDBD !important;
+  --background-brand: #BDBDBD !important;
+  --control-brand-foreground: #BDBDBD !important;
+  --control-brand-foreground-new: #BDBDBD !important;
+  --control-primary-background-default: #BDBDBD !important;
+  --control-primary-background-hover: #BDBDBD !important;
+  --control-primary-background-active: #BDBDBD !important;
+  --control-primary-text-default: #111111 !important;
+  --button-filled-brand-background: #BDBDBD !important;
+  --button-filled-brand-background-hover: #BDBDBD !important;
+  --button-filled-brand-text: #111111 !important;
+  --scrollbar-thin-thumb: #333333 !important;
+  --scrollbar-auto-thumb: #333333 !important;
+  --scrollbar-auto-track: transparent !important;
+  --status-danger: #C9675C !important;
+  --status-warning: #D2D2D2 !important;
+  --status-positive: #C8C8C8 !important;
+  --mention-foreground: #F7F7F7 !important;
+  --mention-background: rgba(210, 210, 210, 0.12) !important;
+}

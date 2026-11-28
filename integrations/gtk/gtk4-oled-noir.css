@@ -1,0 +1,46 @@
+/* OLED Noir, the Pistachio shell's Colours (made by tools/make-app-themes.py from src/Theme.qml)
+   for GTK 4 and libadwaita apps; restart an app to see a change */
+:root {
+  --accent-bg-color: #969696;
+  --accent-fg-color: #000000;
+  --accent-color: #969696;
+  --destructive-bg-color: #A5544B;
+  --destructive-fg-color: #000000;
+  --destructive-color: #A5544B;
+  --success-bg-color: #A0A0A0;
+  --success-fg-color: #000000;
+  --success-color: #A0A0A0;
+  --warning-bg-color: #A8A8A8;
+  --warning-fg-color: #000000;
+  --warning-color: #A8A8A8;
+  --error-bg-color: #A5544B;
+  --error-fg-color: #000000;
+  --error-color: #A5544B;
+  --window-bg-color: #000000;
+  --window-fg-color: #BABABA;
+  --view-bg-color: #000000;
+  --view-fg-color: #BABABA;
+  --headerbar-bg-color: #0A0A0A;
+  --headerbar-fg-color: #BABABA;
+  --headerbar-border-color: #161616;
+  --headerbar-backdrop-color: #0A0A0A;
+  --sidebar-bg-color: #0A0A0A;
+  --sidebar-fg-color: #BABABA;
+  --sidebar-backdrop-color: #0A0A0A;
+  --sidebar-border-color: #161616;
+  --secondary-sidebar-bg-color: #000000;
+  --secondary-sidebar-fg-color: #BABABA;
+  --secondary-sidebar-backdrop-color: #000000;
+  --secondary-sidebar-border-color: #161616;
+  --card-bg-color: #0A0A0A;
+  --card-fg-color: #BABABA;
+  --dialog-bg-color: #0A0A0A;
+  --dialog-fg-color: #BABABA;
+  --popover-bg-color: #0A0A0A;
+  --popover-fg-color: #BABABA;
+  --thumbnail-bg-color: #161616;
+  --thumbnail-fg-color: #BABABA;
+  --overview-bg-color: #000000;
+  --overview-fg-color: #BABABA;
+  --scrollbar-outline-color: #000000;
+}

@@ -6,7 +6,8 @@
 //! Out: ready, jobs (when they change, polled every 0.7 s), preview, handlers, opened, launched,
 //! launch-failed, error. A job runs as `psc launcher-tools --job FOLDER COMMAND` in its own session
 //! and process group, writes state.json and a bounded output, ends on a `cancel` file (TERM, then KILL
-//! after 2 s), keeps the 20 newest finished jobs, and notifies when done.
+//! after 2 s), keeps the 20 newest finished jobs, and notifies when done. A running emerge shows as a
+//! job too, view only (emerge.rs, 28 November 2026).
 use gio::glib;
 use gio::prelude::*;
 use serde_json::{json, Value};
@@ -235,12 +236,14 @@ pub fn run_job(folder: &Path, command: &str) {
     }
     row["ended"] = json!(now_ms());
     atomic(&folder.join("state.json"), &row);
-    // volatile session history: keep the twenty newest finished jobs, never remove a running one
-    if let Some(base) = folder.parent() {
-        let finished: Vec<Value> = read_jobs(base).into_iter().filter(|r| r["state"] != "running").collect();
-        for old in finished.iter().skip(20) {
-            if let Some(id) = old["id"].as_str() { let _ = std::fs::remove_dir_all(base.join(id)); }
-        }
+    if let Some(base) = folder.parent() { trim_jobs(base); }
+}
+
+/// Volatile session history: keep the twenty newest finished jobs (emerges too), never remove a running one.
+pub fn trim_jobs(base: &Path) {
+    let finished: Vec<Value> = read_jobs(base).into_iter().filter(|r| r["state"] != "running").collect();
+    for old in finished.iter().skip(20) {
+        if let Some(id) = old["id"].as_str() { let _ = std::fs::remove_dir_all(base.join(id)); }
     }
 }
 
@@ -321,7 +324,24 @@ pub fn main(args: &[String]) -> i32 {
     emit(json!({"event": "ready"}));
     { let base = base.clone(); let emit = emit.clone(); std::thread::spawn(move || {
         let mut previous: Option<Vec<Value>> = None;
+        let mut tick = 0u32;
         loop {
+            // a running emerge (emerge.rs), every third look: a scan of /proc
+            if tick % 3 == 0 {
+                let at = crate::emerge::Places { jobs: &base, proc: Path::new("/proc"), log: Path::new("/var/log/emerge.log") };
+                crate::emerge::watch(&at, &|title, body| {
+                    let (title, body) = (title.to_string(), body.to_string());
+                    std::thread::spawn(move || {
+                        if let Ok(mut child) = Command::new("notify-send").args(["--app-name=Portage", "--icon=system-software-update", &title, &body]).stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
+                            let until = Instant::now() + Duration::from_secs(3);
+                            while child.try_wait().ok().flatten().is_none() && Instant::now() < until { std::thread::sleep(Duration::from_millis(50)); }
+                            let _ = child.kill();
+                            let _ = child.wait();
+                        }
+                    });
+                });
+            }
+            tick = tick.wrapping_add(1);
             let rows = read_jobs(&base);
             if previous.as_ref() != Some(&rows) { emit(json!({"event": "jobs", "jobs": rows})); previous = Some(rows); }
             std::thread::sleep(Duration::from_millis(700));

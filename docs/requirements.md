@@ -44,6 +44,7 @@ The table gives Arch's package names. On Gentoo, `psc doctor` prints the atoms i
 | App theming (optional) | `adw-gtk3` (Gentoo `x11-themes/adw-gtk3` in `::guru`) for GTK 3 apps | GTK 3 apps following Colours (GTK 4, Vesktop, btop, yazi and zathura need nothing extra) | GTK 3 apps keep Adwaita's colours |
 | System monitor (optional) | `btop` | a click on the CPU/RAM desktop widget or the TUI bar's cpu/mem opens it in your terminal | those clicks open Settings → System |
 | Show in Files (optional) | Pistachio FM (its own repo), installed | the launcher's Show in Files opens a file's folder there with the file selected | Show in folder opens the folder with `xdg-open` |
+| emerge in Background jobs (Gentoo) | your user in the `portage` group (`sudo gpasswd -a $USER portage`, then log in again) for `/var/log/emerge.log` | "3 of 12" and how a running emerge ended | the job shows what it builds and "Ended" |
 | Calendar events (optional) | `gnome-calendar` (with `evolution-data-server`; `psc events` loads its libraries) | events in the month calendar | the calendar shows dates only |
 | Launcher extras (optional) | `libqalculate` (`qalc`); `tldr`; Cider (with its app token); CLion; VS Code; Steam | `tldr`, `m`, CLion and VS Code projects, games | that part of the launcher stays empty |
 | USB drives | the shell's helpers, built by `install.sh`; `udisks2` (already there). Don't run `udiskie` beside the shell: it would do the same job twice | mounting drives as they're plugged in; Eject | drives don't mount by themselves; Eject still works |

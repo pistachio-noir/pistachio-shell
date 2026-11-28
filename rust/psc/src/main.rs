@@ -7,6 +7,7 @@ mod cli;
 mod clocks;
 mod completions;
 mod doctor;
+mod emerge;
 mod events;
 mod files;
 mod ipc;

@@ -72,7 +72,7 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 
 ### Rust
 
-`cd rust && cargo test --workspace`: the helpers' and `psc`'s own unit tests (theme incl. VS Code: JSONC edits, a stand-in `code`, own theme and undo; the .vsix zip read by Python's zipfile; doctor with Gentoo atoms and os-release, set-oneshot bytes, `/proc` children, tools and the rest), plus `psc/tests/power.rs`: `psc power` against a fake logind on a private `dbus-daemon` it starts itself (it first proves psc can't reach the real system bus). Since 28 November 2026 also: the GTK, Vesktop, btop, yazi and zathura themes (setup, a switch, undo restoring the user's file byte for byte, own themes, the reload calls, Vesktop's file keeping its inode), and `psc/tests/clocks.rs`: `psc clocks` with no GNOME Clocks schema prints `[]` or a plain error instead of aborting.
+`cd rust && cargo test --workspace`: the helpers' and `psc`'s own unit tests (theme incl. VS Code: JSONC edits, a stand-in `code`, own theme and undo; the .vsix zip read by Python's zipfile; doctor with Gentoo atoms and os-release, set-oneshot bytes, `/proc` children, tools and the rest), plus `psc/tests/power.rs`: `psc power` against a fake logind on a private `dbus-daemon` it starts itself (it first proves psc can't reach the real system bus). Since 28 November 2026 also: the GTK, Vesktop, btop, yazi and zathura themes (setup, a switch, undo restoring the user's file byte for byte, own themes, the reload calls, Vesktop's file keeping its inode), `emerge.rs` against a fake `/proc` and emerge.log, and `psc/tests/clocks.rs`: `psc clocks` with no GNOME Clocks schema prints `[]` or a plain error instead of aborting.
 
 ## Live-system suites (they use the running shell or change real devices)
 

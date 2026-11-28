@@ -56,6 +56,15 @@ ShellRoot {
     field.text=";";input.wait(350);
     const results=find(launcher.contentItem,"launcher-results");
     check(results.contentHeight >= 140 && results.height >= 140,"Classic clipboard rows have visible height");
+    Clipboard.history=[{id:"9",text:"Picture 800 × 600",picture:true,format:"png",size:"48 KiB",width:800,height:600,thumb:Quickshell.env("PISTACHIO_TEST_PICTURE")},{id:"8",text:"beta words"}];
+    field.text=";picture";input.wait(350);
+    const pic=launcher.rows.find(r=>r.kind==="clipboard");
+    check(pic && pic.clipId==="9" && pic.isPicture && pic.subtitle==="PNG · 48 KiB" && pic.picture==="file://"+Quickshell.env("PISTACHIO_TEST_PICTURE") && !launcher.rows.some(r=>r.clipId==="8"),"`;picture` finds a clipboard picture, with its type and size");
+    input.tryVerify(()=>{const f=find(launcher.contentItem,"launcher-picture");return f&&f.visible;},2000);
+    check(find(launcher.contentItem,"launcher-picture")?.visible,"Classic shows the picture's thumbnail in the row");
+    launcher.activate(pic,0,false);check(Clipboard.restored==="9","Enter copies the picture back");
+    launcher.open=false;root.tui=true;input.wait(300);launcher.show("apps");field.text=";picture";input.wait(350);
+    check(findRow(launcher.contentItem,"clipboard")?.prefix()==="[P]","TUI marks a picture [P]");
    } else if(name==="git") {
     Library.vscode=true;Library.codeProjects=[{name:"Project",path:"/tmp/project",git:{branch:"feature/cat",dirty:true}}];
     const rows=launcher.codeProjectRows("code");check(rows.length===1 && rows[0].subtitle.includes("● feature/cat"),"project displays Git branch and dirty dot");

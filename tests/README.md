@@ -45,6 +45,7 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 | `app-themes` | the GTK, btop, yazi, zathura and Vesktop theme files match `src/Theme.qml`; `psc theme setup` for GTK and yazi in a throwaway config, then GTK 4's and GTK 3's own CSS parser (a small C program, needs gcc and the GTK headers) and yazi itself in a pseudo terminal read it in all three schemes; undo. psc gets no `pkill` and no session bus |
 | `neovim-theme` | Neovim, headless, follows the shared theme live, OLED Noir's marker too (uses `integrations/neovim`) |
 | `game-mode` | the real `GameMode` service with stand-in Compositor and ShellSettings |
+| `clipboard` | the real `Clipboard` service with stand-in cliphist, wl-paste and wl-copy: the text and picture watchers, picture entries, thumbnails in the runtime folder, copying back, Clear |
 | `clocks`, `clocks-popup` | the Clocks helper; Stop and Snooze closing the alarm popup; without GNOME Clocks the helper is never run |
 | `phone-timer` | `psc phone-timer`, run the way FocusMode runs it: state page, Pause/Skip/End POSTs passed on as actions |
 | `ambient-clock` | the ambient clock (Experimental): real service and layer with stand-ins and idle set by hand: switch, idle and empty-desktop rule, no input taken, media and timer lines, a fast fade-out, delay choices, preview, TUI font (native, shows briefly) |

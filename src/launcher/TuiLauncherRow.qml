@@ -32,6 +32,7 @@ Item {
         if (row.kind === "window") return row.badge ? "["+row.badge+"]" : "[-]";
         if (row.kind === "switch") return checked ? "[x]" : "[ ]";
         if (row.kind === "presetsave") return "[+]";
+        if (row.isPicture) return "[P]"; // a clipboard picture: TUI shows no thumbnail
         if (row.kind === "app") {
             const kind=(row.app.genericName??"").toLowerCase();
             return "["+(kind.includes("browser")?"W":kind.includes("terminal")?"T":kind.includes("editor")?"E":kind.includes("music")?"M":row.title.slice(0,1).toUpperCase())+"]";

@@ -211,6 +211,17 @@ Arrows or <kbd>Ctrl</kbd> + <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> 
 
 Something misbehaving? [Troubleshooting](docs/troubleshooting.md) has the usual suspects, and `psc log --errors` usually has the confession.
 
+### Why Lens and Quick chat use coding agents, not an API
+
+Lens and Quick chat don't call an AI API. They run the coding agents you may already have, Claude Code (`claude`) and Codex (`codex`). That's on purpose:
+
+1. **No API key, no second bill.** The agents use the Claude or ChatGPT plan you're already logged into. An API would need a key of its own and would bill you separately, per request.
+2. **They're agents, not just a chat box.** They can work on your machine: read files, run tools, change things for you. For now the shell keeps them on a short leash. They can only read, and a change Lens proposes to a file waits for you to review the diff and press Apply.
+3. **Less to maintain.** The CLIs take care of signing in, models, streaming and updates. The shell hands them a question and reads the answer, so there's no API client to keep alive.
+4. **Your skills come along.** Skills you've set up for Claude Code or Codex can work in Lens and Quick chat too. For now Claude runs in safe mode, which leaves skills, plugins and hooks out until that's switched on.
+
+Don't wanna use AI? You can turn it off in the settings.
+
 ## Documentation
 
 - [Full feature reference](docs/README.LLM.md): every feature, key and setting.

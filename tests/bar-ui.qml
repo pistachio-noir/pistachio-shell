@@ -1,5 +1,6 @@
 import qs
 import qs.bar
+import qs.panels
 import qs.services
 import Quickshell
 import Quickshell.Io
@@ -14,6 +15,8 @@ ShellRoot {
     Bar { id:bar;onLauncherRequested:mode=>root.launched=mode }
     property string launched
     TestCase { id:input;parent:bar.controls?.contentItem??null;when:false }
+    RealQuickSettings { id:classicQs }
+    TestCase { id:qsInput;parent:classicQs.contentItem;when:false }
     function check(ok,why){if(!ok)throw Error(why);}
     function find(item,name){if(item.objectName===name)return item;for(const c of item.children??[]){const hit=find(c,name);if(hit)return hit;}return null;}
     function row(name){const r=find(bar.controls.contentItem,"control-"+name);check(!!r,"missing control "+name);return r;}
@@ -67,6 +70,14 @@ ShellRoot {
         check(streamLabel.y+streamLabel.height<=streamSlider.y || streamLabel.x+streamLabel.width<=streamSlider.x,"mixer label cannot overlap meter");
         Audio.streams=[];input.wait(60);check(bar.controls.selected===0,"removed stream clamps selection");
         bar.controls.page="";input.wait(80);
+        check(bar.controls.rows.find(r=>r.id==="volume")?.more,"right-click on vol opens the outputs");bar.controls.rows.find(r=>r.id==="volume").more();input.wait(100);
+        check(bar.controls.page==="output" && bar.controls.rows.map(r=>r.id).join()==="output-1,output-2,output-3","the output page lists every output");
+        check(row("output-1").checked && !row("output-2").checked,"the current output is marked");
+        check(bar.controls.rows[2].detail()==="nothing plugged in","an unplugged output says so");
+        row("output-3").activated();input.wait(40);check(Audio.sink.id===1,"an unplugged output can't be chosen");
+        row("output-2").activated();input.wait(60);check(Audio.sink.id===2 && row("output-2").checked,"picking an output switches the sound there");
+        Audio.setSink(Audio.sinks[0]);
+        bar.controls.page="";input.wait(80);
         bar.controls.selected=bar.controls.rows.findIndex(r=>r.id==="dnd");
         input.keyClick(Qt.Key_Space);check(!Notifs.dnd,"control Space toggles selected row");
         input.keyClick(Qt.Key_Down);check(bar.controls.rows[bar.controls.selected].id==="night","control Down moves selection");
@@ -83,5 +94,24 @@ ShellRoot {
         bar.controls.open=false;
         return "PASS top strip, reservation, actions, LocalSend and exclusive style loading";
     }
-    IpcHandler { target:"barTest";function classic():void{root.tui=false;Notifs.popups=[];bar.centre.open=false;}function popup(kind:string,shown:bool):void{if(kind==="toast")Notifs.popups=shown?[{}]:[];else bar.centre.open=shown;}function ready():bool{return !!bar.window&&!!bar.controls;}function run():string{try{return root.run();}catch(e){return "FAIL "+e.message+"\n"+e.stack;}} }
+    // Classic quick settings' Sound output card (the › after the volume slider)
+    function classicOutput(): string {
+        try {
+            root.tui=false;classicQs.open=true;qsInput.wait(300);
+            const more=find(classicQs.contentItem,"slider-more");
+            check(more && more.visible,"Classic volume row has a › while there is more than one output");
+            qsInput.mouseClick(more);qsInput.wait(250);
+            check(classicQs.popup==="output" && find(classicQs.contentItem,"output-popover").visible,"the › opens the Sound output card");
+            const two=find(classicQs.contentItem,"output-2"), three=find(classicQs.contentItem,"output-3");
+            check(two && three && find(classicQs.contentItem,"output-1"),"the card lists every output");
+            qsInput.mouseClick(three);qsInput.wait(60);check(Audio.sink.id===1,"an unplugged output can't be picked");
+            qsInput.mouseClick(two);qsInput.wait(60);check(Audio.sink.id===2,"a click moves the sound to that output");
+            classicQs.popup="";qsInput.wait(250); // (Esc goes through the panel's key handler, which needs the keyboard this test window lacks)
+            const all=Audio.sinks;Audio.sinks=all.slice(0,1);qsInput.wait(60);
+            check(!find(classicQs.contentItem,"slider-more").visible,"with one output there is no ›");
+            Audio.sinks=all;Audio.setSink(all[0]);classicQs.open=false;qsInput.wait(250);
+            return "PASS Classic quick settings' Sound output card";
+        } catch (e) { classicQs.open=false; return "FAIL "+e.message; }
+    }
+    IpcHandler { target:"barTest";function classicOutput():string{return root.classicOutput();}function classic():void{root.tui=false;Notifs.popups=[];bar.centre.open=false;}function popup(kind:string,shown:bool):void{if(kind==="toast")Notifs.popups=shown?[{}]:[];else bar.centre.open=shown;}function ready():bool{return !!bar.window&&!!bar.controls;}function run():string{try{return root.run();}catch(e){return "FAIL "+e.message+"\n"+e.stack;}} }
 }

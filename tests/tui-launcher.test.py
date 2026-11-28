@@ -17,7 +17,7 @@ MOCKS.update({
  'Tldr':'property bool busy:false;property bool missing:false;property string description:"A detailed paragraph explaining this command and its arguments. ".repeat(12);property string page:"tar";property string more:"https://example.invalid/manual";property var examples:[{what:"List an archive",command:"tar tf archive.tar"}];function lookup(s){}',
  'Qalc':'property bool installed:false;property string answer:"";property string expression:"";property bool failed:false;function ask(s){}',
  'Cider':'property bool installed:false;property bool enabled:false;property bool reachable:false;property bool usable:false;property bool searching:false;property var results:[];function search(s){}function play(i,m){}function check(s,f){}function setToken(s){}',
- 'Clocks':"property var stopwatch:null;property var lastTimer:null;property var lastAlarm:null;function parseDuration(s){const m=/^(\\d+)m$/.exec(s);return m?Number(m[1])*60000:0;}function startTimer(ms,label){lastTimer={ms:ms,label:label};}function addAlarm(h,m,label){lastAlarm={hour:h,minute:m,label:label};}function startStopwatch(){stopwatch={since:1};}function pauseStopwatch(){stopwatch={since:stopwatch.since?0:1};}function stopStopwatch(){stopwatch=null;}function lap(){}",
+ 'Clocks':"property bool clocksInstalled:true;property var stopwatch:null;property var lastTimer:null;property var lastAlarm:null;function parseDuration(s){const m=/^(\\d+)m$/.exec(s);return m?Number(m[1])*60000:0;}function startTimer(ms,label){lastTimer={ms:ms,label:label};}function addAlarm(h,m,label){lastAlarm={hour:h,minute:m,label:label};}function startStopwatch(){stopwatch={since:1};}function pauseStopwatch(){stopwatch={since:stopwatch.since?0:1};}function stopStopwatch(){stopwatch=null;}function lap(){}",
  'Chat':'property string providerName:"Claude";function show(p){}',
  'Showoff':'property bool active:false;function toggle(){}',
  'Desktop':'function check(s){return "";}function newFolder(c,n){}function rename(i,n){}',
@@ -37,7 +37,7 @@ with tempfile.TemporaryDirectory(prefix='pistachio-tui-launcher-') as directory:
  for name in ['FocusGrab.qml']:shutil.copy(ROOT/'src/services'/name,base/'services'/name)
  for name,body in MOCKS.items():(base/f'services/{name}.qml').write_text('pragma Singleton\nimport Quickshell\nimport QtQuick\nSingleton {\n'+body+'\n}\n')
  shutil.copy(ROOT/'tests/tui-launcher.qml',base/'shell.qml')
- env=dict(os.environ,XDG_RUNTIME_DIR=str(base/'runtime'),XDG_STATE_HOME=str(base/'state'),XDG_CACHE_HOME=str(base/'cache'))
+ env=dict(os.environ,PISTACHIO_TEST_PICTURE=str(ROOT/'docs/images/showcase-classic.png'),XDG_RUNTIME_DIR=str(base/'runtime'),XDG_STATE_HOME=str(base/'state'),XDG_CACHE_HOME=str(base/'cache'))
  env['WAYLAND_DISPLAY']=os.path.join(os.environ['XDG_RUNTIME_DIR'],os.environ.get('WAYLAND_DISPLAY','wayland-1'))
  env['HYPRLAND_INSTANCE_SIGNATURE']=os.environ.get('HYPRLAND_INSTANCE_SIGNATURE') or json.loads(subprocess.check_output(['hyprctl','instances','-j']))[0]['instance']
  with (base/'log').open('w+') as log:

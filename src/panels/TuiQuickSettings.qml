@@ -45,8 +45,10 @@ PanelWindow {
         const row=rows[selected];if(row?.kind==="level")row.adjust(Math.max(row.from??0,Math.min(row.to??1,row.value()+direction*((row.to??1)-(row.from??0))/20)));
     }
     readonly property var rows: {
+        // the outputs (right-click vol, or Output): the current one checked, Enter or a click moves the sound there
+        if(page==="output") return Audio.sinks.map(n=>({id:"output-"+n.id,kind:"toggle",text:Audio.deviceName(n),checked:()=>Audio.sink?.id===n.id,detail:()=>Audio.isUnplugged(n)?"nothing plugged in":Audio.sink?.id===n.id?"current":"",run:()=>{if(!Audio.isUnplugged(n))Audio.setSink(n);},more:()=>root.settings("sound")}));
         if(page==="mixer") return Audio.streams.map(n=>({id:"stream-"+n.id,kind:"level",text:Audio.appName(n),value:()=>n.audio?.volume??0,muted:()=>n.audio?.muted??false,run:()=>Audio.toggleStreamMute(n),adjust:v=>Audio.setStreamVolume(n,v)}));
-        const out=[{id:"volume",kind:"level",text:"vol",value:()=>Audio.volume,muted:()=>Audio.muted,run:()=>Audio.toggleMute(),adjust:v=>Audio.setVolume(v)}];
+        const out=[{id:"volume",kind:"level",text:"vol",value:()=>Audio.volume,muted:()=>Audio.muted,run:()=>Audio.toggleMute(),adjust:v=>Audio.setVolume(v),more:()=>root.page="output"}];
         if(Audio.source)out.push({id:"microphone",kind:"level",text:"mic",value:()=>Audio.micVolume,muted:()=>Audio.micMuted,run:()=>Audio.toggleMicMute(),adjust:v=>Audio.setMicVolume(v)});
         if(Brightness.available)out.push({id:"brightness",kind:"level",text:"light",value:()=>Brightness.value,run:()=>root.settings("display"),adjust:v=>Brightness.set(v)});
         if(NightLight.enabled)out.push({id:"warmth",kind:"level",text:"warm",from:2500,to:6500,value:()=>NightLight.temperature,format:v=>Math.round(v)+"K",run:()=>root.settings("display"),adjust:v=>NightLight.setTemperature(Math.round(v/50)*50)});
@@ -62,7 +64,7 @@ PanelWindow {
         id:control;x:root.width-width;y:10;width:Theme.tuiPanelWidth
         height:Math.min(body.implicitHeight+28,root.screen.height-Theme.tuiBarHeight-Theme.tuiPanelGap-20)
         active:!root.localShown
-        title:root.page==="mixer"?"mixer":"control";detail:LocalSend.name
+        title:root.page==="mixer"?"mixer":root.page==="output"?"output":"control";detail:LocalSend.name
         color:Theme.glass(Theme.bg);opacity:reveal.progress
         Flickable {
             anchors.fill:parent;anchors.margins:12;contentWidth:width;contentHeight:body.implicitHeight;clip:true;boundsBehavior:Flickable.StopAtBounds
@@ -107,7 +109,8 @@ PanelWindow {
                 Flow {
                     width:parent.width;spacing:4
                     SettingsButton { text:"Settings";onClicked:root.settings("appearance") }
-                    SettingsButton { text:root.page==="mixer"?"Back":"Mixer";onClicked:root.page=root.page==="mixer"?"":"mixer" }
+                    SettingsButton { text:root.page==="mixer"||root.page==="output"?"Back":"Mixer";onClicked:root.page=root.page?"":"mixer" }
+                    SettingsButton { visible:root.page==="";text:"Output";onClicked:root.page="output" }
                     SettingsButton { text:"Launcher";onClicked:root.launcherRequested("all") }
                     SettingsButton { text:"Power";danger:true;onClicked:root.powerRequested() }
                 }

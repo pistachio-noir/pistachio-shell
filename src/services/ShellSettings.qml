@@ -33,6 +33,8 @@ Singleton {
     function setMonochromeWallpaper(value: bool) { Store.saved.monochromeWallpaper = value; }
     readonly property bool clipboardHistory: Store.saved.clipboardHistory === true
     function setClipboardHistory(value: bool) { Store.saved.clipboardHistory = value; }
+    readonly property bool clipboardPictures: Store.saved.clipboardPictures === true
+    function setClipboardPictures(value: bool) { Store.saved.clipboardPictures = value; }
     readonly property bool phonePreview: Store.saved.phonePreview === true
     function setPhonePreview(value: bool) { Store.saved.phonePreview = value; }
     // opt-in only (owner, 21 November 2026); kept on this machine, not in the settings export

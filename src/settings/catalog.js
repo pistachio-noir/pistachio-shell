@@ -50,6 +50,7 @@ var settings = [
     ["health", "force-restart-shell", "Force restart shell", "Restart", "restart force kill helpers"],
     ["appearance", "monochrome-wallpaper", "Monochrome wallpaper", "Desktop", "wallpaper monochrome grayscale greyscale noir background"],
     ["apps", "clipboard-history", "Clipboard history", "Launcher", "clipboard copy paste history cliphist"],
+    ["apps", "clipboard-pictures", "Keep pictures too", "Launcher", "clipboard history pictures images screenshots cliphist"],
     ["experimental", "oled", "OLED black", "OLED black", "oled amoled true black pure black dark darker power"],
     ["experimental", "game-mode", "Game mode", "Game mode", "game gaming fullscreen steam animations blur quiet"],
     ["experimental", "game-classes", "Extra game windows", "Game mode", "game window class steam"],

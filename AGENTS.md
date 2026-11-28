@@ -94,6 +94,7 @@ install.sh      links src/ into place, builds rust/, installs psc and the helper
 - Game mode (Experimental, off): a fullscreen game → quiet toasts, animations and blur off at runtime, OSD on start/end.
 - Desktop cat (Appearance, off) on desktops without tiled windows: coats Cream, Ginger and Midnight; pets, a laptop pose, a clock for running timers, headphones during playback; an About easter egg after ten presses.
 - Alarms need GNOME Clocks (28 Nov): without it `psc clocks list` is `[]`, the shell doesn't call it, `alarm` says so; doctor lists it as optional. btop opens from the CPU/RAM widget and the TUI bar's cpu/mem (right click: Settings → System). Launcher Show in Files: Pistachio FM with the file selected. A running `emerge` is a view-only Background job (`psc`'s `emerge.rs`; step and outcome need the `portage` group for emerge.log).
+- Clipboard history (opt-in) keeps pictures only with its own Keep pictures too switch (off; 28 Nov): a second `wl-paste --type image` watcher, thumbnails in the runtime folder. Quick settings: a › after the volume value (more than one output) opens Sound output; TUI: right-click vol or Output.
 - Minimising windows to `special:minimized`. LocalSend in quick settings while the LocalSend app is installed (port 53317 shared, the app must not run). Bluetooth devices paired from the shell are connected right after pairing. Integrations switches per other app (`ShellSettings.integration(id)`). Restart / Force restart in Shell health.
 
 ## Style rules

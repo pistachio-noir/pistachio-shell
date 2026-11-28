@@ -29,7 +29,7 @@ Singleton {
         catSkin: "Cat skin",
         frosted: "Frosted panels", frostStyle: "Frost style", shadows: "Drop shadows", desktopIcons: "Desktop icons",
         workspaceOsd: "Workspace OSD", tabbedOsd: "Tabbed OSD",
-        desktopCat: "Desktop cat", clipboardHistory: "Clipboard history", monochromeWallpaper: "Monochrome wallpaper", phonePreview: "Phone timer preview", gameMode: "Game mode", oled: "OLED black", desktopWidgets: "Desktop widgets", ambientClock: "Ambient clock", ambientDelay: "Ambient clock delay", themingIntegration: "Theming integration", themingKeep: "Apps keeping their own theme", gameClasses: "Extra game windows", appearanceStyle: "Style", tuiHyprland: "Hyprland integration", colourScheme: "Colours", tuiTrayOpen: "Tray icons shown (TUI)",
+        desktopCat: "Desktop cat", clipboardHistory: "Clipboard history", clipboardPictures: "Clipboard pictures", monochromeWallpaper: "Monochrome wallpaper", phonePreview: "Phone timer preview", gameMode: "Game mode", oled: "OLED black", desktopWidgets: "Desktop widgets", ambientClock: "Ambient clock", ambientDelay: "Ambient clock delay", themingIntegration: "Theming integration", themingKeep: "Apps keeping their own theme", gameClasses: "Extra game windows", appearanceStyle: "Style", tuiHyprland: "Hyprland integration", colourScheme: "Colours", tuiTrayOpen: "Tray icons shown (TUI)",
         nightLight: "Night light", temperature: "Night light warmth", nightSchedule: "Night light schedule",
         nightFrom: "Night light start", nightTo: "Night light end",
         headphonesTakeOver: "Headphones take over", volumeTick: "Volume tick",

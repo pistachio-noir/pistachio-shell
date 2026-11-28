@@ -33,6 +33,7 @@ Singleton {
         property string catSkin: "cream"
         property bool monochromeWallpaper // optional grayscale wallpaper in Noir
         property bool clipboardHistory // clipboard history is opt-in
+        property bool clipboardPictures // and pictures in it, opt-in again (owner, 28 November 2026)
         property bool phonePreview // local phone timer preview is opt-in
         property bool devFeatures // Experimental → Dev features: launcher actions for working on the shell, opt-in
         property bool gameMode // game mode is opt-in (Experimental)

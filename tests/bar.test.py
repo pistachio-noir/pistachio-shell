@@ -46,6 +46,8 @@ PanelWindow {
 }
 '''
  for name in ['QuickSettings','NotificationCentre','PowerMenu']:(base/f'panels/{name}.qml').write_text(panel)
+ # the real Classic quick settings too, under another name (the bar keeps the stand-in), for its output card
+ shutil.copy(ROOT/'src/panels/QuickSettings.qml',base/'panels/RealQuickSettings.qml');shutil.copy(ROOT/'src/panels/MixerPage.qml',base/'panels/MixerPage.qml')
  (base/'panels/LocalSendPage.qml').write_text('import QtQuick\nItem {implicitHeight:100;signal back;signal settingsRequested}\n')
  (base/'popups/Toasts.qml').write_text('import Quickshell\nPanelWindow {property bool suppressNotifications:false;property bool phoneShown:false;property int side:0;property int above:0;property int below:0;implicitWidth:400;implicitHeight:180;visible:false;exclusiveZone:0}\n')
  (base/'popups/Osd.qml').write_text('import Quickshell\nPanelWindow {property int lift;property bool suppressed;property bool overviewOpen;visible:false;exclusiveZone:0}\n')
@@ -62,6 +64,9 @@ PanelWindow {
     if ready.stdout.strip()=='true':break
     time.sleep(.1)
    result=subprocess.run(['qs','-p',directory,'ipc','call','barTest','run'],env=env,capture_output=True,text=True,timeout=20)
+   log.flush();output=(base/'log').read_text()
+   assert result.stdout.startswith('PASS'),result.stdout+'\n'+output
+   result=subprocess.run(['qs','-p',directory,'ipc','call','barTest','classicOutput'],env=env,capture_output=True,text=True,timeout=20)
    log.flush();output=(base/'log').read_text()
    assert result.stdout.startswith('PASS'),result.stdout+'\n'+output
    assert 'WARN scene:' not in output and 'ERROR' not in output,output

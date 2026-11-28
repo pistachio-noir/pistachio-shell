@@ -20,7 +20,7 @@ PanelWindow {
     }
 
     property bool open
-    property string popup // the card over the panel: "schedule", "dnd", "bluetooth", "localsend" or ""
+    property string popup // the card over the panel: "schedule", "dnd", "bluetooth", "output", "localsend" or ""
     property string page // in place of the usual content: "localsend", "mixer" or ""
 
     signal powerRequested
@@ -371,6 +371,9 @@ PanelWindow {
                     iconAction: Audio.muted ? "Unmute" : "Mute"
                     label: "Volume"
                     onIconClicked: Audio.toggleMute()
+                    // the outputs, when there's a choice (as GNOME's arrow beside its volume slider)
+                    moreAction: Audio.sinks.length > 1 ? "Choose sound output" : ""
+                    onMoreClicked: root.popup = "output"
                     value: Audio.volume
                     onMoved: v => Audio.setVolume(v)
                 }
@@ -838,6 +841,170 @@ PanelWindow {
             }
         }
 
+        // Sound output (the › after the volume slider, while there's more than one): the outputs, the
+        // current one ticked; a click moves the sound there. An input-style "nothing plugged in" one
+        // can't be picked. Not on the board (owner's request, 28 November 2026): built like the
+        // Bluetooth devices card.
+        Popover {
+            objectName: "output-popover"
+            open: root.popup === "output"
+            title: "Sound output"
+            onDismissed: root.popup = ""
+
+            Text {
+                width: parent.width
+                height: 32
+                verticalAlignment: Text.AlignVCenter
+                text: "Sound output"
+                color: Theme.textBright
+                font.family: Theme.fontUi
+                font.pixelSize: 14
+                font.weight: Font.Bold
+            }
+
+            Repeater {
+                model: Audio.sinks.slice(0, 6)
+
+                Rectangle {
+                    id: output
+
+                    required property var modelData
+                    readonly property bool current: Audio.sink?.id === modelData.id
+                    readonly property bool unplugged: Audio.isUnplugged(modelData)
+
+                    objectName: "output-" + modelData.id
+                    width: parent.width
+                    height: 52
+                    radius: 14
+                    color: outputMouse.containsMouse && !unplugged ? Theme.overlay2 : "transparent"
+                    Accessible.role: Accessible.Button
+                    Accessible.name: `${Audio.deviceName(modelData)}, ${outputStatus.text}`
+
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: Theme.hoverDuration
+                            easing.type: Theme.easing
+                        }
+                    }
+
+                    Icon {
+                        id: outputIcon
+                        x: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        paths: Icons.volume
+                        color: output.current ? Theme.text : Theme.subtext
+                    }
+
+                    Column {
+                        anchors.left: outputIcon.right
+                        anchors.leftMargin: 12
+                        anchors.right: outputAction.left
+                        anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 1
+
+                        Text {
+                            width: parent.width
+                            text: Audio.deviceName(output.modelData)
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            color: output.unplugged ? Theme.subtext : output.current ? Theme.textBright : Theme.text
+                            font.family: Theme.fontUi
+                            font.pixelSize: 13
+                            font.weight: Font.Bold
+                        }
+
+                        Text {
+                            id: outputStatus
+                            width: parent.width
+                            text: output.unplugged ? "Nothing plugged in" : output.current ? "Current output" : "Available"
+                            elide: Text.ElideRight
+                            color: Theme.subtext
+                            font.family: Theme.fontUi
+                            font.pixelSize: 11
+                            font.weight: Font.Medium
+                        }
+                    }
+
+                    // the current one's tick (pistachio: what's active), else Use
+                    Item {
+                        id: outputAction
+                        anchors.right: parent.right
+                        anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.max(18, useText.implicitWidth)
+                        height: 18
+
+                        Icon {
+                            anchors.centerIn: parent
+                            visible: output.current
+                            size: 18
+                            paths: Icons.check
+                            color: Theme.pistachio
+                        }
+
+                        Text {
+                            id: useText
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: !output.current && !output.unplugged
+                            text: "Use"
+                            color: outputMouse.containsMouse ? Theme.textBright : Theme.subtext
+                            font.family: Theme.fontUi
+                            font.pixelSize: 12
+                            font.weight: Font.Bold
+                        }
+                    }
+
+                    MouseArea {
+                        id: outputMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        enabled: !output.unplugged
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Audio.setSink(output.modelData)
+                    }
+                }
+            }
+
+            // more: inputs, profiles and app volumes, in Settings → Sound
+            Rectangle {
+                width: parent.width
+                height: 44
+                radius: 14
+                color: soundMoreMouse.containsMouse ? Theme.overlay2 : "transparent"
+                Accessible.role: Accessible.Button
+                Accessible.name: "Sound settings"
+
+                Text {
+                    x: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Sound settings…"
+                    color: Theme.text
+                    font.family: Theme.fontUi
+                    font.pixelSize: 13
+                    font.weight: Font.DemiBold
+                }
+
+                Icon {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    size: 16
+                    paths: Icons.chevronRight
+                    color: Theme.subtext
+                }
+
+                MouseArea {
+                    id: soundMoreMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: { root.open = false; SettingsHub.openPage("sound", ""); }
+                }
+            }
+        }
+
         // LocalSend's settings (the sliders on its page): the name others see, where files go, and
         // accepting known devices without a question. Laid out like the Bluetooth card (owner's call).
         Popover {
@@ -1079,6 +1246,7 @@ PanelWindow {
         required property list<string> icon
         required property string label
         property string iconAction // e.g. "Mute": makes the icon a button with this name
+        property string moreAction // e.g. "Choose sound output": a › button after the value, with this name
         property bool off // icon in subtext, e.g. while muted
         property alias from: slider.from
         property alias to: slider.to
@@ -1088,6 +1256,7 @@ PanelWindow {
 
         signal moved(real newValue)
         signal iconClicked
+        signal moreClicked
 
         width: parent.width
         height: 44
@@ -1128,7 +1297,8 @@ PanelWindow {
 
         Text {
             id: valueLabel
-            anchors.right: parent.right
+            anchors.right: moreButton.visible ? moreButton.left : parent.right
+            anchors.rightMargin: moreButton.visible ? 2 : 0
             anchors.verticalCenter: parent.verticalCenter
             width: 42
             horizontalAlignment: Text.AlignRight
@@ -1138,6 +1308,42 @@ PanelWindow {
             font.pixelSize: 12
             font.weight: Font.Bold
             font.features: { "tnum": 1 }
+        }
+
+        Rectangle {
+            id: moreButton
+            objectName: "slider-more"
+            visible: row.moreAction !== ""
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: 28
+            height: 28
+            radius: width / 2
+            color: moreMouse.containsMouse ? Theme.overlay2 : "transparent"
+            Accessible.role: Accessible.Button
+            Accessible.name: row.moreAction
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.hoverDuration
+                    easing.type: Theme.easing
+                }
+            }
+
+            Icon {
+                anchors.centerIn: parent
+                size: 16
+                paths: Icons.chevronRight
+                color: moreMouse.containsMouse ? Theme.textBright : Theme.subtext
+            }
+
+            MouseArea {
+                id: moreMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: row.moreClicked()
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 import qs
 import qs.components
+import Quickshell.Widgets // ClippingRectangle, for a picture filling the round disc
 import QtQuick
 import "fuzzy.js" as Fuzzy
 
@@ -15,6 +16,7 @@ Rectangle {
     property string subtitle
     property string icon // image source; "" shows `glyph`
     property string emoji // shown in place of the icon, e.g. for the emoji picker
+    property string picture // an image filling the disc, e.g. a picture in clipboard history; "" or not loaded shows the rest
     property list<string> glyph: Icons.window
     property color glyphColor: Theme.subtext
     property string badge
@@ -74,9 +76,27 @@ Rectangle {
 
         Icon {
             anchors.centerIn: parent
-            visible: !image.visible && root.emoji === ""
+            visible: !image.visible && root.emoji === "" && !pictureFrame.visible
             paths: root.glyph
             color: root.enabled ? root.glyphColor : Theme.muted
+        }
+
+        ClippingRectangle {
+            id: pictureFrame
+            objectName: "launcher-picture"
+            anchors.fill: parent
+            radius: parent.radius
+            color: "transparent"
+            visible: root.picture !== "" && pictureImage.status === Image.Ready
+
+            Image {
+                id: pictureImage
+                anchors.fill: parent
+                source: root.picture
+                sourceSize: Qt.size(76, 76)
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+            }
         }
     }
 

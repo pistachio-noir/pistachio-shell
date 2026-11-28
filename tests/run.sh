@@ -88,7 +88,7 @@ suite js
 suite layout
 suite lens
 run install sh tests/install.test.sh
-for name in prefs app-theming app-themes neovim-theme game-mode phone-timer capture-helper mic-check restart chat \
+for name in prefs app-theming app-themes neovim-theme game-mode clipboard phone-timer capture-helper mic-check restart chat \
     first-run first-run-backend clocks clocks-popup cat-interaction events dev-features; do
     py "$name"
 done

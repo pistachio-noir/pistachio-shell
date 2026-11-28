@@ -992,7 +992,7 @@ PanelWindow {
         } else if (q.startsWith(";") && (mode === "all" || mode === "apps")) {
             const term = q.slice(1).trim();
             const items = (ShellSettings.clipboardHistory ? Clipboard.history : []).filter(item => !term || Fuzzy.match(term, item.text));
-            rows = !ShellSettings.clipboardHistory ? [section("Clipboard history"), {kind:"empty", key:"clipboard-off", title:"Enable clipboard history in Settings → Apps & places"}] : [section("Clipboard history")].concat(items.map(item => ({kind:"clipboard", key:"clipboard:" + item.id, title:item.text, glyph:Icons.clipboard, clipId:item.id})),
+            rows = !ShellSettings.clipboardHistory ? [section("Clipboard history"), {kind:"empty", key:"clipboard-off", title:"Enable clipboard history in Settings → Apps & places"}] : [section("Clipboard history")].concat(items.map(item => ({kind:"clipboard", key:"clipboard:" + item.id, title:item.text, glyph:item.picture ? Icons.image : Icons.clipboard, clipId:item.id, isPicture:!!item.picture, picture:item.thumb ? "file://" + item.thumb : "", subtitle:item.picture ? `${item.format.toUpperCase()} · ${item.size}` : ""})),
                 !term && Clipboard.history.length ? [{kind:"clipboard-clear", key:"clipboard-clear", title:"Clear clipboard history", glyph:Icons.close}] : [],
                 !items.length ? [{kind:"empty", key:"clipboard-empty", title:term ? "No matching items" : "Clipboard history is empty"}] : []);
         } else if (q.startsWith(":") && (mode === "all" || mode === "apps")) {
@@ -2617,6 +2617,7 @@ PanelWindow {
                                     : row.subtitle ?? ""
                                 icon: row.icon ?? ""
                                 emoji: row.emoji ?? ""
+                                picture: row.picture ?? ""
                                 glyph: row.glyph ?? (row.kind === "device" ? (row.input ? Icons.mic : Icons.volume) : row.kind.startsWith("bt") ? Icons.bluetooth : row.kind === "calc" ? Icons.calculator : Icons.window)
                                 glyphColor: row.danger ? Theme.terracotta : row.kind === "btdevice" && bt.connected ? Theme.sageBlue : Theme.subtext
                                 badge: row.badge ?? ""

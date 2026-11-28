@@ -110,6 +110,7 @@ pub const SCHEMA: &[(&str, &str, &str, Check)] = &[
     ("capture", "screenshot_output", "screenshotOutput", choice(&["save", "copy", "both"])),
     ("capture", "recording_audio", "recordingAudio", choice(&["off", "system", "mic", "both"])),
     ("capture", "recording_countdown", "recordingCountdown", choice_int(&[0, 3, 5, 10])),
+    ("apps", "clipboard_pictures", "clipboardPictures", bool_()),
     ("apps", "terminal", "terminal", text(64)),
     ("apps", "weather_city", "weatherCity", text(100)),
     ("integrations", "off", "integrationsOff", integrations()),

@@ -28,7 +28,7 @@ Five more apps under the same switch, each with the same rules: an app with its 
 | --- | --- | --- |
 | GTK 4 / libadwaita | `~/.config/gtk-4.0/gtk.css` starts with a marked `@import url("pistachio-shared.css");`, the colours beside it as CSS variables (`--window-bg-color`…; libadwaita 1.6+ no longer reads `@define-color`) | restart an app |
 | GTK 3 | the same in `~/.config/gtk-3.0/`, as `@define-color` names, and the `adw-gtk3-dark` theme (`gsettings … gtk-theme`, needs `x11-themes/adw-gtk3`; the old theme name is kept in the marker and put back by undo) | restart an app |
-| Vesktop | a marked block at the end of Vencord's QuickCSS (`~/.config/vesktop/settings/quickCss.css`), Discord's colour variables; written in place, as Vencord watches that file | at once |
+| Vesktop | a marked block at the end of Vencord's QuickCSS (`~/.config/vesktop/settings/quickCss.css`), Discord's colour variables and the shell's font (Manrope; code keeps Discord's); written in place, as Vencord watches that file | at once |
 | btop | `color_theme = "pistachio-shell"` in `btop.conf`, the theme in `btop/themes/pistachio-shell.theme` (its first line keeps your old theme's name) | at once (SIGUSR2) |
 | yazi | `~/.config/yazi/theme.toml` picks the flavor `flavors/pistachio-shell.yazi` (with a `tmtheme.xml` for code previews) in dark and light | restart yazi |
 | zathura | `zathurarc` ends with a marked `include pistachio-shared` (`set default-bg …`), so its colours win | at once (D-Bus `SourceConfig`) |

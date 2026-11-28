@@ -33,6 +33,11 @@ def palettes():
         m = re.search(key + r': oled \? "(#\w{6})" : "(#\w{6})"', THEME)
         assert m, f"Theme.codeColours' Noir {key} changed: update tools/make-app-themes.py"
         out["noir"]["code_" + key], out["oled-noir"]["code_" + key] = m.group(2).upper(), m.group(1).upper()
+    # the shell's UI font (Theme.fontUi in Classic: `tui ? fontTui : "Manrope"`), for Vesktop
+    m = re.search(r'fontUi: tui \? fontTui : "([^"]+)"', THEME)
+    assert m, "Theme.fontUi changed: update tools/make-app-themes.py"
+    for scheme in SCHEMES:
+        out[scheme]["fontUi"] = m.group(1)
     return out
 
 
@@ -244,9 +249,11 @@ def vesktop(p, scheme):
         ("scrollbar-thin-thumb", p["overlay2"]), ("scrollbar-auto-thumb", p["overlay2"]), ("scrollbar-auto-track", "transparent"),
         ("status-danger", p["terracotta"]), ("status-warning", p["gold"]), ("status-positive", p["teal"]),
         ("mention-foreground", p["textBright"]), ("mention-background", a("gold", 0.12)),
+        # the shell's font (owner, 28 November 2026: "change vesktop font to manrope"); code keeps Discord's
+        *[(k, f'"{p["fontUi"]}", "gg sans", sans-serif') for k in ("font-primary", "font-display", "font-headline")],
     ]
     selector = ":root,\n.theme-dark:not(.custom-user-profile-theme),\n.theme-darker:not(.custom-user-profile-theme),\n.theme-midnight:not(.custom-user-profile-theme),\n.visual-refresh.theme-dark"
-    return (f"/* {head('', scheme).strip()}, for Vesktop (Discord's colour variables) */\n{selector} {{\n"
+    return (f"/* {head('', scheme).strip()}, for Vesktop (Discord's colour and font variables) */\n{selector} {{\n"
             + "".join(f"  --{k}: {v} !important;\n" for k, v in keys) + "}\n")
 
 

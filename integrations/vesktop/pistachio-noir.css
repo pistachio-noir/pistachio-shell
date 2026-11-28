@@ -1,4 +1,4 @@
-/* Pistachio Noir, the Pistachio shell's Colours (made by tools/make-app-themes.py from src/Theme.qml), for Vesktop (Discord's colour variables) */
+/* Pistachio Noir, the Pistachio shell's Colours (made by tools/make-app-themes.py from src/Theme.qml), for Vesktop (Discord's colour and font variables) */
 :root,
 .theme-dark:not(.custom-user-profile-theme),
 .theme-darker:not(.custom-user-profile-theme),
@@ -83,4 +83,7 @@
   --status-positive: #7FC9A8 !important;
   --mention-foreground: #F6F8EF !important;
   --mention-background: rgba(224, 177, 94, 0.12) !important;
+  --font-primary: "Manrope", "gg sans", sans-serif !important;
+  --font-display: "Manrope", "gg sans", sans-serif !important;
+  --font-headline: "Manrope", "gg sans", sans-serif !important;
 }

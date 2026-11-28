@@ -782,3 +782,10 @@ fn new_apps_symlinked_configs_are_left_alone() {
         assert_eq!(t.read("dotfiles/x"), "x\n", "{app}");
     }
 }
+
+#[test]
+fn each_vsix_gets_its_own_file() {
+    // the name had only the pid and the second: VS Code tests running side by side in one process
+    // removed each other's file (28 November 2026)
+    assert_ne!(vsix_temp(), vsix_temp());
+}

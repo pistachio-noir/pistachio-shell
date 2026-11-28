@@ -565,10 +565,18 @@ fn vs_installed(env: &Env, e: &Editor) -> bool {
     place.is_some_and(|p| VS_FILES.iter().filter(|(name, _)| *name != "package.json").all(|(name, data)| std::fs::read(p.join(name)).ok().as_deref() == Some(*data)))
 }
 
+/// A temporary .vsix of its own: the pid and second alone repeat when two installs run in one process
+/// in the same second (the tests do), and one removed the other's file.
+fn vsix_temp() -> PathBuf {
+    static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    std::env::temp_dir().join(format!("pistachio-noir-{}-{}-{n}.vsix", std::process::id(), stamp()))
+}
+
 fn vs_install(env: &Env, e: &Editor) -> Result<(), Fail> {
     let cli = std::env::split_paths(&env.path).map(|d| d.join(e.cli)).find(|p| p.is_file())
         .ok_or_else(|| Fail::Io(format!("the {} command isn't on the PATH, so the theme can't be installed", e.cli)))?;
-    let file = std::env::temp_dir().join(format!("pistachio-noir-{}-{}.vsix", std::process::id(), stamp()));
+    let file = vsix_temp();
     std::fs::write(&file, crate::vsix::package("pistachio-shell", "pistachio-noir", "1.0.0", "Pistachio Noir", VS_FILES))?;
     let out = std::process::Command::new(&cli).arg("--install-extension").arg(&file).arg("--force").env("PATH", &env.path)
         .stdin(std::process::Stdio::null()).output();

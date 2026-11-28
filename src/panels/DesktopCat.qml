@@ -90,7 +90,7 @@ Canvas {
     onFrameChanged: requestPaint()
     onHoveredChanged: requestPaint()
     onHappyChanged: requestPaint()
-    Connections { target:Theme; function onNoirChanged(){root.requestPaint();} }
+    Connections { target:Theme; function onNoirChanged(){root.requestPaint();} function onOledChanged(){root.requestPaint();} }
     Timer { id:tick; running:root.visible; repeat:true; interval:root.purring ? 150 : 650; onTriggered:root.frame=(root.frame+1)%10 }
     Timer { id:happyTimer; interval:1800; onTriggered:root.stopPetting() }
     NumberAnimation {

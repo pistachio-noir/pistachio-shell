@@ -8,7 +8,7 @@ pistachio-shell/
 ├─ rust/           psc (the control command and the shell's on-demand helpers) and the helpers that run beside the shell all day: pistachio-auth (polkit agent), pistachio-devices (pairing agent, USB drives), pistachio-localsend
 ├─ legacy/psc      the old shell-script psc, a fallback when the Rust one can't be built
 ├─ integrations/   what the shell sets up in other programs, and a login screen: kitty/ (the two Kitty colour files), neovim/ (colourscheme and shared-theme loader), vscode/ (the Pistachio Noir theme extension psc installs), sddm/ (the login screen theme, see integrations/sddm/README.md) and hypridle.conf (idle locking)
-├─ tools/          make-emoji.py (rebuilds the launcher's emoji list) and make-sound.py (rebuilds the notification sound)
+├─ tools/          make-emoji.py (rebuilds the launcher's emoji list) and make-sound.py (rebuilds the notification sound) and make-oled-themes.py (OLED Noir for Kitty and VS Code, from their Noir files)
 ├─ agent-skills/   skills for coding agents (Agent Skills format): pistachio-shell-ui, how to design and build the shell's UI
 ├─ tests/          checks of the shell and its helpers; tests/README.md says what each one covers ("Running and testing it" in AGENTS.md)
 ├─ docs/           README.LLM.md (the full feature reference, every feature, key and setting; the README until 21 November 2026), images/, this and the other pages (requirements, install, ipc-and-keybinds, frosted-panels, lock-screen, login-screen, troubleshooting, theming), plus plan.md (architecture, components, build phases), decisions.md, gotchas.md, audio-bluetooth.md, compositors.md and superpowers/ (the plans and specs behind the larger changes)

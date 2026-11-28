@@ -50,6 +50,7 @@ ShellRoot {
         check(!ShellSettings.desktopCat, "desktop cat defaults off");
         check(!ShellSettings.clipboardHistory, "clipboard history defaults off");
         check(!ShellSettings.monochromeWallpaper, "monochrome wallpaper defaults off");
+        check(!ShellSettings.oled && ShellSettings.frost === 1, "OLED black defaults off");
         ShellSettings.setAppearanceStyle("tui");
         check(ShellSettings.appearanceStyle === "tui" && Theme.tui, "style applies live");
         // Native fixture stubs compositor remapping; exercise watcher-only lifecycle offscreen.
@@ -199,7 +200,7 @@ ShellRoot {
         win.dialog.cancel();input.wait(60);check(AppTheming.kept.includes("neovim") && !win.dialog.visible,"Keep mine keeps the app's theme");
         AppTheming.conflict=AppTheming.apps[0];input.wait(60);check(win.dialog.visible && hasText(win.dialog.contentItem,"Kitty has its own theme"),"the next conflict shows after the first");
         win.dialog.submit();input.wait(60);check(AppTheming.used==="kitty" && !win.dialog.visible,"Use Pistachio in the dialog sets it up");
-        const placed={appearance:["setting-style","setting-tui-hyprland","setting-colours","setting-monochrome-wallpaper","setting-desktop-cat","setting-desktop-widgets","setting-arrange-widgets"],focus:["setting-phone-preview"],apps:["setting-clipboard-history"],health:["setting-restart-shell","setting-force-restart-shell"],experimental:["setting-game-mode","setting-game-classes","setting-ambient-clock","setting-dev-features"]};
+        const placed={appearance:["setting-style","setting-tui-hyprland","setting-colours","setting-monochrome-wallpaper","setting-desktop-cat","setting-desktop-widgets","setting-arrange-widgets"],focus:["setting-phone-preview"],apps:["setting-clipboard-history"],health:["setting-restart-shell","setting-force-restart-shell"],experimental:["setting-oled","setting-game-mode","setting-game-classes","setting-ambient-clock","setting-dev-features"]};
         for (const where of Object.keys(placed)) { page(where);input.wait(60); for (const id of placed[where]) check(!!find(win.contentItem,id),id+" is on "+where); }
         page("appearance");const catToggle=need("toggle-desktop-cat");scrollInto(catToggle);click(catToggle);check(ShellSettings.desktopCat,"cat switch enables preference");input.wait(60);const catAgain=need("toggle-desktop-cat");scrollInto(catAgain);click(catAgain);check(!ShellSettings.desktopCat,"cat switch disables preference"); // the coat row comes and goes, so the list is rebuilt: find the switch again
         page("experimental");input.wait(60);for (const id of ["setting-colours","setting-monochrome-wallpaper","setting-desktop-cat","setting-clipboard-history","setting-restart-shell","setting-style","setting-tui-hyprland","setting-cat-skin","setting-desktop-widgets","setting-phone-preview"]) check(!find(win.contentItem,id),id+" left Experimental");
@@ -216,6 +217,13 @@ ShellRoot {
         SettingsReset.review("appearance");SettingsReset.apply("appearance");
         check(!ShellSettings.tuiHyprland, "Appearance reset turns the integration off");
         check(ShellSettings.catSkin==="cream" && !ShellSettings.desktopCat,"Appearance reset restores the original coat, and the cat goes");
+        // OLED black (owner, 22 November 2026): Experimental, Noir only (owner, same day); frosted panels wait while it's on
+        page("experimental");input.wait(60);ShellSettings.setFrosted(true);check(ShellSettings.frost < 1,"frosted before OLED");
+        scrollInto(need("toggle-oled"));click(need("toggle-oled"));input.wait(20);check(ShellSettings.oled && !ShellSettings.oledLive && ShellSettings.frost < 1,"OLED switch is on, but does nothing in Pistachio Noir");
+        ShellSettings.setColourScheme("noir");input.wait(20);check(ShellSettings.oledLive && ShellSettings.frost === 1,"OLED applies in Noir and holds frosted panels off");
+        Theme.oled=true;Theme.noir=false;check(String(Theme.bg)==="#15170f" && String(Theme.pistachio)==="#9fd88a","no OLED colours in Pistachio Noir");
+        Theme.noir=true;check(String(Theme.bg)==="#000000" && String(Theme.deep)==="#000000" && String(Theme.bgAlt)==="#0a0a0a","OLED Noir colours");Theme.noir=false;Theme.oled=false;
+        SettingsReset.review("experimental");SettingsReset.apply("experimental");check(!ShellSettings.oled,"Experimental reset turns OLED off");ShellSettings.setFrosted(false);ShellSettings.setColourScheme("pistachio");
         page("experimental");scrollInto(need("toggle-game-mode"));click(need("toggle-game-mode"));input.wait(20);check(ShellSettings.gameMode,"game mode switch turns on");
         click(need("action-game-classes"));input.wait(50);check(SettingsHub.editKey==="games","extra game windows edit opens");
         need("settings-edit-field").text="Minecraft, foo";input.keyClick(Qt.Key_Return);input.wait(20);

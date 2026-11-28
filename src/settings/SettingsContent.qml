@@ -175,7 +175,7 @@ Column {
     ImportReview { width:parent.width;visible:root.page === "about" && Preferences.reviewing }
 
     function group(title, rows) { return { title: title, rows: rows }; }
-    function toggle(id, title, subtitle, get, set) { return { id: id, kind: "toggle", title: title, subtitle: () => subtitle, checked: get, toggle: () => set(!get()) }; }
+    function toggle(id, title, subtitle, get, set) { return { id: id, kind: "toggle", title: title, subtitle: typeof subtitle === "function" ? subtitle : () => subtitle, checked: get, toggle: () => set(!get()) }; }
     // a "Performance impact" note under a visual setting (owner's request, 20 November 2026):
     // "low", "medium", "high", or "saves" (it takes load away); drawn by SettingsRow
     function impact(row, level) { return Object.assign(row, { impact: level }); }
@@ -190,6 +190,10 @@ Column {
         // Experimental (owner's call, 15 November 2026; sorted 19 November; 21 November: Style, cat coats and
         // desktop widgets moved to Appearance, the phone preview to Focus): features still being tested
         if (page === "experimental") return [
+            // OLED black (owner, 22 November 2026): here while its colours are tried out
+            group("OLED black", [
+                impact(toggle("oled", "OLED black", () => (ShellSettings.colourScheme === "noir" ? "" : "Works with Noir colours only (Appearance → Colours). ") + "A true black background, with darker surfaces, text and accents on it. Drop shadows and frosted panels wait while it's on. Kitty, Neovim and VS Code follow with Theming integration; Text and Files always do.", () => ShellSettings.oled, ShellSettings.setOled), "saves")
+            ]),
             group("Game mode", [
                 impact(toggle("game-mode", "Game mode", "While a fullscreen game is focused: quiet notifications, no animations or blur.", () => ShellSettings.gameMode, ShellSettings.setGameMode), "saves"),
                 action("game-classes", "Extra game windows", () => ShellSettings.gameClasses.length ? ShellSettings.gameClasses.join(", ") : "Steam, Sober and gamescope only", "Change", () => SettingsHub.beginEdit("games"))
@@ -216,7 +220,7 @@ Column {
                     : read("theming-" + a.id, a.name, ({following: "Follows Colours", available: "Not set up yet", missing: "Not installed", unsupported: a.detail || "Couldn't set up"})[a.state] || a.state)) : [])
             ]),
             group("Surfaces", [
-                impact({ id: "frost", kind: "choice", title: "Frosted panels", subtitle: () => "Choose how much of the desktop shows through.", choices: () => [{value:"solid",title:"Solid"},{value:"subtle",title:"Subtle"},{value:"glassy",title:"Glassy"}], value: () => !ShellSettings.frosted ? "solid" : ShellSettings.glassy ? "glassy" : "subtle", set: v => { ShellSettings.setGlassy(v === "glassy"); ShellSettings.setFrosted(v !== "solid"); } }, "medium"),
+                impact({ id: "frost", kind: "choice", title: "Frosted panels", subtitle: () => ShellSettings.oledLive ? "Off while OLED black is on (Experimental). Your choice is kept." : "Choose how much of the desktop shows through.", choices: () => [{value:"solid",title:"Solid"},{value:"subtle",title:"Subtle"},{value:"glassy",title:"Glassy"}], value: () => !ShellSettings.frosted ? "solid" : ShellSettings.glassy ? "glassy" : "subtle", set: v => { ShellSettings.setGlassy(v === "glassy"); ShellSettings.setFrosted(v !== "solid"); } }, "medium"),
                 impact(toggle("shadows", "Drop shadows", "Soft depth around panels and popups.", () => ShellSettings.shadows, ShellSettings.setShadows), "low")
             ]),
             group("Desktop", [

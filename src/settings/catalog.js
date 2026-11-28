@@ -13,7 +13,7 @@ var pages = [
     ["integrations", "Integrations", "Other apps the shell works with.", "Shell", "layers"],
     ["system", "System monitor", "A quiet look at what your desktop is doing.", "Shell", "cpu"],
     ["health", "Shell health", "Local helpers, dependencies and CLI sign-in status.", "Shell", "info"],
-    ["experimental", "Experimental", "Features still being tested: game mode, ambient clock, dev features.", "Shell", "flask"],
+    ["experimental", "Experimental", "Features still being tested: OLED black, game mode, ambient clock, dev features.", "Shell", "flask"],
     ["about", "About", "Made for your desktop.", "Shell", "info"]
 ];
 var settings = [
@@ -50,6 +50,7 @@ var settings = [
     ["health", "force-restart-shell", "Force restart shell", "Restart", "restart force kill helpers"],
     ["appearance", "monochrome-wallpaper", "Monochrome wallpaper", "Desktop", "wallpaper monochrome grayscale greyscale noir background"],
     ["apps", "clipboard-history", "Clipboard history", "Launcher", "clipboard copy paste history cliphist"],
+    ["experimental", "oled", "OLED black", "OLED black", "oled amoled true black pure black dark darker power"],
     ["experimental", "game-mode", "Game mode", "Game mode", "game gaming fullscreen steam animations blur quiet"],
     ["experimental", "game-classes", "Extra game windows", "Game mode", "game window class steam"],
     ["appearance", "desktop-cat", "Desktop cat", "Desktop", "cat pet pixel desktop"],

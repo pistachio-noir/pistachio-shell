@@ -10,7 +10,8 @@ Canvas {
     onWelcomeChanged: requestPaint()
     onWidthChanged: requestPaint()
     onHeightChanged: requestPaint()
-    Connections { target: Theme; function onNoirChanged() { root.requestPaint(); } }
+    Connections { target: Theme; function onNoirChanged() { root.requestPaint(); }
+        function onOledChanged() { root.requestPaint(); } }
 
     onPaint: {
         const ctx = getContext("2d");

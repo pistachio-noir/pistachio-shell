@@ -3,7 +3,7 @@
   "displayName": "Pistachio Noir",
   "version": "1.0.0",
   "publisher": "pistachio-shell",
-  "description": "Pistachio Noir and Noir, the Pistachio Noir shell's colours. Installed and switched by the shell (psc theme); also usable on its own.",
+  "description": "Pistachio Noir, Noir and OLED Noir, the Pistachio Noir shell's colours. Installed and switched by the shell (psc theme); also usable on its own.",
   "engines": {
     "vscode": "^1.70.0"
   },
@@ -21,6 +21,11 @@
         "label": "Noir",
         "uiTheme": "vs-dark",
         "path": "./themes/noir.json"
+      },
+      {
+        "label": "OLED Noir",
+        "uiTheme": "vs-dark",
+        "path": "./themes/oled-noir.json"
       }
     ]
   }

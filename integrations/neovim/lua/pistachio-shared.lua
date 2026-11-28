@@ -10,6 +10,11 @@ function M.setup()
     local value = file and file:read("*l") or "pistachio"
     if file then file:close() end
     if value ~= "noir" then value = "pistachio" end
+    -- OLED Noir: a marker beside a Noir shared-theme (psc theme oled; FM and Text read plain Noir)
+    if value == "noir" then
+      local marker = io.open(config .. "/pistachio/shared-oled", "r")
+      if marker then marker:close(); value = "oled" end
+    end
     if value == previous then return end
     previous = value
     vim.g.pistachio_shared_scheme = value

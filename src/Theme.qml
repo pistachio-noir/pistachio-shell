@@ -44,23 +44,34 @@ Singleton {
         {value: "midnight", title: "Midnight", outline: "#798195", fur: "#333848", eyes: "#DDE5A9", cheeks: "#BB92AF"}
     ]
 
-    readonly property color bg: noir ? "#111111" : "#15170F"
-    readonly property color bgAlt: noir ? "#1A1A1A" : "#1D2016"
-    readonly property color overlay: noir ? "#262626" : "#2A2F1F"
-    readonly property color overlay2: noir ? "#333333" : "#39412A"
-    readonly property color muted: noir ? "#5E5E5E" : "#626F51" // ~3.4:1 on bg: never for small text
-    readonly property color subtext: noir ? "#A6A6A6" : "#A3B08F"
-    readonly property color text: noir ? "#E6E6E6" : "#E5E9D8"
-    readonly property color textBright: noir ? "#F7F7F7" : "#F6F8EF"
-    readonly property color pistachio: noir ? "#BDBDBD" : "#9FD88A" // active state only (Noir: light grey)
-    readonly property color terracotta: noir ? "#C9675C" : "#DB8267" // Noir's one colour: errors and danger
+    // OLED black (owner, 22 November 2026; Experimental, Noir only: "it doesn't look good in pistachio
+    // noir"; preview pistachio-shell-design/oled-tones.html): the background fully off, every surface a
+    // step down and everything on it about a fifth darker, so nothing glows against the black. Panels
+    // keep their 1 px overlay2 outline, which is what separates them from the black; drop shadows go.
+    // shell.qml binds it to ShellSettings.oledLive (the switch and Noir); ignored in Pistachio Noir.
+    property bool oled: false
+    // one colour per look: Pistachio Noir, Noir, OLED Noir
+    function tone(pistachio: color, grey: color, oledGrey: color): color {
+        return !noir ? pistachio : oled ? oledGrey : grey;
+    }
+
+    readonly property color bg: tone("#15170F", "#111111", "#000000")
+    readonly property color bgAlt: tone("#1D2016", "#1A1A1A", "#0A0A0A")
+    readonly property color overlay: tone("#2A2F1F", "#262626", "#161616")
+    readonly property color overlay2: tone("#39412A", "#333333", "#242424")
+    readonly property color muted: tone("#626F51", "#5E5E5E", "#4A4A4A") // ~3.4:1 on bg: never for small text
+    readonly property color subtext: tone("#A3B08F", "#A6A6A6", "#858585")
+    readonly property color text: tone("#E5E9D8", "#E6E6E6", "#BABABA")
+    readonly property color textBright: tone("#F6F8EF", "#F7F7F7", "#D0D0D0")
+    readonly property color pistachio: tone("#9FD88A", "#BDBDBD", "#969696") // active state only (Noir: light grey)
+    readonly property color terracotta: tone("#DB8267", "#C9675C", "#A5544B") // Noir's one colour: errors and danger
     // the other accents are light greys in Noir, a little apart so readings still differ in weight
-    readonly property color gold: noir ? "#D2D2D2" : "#E0B15E"
-    readonly property color sageBlue: noir ? "#B4B4B4" : "#7DA3B3"
-    readonly property color teal: noir ? "#C8C8C8" : "#7FC9A8"
-    readonly property color lavender: noir ? "#BEBEBE" : "#AC8ED0"
-    readonly property color clay: noir ? "#C4C4C4" : "#D9975A"
-    readonly property color deep: noir ? "#0B0B0B" : "#0D0F09" // under bg: the Overview's backdrop tint and workspace cards (Overview boards)
+    readonly property color gold: tone("#E0B15E", "#D2D2D2", "#A8A8A8")
+    readonly property color sageBlue: tone("#7DA3B3", "#B4B4B4", "#8F8F8F")
+    readonly property color teal: tone("#7FC9A8", "#C8C8C8", "#A0A0A0")
+    readonly property color lavender: tone("#AC8ED0", "#BEBEBE", "#989898")
+    readonly property color clay: tone("#D9975A", "#C4C4C4", "#9D9D9D")
+    readonly property color deep: tone("#0D0F09", "#0B0B0B", "#000000") // under bg: the Overview's backdrop tint and workspace cards (Overview boards)
 
     // Frosted panels (owner's request, 31 October 2026): how opaque the bar's and the panels' own
     // background is, 1 unless the Shell setting is on (shell.qml binds it to ShellSettings.frost);
@@ -102,9 +113,9 @@ Singleton {
     // its rich text; on the code block's bg
     // Noir: shades of grey, keywords and functions brightest, comments quietest (still readable)
     readonly property var codeColours: noir ? ({
-        plain: text.toString(), keyword: textBright.toString(), string: "#B8B8B8", number: "#D2D2D2",
-        comment: "#8C8C8C", function: textBright.toString(), type: subtext.toString(), variable: text.toString(),
-        flag: subtext.toString(), key: subtext.toString(), meta: subtext.toString(), add: "#D2D2D2",
+        plain: text.toString(), keyword: textBright.toString(), string: oled ? "#939393" : "#B8B8B8", number: gold.toString(),
+        comment: oled ? "#707070" : "#8C8C8C", function: textBright.toString(), type: subtext.toString(), variable: text.toString(),
+        flag: subtext.toString(), key: subtext.toString(), meta: subtext.toString(), add: gold.toString(),
         remove: terracotta.toString(), font: fontMono
     }) : ({
         plain: textBright.toString(), keyword: lavender.toString(), string: teal.toString(), number: clay.toString(),

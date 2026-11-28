@@ -7,7 +7,9 @@ import QtQuick
 
 // The shell's own look, set in the launcher (System, Shell settings) and kept in Store.
 Singleton {
-    readonly property string publishedScheme: Store.ready ? colourScheme : ""
+    // what Kitty, Neovim and VS Code follow: OLED black publishes "oled" (psc writes Noir for FM and Text
+    // plus a marker for the rest)
+    readonly property string publishedScheme: Store.ready ? (oledLive ? "oled" : colourScheme) : ""
     onPublishedSchemeChanged: if (publishedScheme) themePublisher.exec([Quickshell.env("HOME") + "/.local/bin/psc", "theme", publishedScheme])
     property Process themePublisher: Process {}
 
@@ -38,6 +40,11 @@ Singleton {
     function setDevFeatures(value: bool) { Store.saved.devFeatures = value; }
     readonly property bool gameMode: Store.saved.gameMode === true
     function setGameMode(value: bool) { Store.saved.gameMode = value; }
+    // OLED black (Experimental, owner 22 November 2026): Theme's darker tones, in Noir only (owner, same
+    // day); frosted panels wait while it applies (blurring black gives black), their own setting kept
+    readonly property bool oled: Store.saved.oled === true
+    readonly property bool oledLive: oled && colourScheme === "noir"
+    function setOled(value: bool) { Store.saved.oled = value; }
     readonly property var gameClasses: Array.from(Store.saved.gameClasses ?? [])
     function setGameClasses(list: var) { Store.saved.gameClasses = list; }
     readonly property bool tuiTrayOpen: Store.saved.tuiTrayOpen === true
@@ -110,7 +117,8 @@ Singleton {
     // shadows of solid panels unblurred). Drop shadows go while frosted (components/Shadow.qml).
     readonly property bool frosted: Store.saved.frosted
     readonly property bool glassy: Store.saved.frostStyle === "glassy"
-    readonly property real frost: !frosted ? 1 : glassy ? 0.72 : 0.88
+    readonly property bool frostedLive: frosted && !oledLive
+    readonly property real frost: !frostedLive ? 1 : glassy ? 0.72 : 0.88
 
     // a short click as the output's volume changes, at the new level (owner's pick, 31 October 2026;
     // Audio plays it)

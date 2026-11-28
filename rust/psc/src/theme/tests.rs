@@ -457,3 +457,116 @@ fn vscode_refusals() {
     let s = state(&t, &env, "vscode");
     assert!(s["state"] == "unsupported" && s["detail"].as_str().unwrap().contains("link"), "{s}");
 }
+
+// OLED black (owner, 22 November 2026: "integrate oled also inside themes integrations"): Noir in
+// shared-theme for FM and Text (they read exactly "noir"), and a marker beside it for the apps that know OLED
+#[test]
+fn oled_publication() {
+    let t = T::new("oled", &[]);
+    let reloads = Cell::new(0);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| reloads.set(reloads.get() + 1) };
+    let path = t.file("pistachio/shared-theme");
+    t.put("kitty/pistachio-shared.conf", "include noir.conf\n");
+    publish(&path, "oled", &env).unwrap();
+    assert_eq!(t.read("pistachio/shared-theme"), "noir\n", "FM and Text keep reading plain Noir");
+    assert_eq!(t.read("pistachio/shared-oled"), "on\n");
+    assert_eq!(current_scheme(&t.dir), "oled");
+    assert_eq!(t.read("kitty/pistachio-shared.conf"), kitty_scheme("oled"));
+    assert!(kitty_scheme("oled").contains("background              #000000"), "{}", kitty_scheme("oled"));
+    assert_eq!(reloads.get(), 1);
+    publish(&path, "noir", &env).unwrap();
+    assert!(!t.file("pistachio/shared-oled").exists(), "plain Noir drops the marker");
+    assert_eq!(current_scheme(&t.dir), "noir");
+    assert_eq!(t.read("kitty/pistachio-shared.conf"), kitty_scheme("noir"));
+    // a marker left beside Pistachio Noir means nothing
+    t.put("pistachio/shared-oled", "on\n");
+    publish(&path, "pistachio", &env).unwrap();
+    assert!(!t.file("pistachio/shared-oled").exists());
+    t.put("pistachio/shared-oled", "on\n");
+    assert_eq!(current_scheme(&t.dir), "pistachio");
+    assert_eq!(vs_theme("oled"), "OLED Noir");
+    assert!(VS_FILES.iter().any(|(name, _)| *name == "themes/oled-noir.json"));
+    let package: Value = serde_json::from_slice(VS_PACKAGE).unwrap();
+    assert!(package["contributes"]["themes"].as_array().unwrap().iter().any(|t| t["label"] == "OLED Noir" && t["path"] == "./themes/oled-noir.json"));
+}
+
+#[test]
+fn oled_vscode_and_kitty_setup() {
+    let t = T::new("oledapps", &["kitty"]);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    fake_code(&t, false);
+    t.put("Code/User/settings.json", VS_SAMPLE);
+    t.put("pistachio/shared-theme", "noir\n");
+    t.put("pistachio/shared-oled", "on\n");
+    act(&t.dir, &env, "vscode", "setup").unwrap();
+    assert_eq!(t.read("Code/User/settings.json"), vs_with_theme(VS_SAMPLE, "OLED Noir"), "setup follows OLED");
+    act(&t.dir, &env, "kitty", "setup").unwrap();
+    assert_eq!(t.read("kitty/pistachio-shared.conf"), kitty_scheme("oled"));
+    assert!(t.file("kitty/oled-noir.conf").exists());
+    publish(&t.file("pistachio/shared-theme"), "noir", &env).unwrap();
+    assert_eq!(t.read("Code/User/settings.json"), vs_with_theme(VS_SAMPLE, "Noir"));
+    // OLED Noir picked by hand counts as ours
+    let picked = VS_SAMPLE.replacen("{\n", "{\n    \"workbench.colorTheme\": \"OLED Noir\",\n", 1);
+    t.put("Code/User/settings.json", &picked);
+    assert_eq!(state(&t, &env, "vscode")["state"], "available");
+}
+
+#[test]
+fn kitty_itself_reads_the_setup_as_oled() {
+    let Some(kitty) = std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).map(|d| d.join("kitty")).find(|p| p.is_file()) else {
+        return;
+    };
+    let t = T::new("kittyoled", &["kitty"]);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    t.put("kitty/kitty.conf", "include pistachio-noir.conf\n");
+    t.put("pistachio/shared-theme", "noir\n");
+    t.put("pistachio/shared-oled", "on\n");
+    act(&t.dir, &env, "kitty", "setup");
+    let probe = format!("from kitty.config import load_config; b=[]; o=load_config({:?}, accumulate_bad_lines=b); print(o.background, [str(x.exception) for x in b])", t.file("kitty/kitty.conf"));
+    let out = std::process::Command::new(kitty).args(["+runpy", &probe]).output().unwrap();
+    let all = String::from_utf8_lossy(&out.stdout).to_string() + &String::from_utf8_lossy(&out.stderr);
+    assert!(all.contains("Color(0, 0, 0) []"), "OLED Noir, and no bad lines: {all}");
+}
+
+// a Neovim set up by an older psc has colour files without OLED Noir: a switch brings them up to date
+#[test]
+fn publish_refreshes_a_following_neovim() {
+    let t = T::new("nvimfresh", &["nvim"]);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    t.put("nvim/init.lua", "vim.opt.number = true\n");
+    act(&t.dir, &env, "neovim", "setup").unwrap();
+    t.put("nvim/colors/pistachio-noir.lua", "-- older colours\n");
+    t.put("nvim/lua/pistachio-shared.lua", "-- older reader\n");
+    publish(&t.file("pistachio/shared-theme"), "oled", &env).unwrap();
+    assert_eq!(std::fs::read(t.file("nvim/colors/pistachio-noir.lua")).unwrap(), NVIM_COLORS);
+    assert_eq!(std::fs::read(t.file("nvim/lua/pistachio-shared.lua")).unwrap(), NVIM_SHARED);
+    assert_eq!(t.backups("nvim/colors") + t.backups("nvim/lua"), 2, "the older files are kept");
+    publish(&t.file("pistachio/shared-theme"), "noir", &env).unwrap();
+    assert_eq!(t.backups("nvim/colors") + t.backups("nvim/lua"), 2, "nothing to do when they match");
+    // not set up: left alone
+    let u = T::new("nvimalone", &["nvim"]);
+    u.put("nvim/init.lua", "vim.opt.number = true\n");
+    publish(&u.file("pistachio/shared-theme"), "oled", &env).unwrap();
+    assert!(!u.file("nvim/colors/pistachio-noir.lua").exists());
+}
+
+// a newer psc with a new theme (OLED Noir): a switch reinstalls an out-of-date extension before naming it
+#[test]
+fn publish_reinstalls_an_old_vscode_extension() {
+    let t = T::new("vsfresh", &[]);
+    let env = Env { path: t.bin.clone().into(), home: t.home(), reload: &|| {} };
+    fake_code(&t, false);
+    t.put("Code/User/settings.json", VS_SAMPLE);
+    t.put("pistachio/shared-theme", "noir\n");
+    act(&t.dir, &env, "vscode", "setup").unwrap();
+    installed_by_code(&t);
+    std::fs::remove_file(t.home().join(".vscode/extensions/pistachio-shell.pistachio-noir-1.0.0/themes/oled-noir.json")).unwrap();
+    let installs = || std::fs::read_to_string(t.bin.join("code.log")).unwrap_or_default().lines().count();
+    assert_eq!(installs(), 1);
+    publish(&t.file("pistachio/shared-theme"), "oled", &env).unwrap();
+    assert_eq!(installs(), 2, "installed again");
+    assert_eq!(t.read("Code/User/settings.json"), vs_with_theme(VS_SAMPLE, "OLED Noir"));
+    installed_by_code(&t);
+    publish(&t.file("pistachio/shared-theme"), "noir", &env).unwrap();
+    assert_eq!(installs(), 2, "up to date: no install");
+}

@@ -36,6 +36,7 @@ Singleton {
         property bool phonePreview // local phone timer preview is opt-in
         property bool devFeatures // Experimental → Dev features: launcher actions for working on the shell, opt-in
         property bool gameMode // game mode is opt-in (Experimental)
+        property bool oled // OLED black, opt-in (Experimental, owner 22 November 2026)
         property bool desktopWidgets // desktop widgets are opt-in (Experimental)
         property bool ambientClock // the ambient clock is opt-in (Experimental)
         property int ambientDelay: 3 // minutes idle before it shows: 2, 3 or 5

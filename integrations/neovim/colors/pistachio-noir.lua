@@ -42,6 +42,18 @@ if vim.g.pistachio_shared_scheme == "noir" then
   }
 end
 
+-- OLED Noir (22 November 2026; colours from tools/make-oled-themes.py's mapping): true black, about a
+-- fifth darker
+if vim.g.pistachio_shared_scheme == "oled" then
+  c = {
+    bg = "#000000", bg_alt = "#0A0A0A", overlay = "#161616", overlay2 = "#242424",
+    muted = "#4A4A4A", subtext = "#858585", text = "#BABABA", text_bright = "#D0D0D0",
+    pistachio = "#969696", pistachio_deep = "#858585", terracotta = "#A5544B",
+    gold = "#A09375", clay = "#9D8372", teal = "#7A908B", sage_blue = "#7B8893", lavender = "#8E8398",
+    string = "#87937B",
+  }
+end
+
 local hl = vim.api.nvim_set_hl
 
 -- Editor UI -----------------------------------------------------------------

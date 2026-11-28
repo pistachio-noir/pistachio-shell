@@ -25,6 +25,13 @@ assert(vim.wait(3000, function() return color('Normal','bg') == 0x111111 end, 25
 assert(color('String','fg') == 0xa9b89a, 'Noir strings keep a muted sage')
 assert(color('Function','fg') == 0x9aaab8 and color('Type','fg') == 0xc8b892 and color('Keyword','fg') == 0xb2a4be, 'Noir code keeps muted hues')
 assert(color('Cursor','bg') == 0xbdbdbd and color('PmenuSel','bg') == 0xbdbdbd, 'Noir UI stays grey')
+-- OLED Noir (22 November 2026): the marker beside a Noir shared-theme
+local marker=vim.env.XDG_CONFIG_HOME..'/pistachio/shared-oled'
+local m=assert(io.open(marker,'w')); m:write('on\\n'); m:close()
+assert(vim.wait(3000, function() return color('Normal','bg') == 0x000000 end, 25), 'OLED Noir did not load')
+assert(color('String','fg') == 0x87937b and color('Cursor','bg') == 0x969696, 'OLED Noir is darker')
+os.remove(marker)
+assert(vim.wait(3000, function() return color('Normal','bg') == 0x111111 end, 25), 'Noir did not return after OLED')
 write('pistachio\\n')
 assert(vim.wait(3000, function() return color('Normal','bg') == 0x15170f end, 25), 'Pistachio did not return')
 assert(color('String','fg') == 0x9fd88a, 'Pistachio strings are pistachio again')
@@ -33,4 +40,4 @@ assert(color('String','fg') == 0x9fd88a, 'Pistachio strings are pistachio again'
                XDG_CACHE_HOME=str(folder / 'cache'), XDG_DATA_HOME=str(folder / 'data'),
                TEST_NVIM_RUNTIME=str(root / 'integrations/neovim'))
     subprocess.run(['nvim', '--headless', '-u', 'NONE', '-l', str(lua)], env=env, check=True, timeout=10)
-print('ok: Neovim follows the shared theme live')
+print('ok: Neovim follows the shared theme live, OLED Noir too')

@@ -42,7 +42,7 @@ those helpers are Rust now (`rust/devices`, `rust/auth`, `rust/localsend`). The 
 | Test | What it checks |
 |---|---|
 | `app-theming` | the real `AppTheming` service with a stand-in Store and a stand-in `psc theme` |
-| `neovim-theme` | Neovim, headless, follows the shared theme live (uses `integrations/neovim`) |
+| `neovim-theme` | Neovim, headless, follows the shared theme live, OLED Noir's marker too (uses `integrations/neovim`) |
 | `game-mode` | the real `GameMode` service with stand-in Compositor and ShellSettings |
 | `clocks`, `clocks-popup` | the Clocks helper; Stop and Snooze closing the alarm popup |
 | `phone-timer` | `psc phone-timer`, run the way FocusMode runs it: state page, Pause/Skip/End POSTs passed on as actions |

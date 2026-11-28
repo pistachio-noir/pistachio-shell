@@ -16,6 +16,7 @@ ShellRoot {
 
     Binding { target: Theme; property: "tui"; value: ShellSettings.appearanceStyle === "tui" }
     Binding { target: Theme; property: "noir"; value: ShellSettings.colourScheme === "noir" }
+    Binding { target: Theme; property: "oled"; value: ShellSettings.oledLive }
 
     // frosted panels: how opaque the bar and panels are
     Binding {

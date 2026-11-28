@@ -3,6 +3,8 @@
 //! arguments, same JSON, same files and markers.
 //!
 //!   psc theme publish SCHEME (or just SCHEME)   write the choice; switch wired apps (Kitty) live
+//!   (SCHEME: pistachio, noir or oled; oled is OLED Noir: `noir` in shared-theme, which FM and Text
+//!   compare exactly, and a `shared-oled` marker beside it that Kitty, Neovim, VS Code, FM and Text read)
 //!   psc theme status                            {"apps": [{id, name, state, detail}]}
 //!   psc theme setup APP | use APP | undo APP    act (setup leaves an own theme alone; use doesn't), then status
 //!   (APP: kitty, neovim or vscode)
@@ -29,6 +31,7 @@ const LINKED: &str = "is a symbolic link (a dotfile manager?); set it up by hand
 // the theme files, built in: psc lives in ~/.local/bin, away from the repo's integrations/
 const KITTY_PISTACHIO: &[u8] = include_bytes!("../../../integrations/kitty/kitty-pistachio-noir.conf");
 const KITTY_NOIR: &[u8] = include_bytes!("../../../integrations/kitty/kitty-noir.conf");
+const KITTY_OLED: &[u8] = include_bytes!("../../../integrations/kitty/kitty-oled-noir.conf");
 const NVIM_COLORS: &[u8] = include_bytes!("../../../integrations/neovim/colors/pistachio-noir.lua");
 const NVIM_SHARED: &[u8] = include_bytes!("../../../integrations/neovim/lua/pistachio-shared.lua");
 
@@ -184,7 +187,7 @@ fn kitty_status(config: &Path, env: &Env) -> Result<(&'static str, String), Fail
 /// kitty.conf that includes pistachio-noir.conf itself, as the owner's does, made the Pistachio
 /// include a second one (owner's report, 19 November 2026).
 fn kitty_scheme(scheme: &str) -> String {
-    let colours = String::from_utf8_lossy(if scheme == "noir" { KITTY_NOIR } else { KITTY_PISTACHIO });
+    let colours = String::from_utf8_lossy(match scheme { "noir" => KITTY_NOIR, "oled" => KITTY_OLED, _ => KITTY_PISTACHIO });
     format!("# pistachio-shell theming: the shell's Colours ({scheme}), rewritten when they change\n{}", with_newline(&colours))
 }
 
@@ -198,6 +201,7 @@ fn kitty_setup(config: &Path, env: &Env, scheme: &str, force: bool) -> Result<()
     let before = if conf.exists() { Some(std::fs::read_to_string(&conf)?) } else { None };
     copy_in(KITTY_PISTACHIO, &folder.join("pistachio-noir.conf"))?;
     copy_in(KITTY_NOIR, &folder.join("noir.conf"))?;
+    copy_in(KITTY_OLED, &folder.join("oled-noir.conf"))?;
     write_atomic(&folder.join("pistachio-shared.conf"), kitty_scheme(scheme).as_bytes())?;
     let block = format!("{KITTY_MARK}\n{KITTY_INCLUDE}\n");
     match before {
@@ -383,7 +387,8 @@ const VS_KEY: &str = "workbench.colorTheme";
 const VS_PACKAGE: &[u8] = include_bytes!("../../../integrations/vscode/pistachio-noir/package.json");
 const VS_PISTACHIO: &[u8] = include_bytes!("../../../integrations/vscode/pistachio-noir/themes/pistachio-noir.json");
 const VS_NOIR: &[u8] = include_bytes!("../../../integrations/vscode/pistachio-noir/themes/noir.json");
-const VS_FILES: &[(&str, &[u8])] = &[("package.json", VS_PACKAGE), ("themes/pistachio-noir.json", VS_PISTACHIO), ("themes/noir.json", VS_NOIR)];
+const VS_OLED: &[u8] = include_bytes!("../../../integrations/vscode/pistachio-noir/themes/oled-noir.json");
+const VS_FILES: &[(&str, &[u8])] = &[("package.json", VS_PACKAGE), ("themes/pistachio-noir.json", VS_PISTACHIO), ("themes/noir.json", VS_NOIR), ("themes/oled-noir.json", VS_OLED)];
 
 /// VS Code and its open builds: where each keeps its settings (under the config folder), its command,
 /// and its extensions (under home). The first one present is the one themed.
@@ -394,7 +399,7 @@ const EDITORS: &[Editor] = &[
     Editor { config: "Code - OSS", cli: "code-oss", extensions: ".vscode-oss/extensions" },
 ];
 
-fn vs_theme(scheme: &str) -> &'static str { if scheme == "noir" { "Noir" } else { "Pistachio Noir" } }
+fn vs_theme(scheme: &str) -> &'static str { match scheme { "noir" => "Noir", "oled" => "OLED Noir", _ => "Pistachio Noir" } }
 
 fn editor(config: &Path, env: &Env) -> Option<&'static Editor> {
     EDITORS.iter().find(|e| config.join(e.config).join("User").is_dir() || which(env, e.cli))
@@ -589,7 +594,7 @@ fn vscode_status(config: &Path, env: &Env) -> Result<(&'static str, String), Fai
         None => ("available", String::new()),
         Some(m) if marked(&text, &m).is_some() => if vs_installed(env, e) { ("following", String::new()) } else { ("available", String::new()) },
         // ours, picked by hand: wired up quietly (the marker keeps that choice for undo)
-        Some(m) if matches!(serde_json::from_str::<String>(&text[m.value.clone()]).ok().as_deref(), Some("Pistachio Noir" | "Noir")) => ("available", String::new()),
+        Some(m) if matches!(serde_json::from_str::<String>(&text[m.value.clone()]).ok().as_deref(), Some("Pistachio Noir" | "Noir" | "OLED Noir")) => ("available", String::new()),
         Some(_) => ("own", String::new()),
     })
 }
@@ -632,6 +637,11 @@ fn vscode_publish(config: &Path, env: &Env, scheme: &str) -> Result<(), Fail> {
     }
     let Ok(before) = std::fs::read_to_string(&settings) else { return Ok(()) };
     let Some(m) = member(&before, VS_KEY).filter(|m| marked(&before, m).is_some()) else { return Ok(()) };
+    // an extension from an older psc may lack the theme named next (OLED Noir came later): VS Code
+    // would fall back to its default until the shell next read the status
+    if !vs_installed(env, e) {
+        vs_install(env, e)?;
+    }
     let after = format!("{}{}{}", &before[..m.value.start], quoted(vs_theme(scheme)), &before[m.value.end..]);
     if after == before {
         return Ok(());
@@ -679,6 +689,7 @@ pub fn status(config: &Path, env: &Env) -> Vec<Value> {
 
 fn current_scheme(config: &Path) -> &'static str {
     match std::fs::read_to_string(config.join("pistachio/shared-theme")).unwrap_or_default().trim() {
+        "noir" if config.join("pistachio/shared-oled").exists() => "oled",
         "noir" => "noir",
         _ => "pistachio",
     }
@@ -699,10 +710,18 @@ pub fn act(config: &Path, env: &Env, app_id: &str, action: &str) -> Option<Value
 }
 
 pub fn publish(path: &Path, scheme: &str, env: &Env) -> Result<(), String> {
-    if !matches!(scheme, "pistachio" | "noir") {
+    if !matches!(scheme, "pistachio" | "noir" | "oled") {
         return Err("invalid colour scheme".into());
     }
-    write_atomic(path, format!("{scheme}\n").as_bytes()).map_err(|e| format!("{e:?}"))?;
+    // the marker first: Neovim reads both files once a second
+    let marker = path.with_file_name("shared-oled");
+    if scheme == "oled" {
+        write_atomic(&marker, b"on\n").map_err(|e| format!("{e:?}"))?;
+    } else if marker.exists() {
+        std::fs::remove_file(&marker).map_err(|e| describe(&e))?;
+    }
+    let shared = if scheme == "oled" { "noir" } else { scheme };
+    write_atomic(path, format!("{shared}\n").as_bytes()).map_err(|e| format!("{e:?}"))?;
     let kitty = path.parent().and_then(Path::parent).map(|c| c.join("kitty/pistachio-shared.conf"));
     if let Some(kitty) = kitty.filter(|k| k.exists()) {
         let content = kitty_scheme(scheme);
@@ -713,6 +732,14 @@ pub fn publish(path: &Path, scheme: &str, env: &Env) -> Result<(), String> {
     }
     // VS Code picks a settings change up at once; a failure there doesn't undo the publication
     if let Some(config) = path.parent().and_then(Path::parent) {
+        // a Neovim set up by an older psc: its colour files up to date (OLED Noir came later), the
+        // older ones kept as backups; a new Neovim starts with them (a running one keeps its loaded reader)
+        if matches!(nvim_status(config, env), Ok(("following", _))) {
+            let folder = config.join("nvim");
+            if let Err(e) = copy_in(NVIM_COLORS, &folder.join("colors/pistachio-noir.lua")).and_then(|()| copy_in(NVIM_SHARED, &folder.join("lua/pistachio-shared.lua"))) {
+                eprintln!("Could not update Neovim's colours: {e:?}");
+            }
+        }
         match vscode_publish(config, env, scheme) {
             Ok(()) => {}
             Err(Fail::Changed) => eprintln!("VS Code's settings changed while switching its theme; it switches next time"),
@@ -740,7 +767,7 @@ pub fn main(args: &[String]) -> i32 {
     let fail = |e: String| { println!("{}", json!({"error": e})); 1 };
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     let result = match args.as_slice() {
-        [scheme @ ("pistachio" | "noir")] => return match publish(&shared, scheme, &env) { Ok(()) => 0, Err(e) => fail(e) },
+        [scheme @ ("pistachio" | "noir" | "oled")] => return match publish(&shared, scheme, &env) { Ok(()) => 0, Err(e) => fail(e) },
         ["publish", scheme] => publish(&shared, scheme, &env).map(|()| None),
         [action @ ("setup" | "use" | "undo"), app] if APPS.iter().any(|a| a.id == *app) => Ok(act(&config, &env, app, action)),
         ["status"] => Ok(None),

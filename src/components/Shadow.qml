@@ -18,8 +18,9 @@ RectangularShadow {
     // blurred; it goes while they're on
     property bool frostable
 
-    // off in the launcher (System, Shell settings); the windows keep the room, which costs nothing
-    visible: !Theme.tui && ShellSettings.shadows && !(frostable && ShellSettings.frosted)
+    // off in the launcher (System, Shell settings) and with OLED black (a shadow on black is
+    // invisible: the panel's outline does the job); the windows keep the room, which costs nothing
+    visible: !Theme.tui && !Theme.oled && ShellSettings.shadows && !(frostable && ShellSettings.frostedLive)
     offset.y: kind.y
     blur: kind.blur
     color: Qt.rgba(Theme.shadow.r, Theme.shadow.g, Theme.shadow.b, kind.alpha)

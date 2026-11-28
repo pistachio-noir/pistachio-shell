@@ -201,6 +201,7 @@ Singleton {
         target: Theme
         function onTuiChanged() { Qt.callLater(root.styleGroups); }
         function onNoirChanged() { Qt.callLater(root.styleGroups); }
+        function onOledChanged() { Qt.callLater(root.styleGroups); }
     }
 
     function styleGroups() {

@@ -97,7 +97,7 @@ PanelWindow {
         : rows[current]?.kind === "process" ? [["↑↓", "navigate"], ["↵", rows[current].process.pids.length > 1 ? "end them all" : "end it"], ["Esc", "close"]]
         : rows[current]?.kind === "tldr" ? [["↑↓", "navigate"], ["↵", "copy"], ["Esc", "close"]]
         : rows[current]?.kind === "app" && rows[current].app.actions.length > 0 ? [["↑↓", "navigate"], ["↵", "open"], ["→", "more actions"], ["Tab", "switch mode"], ["Esc", "close"]]
-        : rows[current]?.kind === "file" && !rows[current].entry.folder ? [["↑↓", "navigate"], ["↵", "open"], ["Space", "preview"], ["Shift ↵", "show in folder"], ["Esc", "close"]]
+        : rows[current]?.kind === "file" && !rows[current].entry.folder ? [["↑↓", "navigate"], ["↵", "open"], ["Space", "preview"], ["Shift ↵", Files.filesApp ? "show in Files" : "show in folder"], ["Esc", "close"]]
         : filesWanted ? [["↑↓", "navigate"], ["↵", "open"], ["Shift ↵", "show in folder"], ["Esc", "close"]]
         : (mode === "all" || mode === "apps") && query.startsWith("!") ? [["↑↓", "navigate"], ["↵", "show in centre"], ["Esc", "close"]]
         : cheatWanted ? [["↑↓", "navigate"], ["↵", "use a prefix"], ["Esc", "close"]]
@@ -787,7 +787,7 @@ PanelWindow {
         case "file":
             return [
                 { text: "Open", glyph: Icons.folderOpen, run: () => activate(row, 0, false) },
-                { text: "Show in folder", glyph: Icons.folder, run: () => activate(row, 0, true) }
+                { text: Files.filesApp && !row.entry.folder ? "Show in Files" : "Show in folder", glyph: Icons.folder, run: () => activate(row, 0, true) }
             ];
         }
         return [];

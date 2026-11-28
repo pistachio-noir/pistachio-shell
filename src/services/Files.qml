@@ -59,9 +59,18 @@ Singleton {
         Quickshell.execDetached(["xdg-open", home + "/" + entry.path]);
     }
 
-    // the folder it is in, in the file manager (xdg-open: FileManager1's ShowItems would pick the file
-    // there, but on this machine it starts Nautilus while folders open in hyprfm)
+    // Pistachio FM, when installed: given a file, it opens its folder with the file selected (owner's
+    // call, 28 November 2026: "Show in Files"). Quickshell drops the entry's %U from `command`.
+    readonly property var filesApp: Apps.list.find(a => a.id === "pistachio-fm") ?? null
+
+    // the folder it is in, in the file manager: a file in Pistachio FM, selected there; otherwise (a
+    // folder, or no FM) the folder by xdg-open (FileManager1's ShowItems would pick the file there, but
+    // on this machine it starts Nautilus)
     function reveal(entry) {
+        if (filesApp && !entry.folder) {
+            Quickshell.execDetached({ command: Array.from(filesApp.command).concat([home + "/" + entry.path]), workingDirectory: home });
+            return;
+        }
         const at = entry.path.lastIndexOf("/");
         Quickshell.execDetached(["xdg-open", at < 0 ? home : home + "/" + entry.path.slice(0, at)]);
     }
